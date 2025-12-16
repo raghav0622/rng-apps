@@ -1,11 +1,36 @@
 'use client';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
-import { FormControlLabel, IconButton, InputAdornment, Switch, TextField } from '@mui/material';
+import {
+  Checkbox,
+  FormControl,
+  FormControlLabel,
+  FormGroup,
+  FormHelperText,
+  FormLabel,
+  IconButton,
+  InputAdornment,
+  Radio,
+  RadioGroup,
+  Rating,
+  Slider,
+  Switch,
+  TextField,
+  Typography,
+} from '@mui/material';
 import React, { useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { InputAttributes, NumericFormat, NumericFormatProps } from 'react-number-format';
 import { FieldWrapper } from '../FieldWrapper';
-import { FormSchema, NumberFieldItem, SwitchFieldItem, TextFieldItem } from '../types';
+import {
+  CheckboxGroupItem,
+  FormSchema,
+  NumberFieldItem,
+  RadioGroupItem,
+  RatingItem,
+  SliderItem,
+  SwitchFieldItem,
+  TextFieldItem,
+} from '../types';
 
 // --- Text Input ---
 export function RNGTextInput<S extends FormSchema>({ item }: { item: TextFieldItem<S> }) {
@@ -44,7 +69,6 @@ export function RNGTextInput<S extends FormSchema>({ item }: { item: TextFieldIt
 }
 
 // --- Number/Currency Input ---
-
 interface CustomProps {
   onChange: (event: { target: { name: string; value: number | undefined } }) => void;
   name: string;
@@ -54,7 +78,6 @@ interface CustomProps {
 const NumberFormatCustom = React.forwardRef<NumericFormatProps<InputAttributes>, CustomProps>(
   function NumberFormatCustom(props, ref) {
     const { onChange, ...other } = props;
-
     return (
       <NumericFormat
         {...other}
@@ -92,7 +115,6 @@ export function RNGNumberInput<S extends FormSchema>({ item }: { item: NumberFie
             helperText={error?.message || item.description}
             disabled={item.disabled}
             InputProps={{
-              // React.ComponentType<unknown> strictly matches MUI's expectation for a custom component
               inputComponent: NumberFormatCustom as unknown as React.ComponentType<unknown>,
               inputProps: {
                 prefix: isCurrency ? '₹ ' : undefined,
@@ -123,6 +145,135 @@ export function RNGSwitch<S extends FormSchema>({ item }: { item: SwitchFieldIte
           />
         )}
       />
+    </FieldWrapper>
+  );
+}
+
+// --- Slider ---
+export function RNGSlider<S extends FormSchema>({ item }: { item: SliderItem<S> }) {
+  const { control } = useFormContext();
+  return (
+    <FieldWrapper item={item}>
+      <Typography gutterBottom>{item.label}</Typography>
+      <Controller
+        name={item.name}
+        control={control}
+        render={({ field }) => (
+          <Slider
+            value={typeof field.value === 'number' ? field.value : 0}
+            onChange={(_, value) => field.onChange(value)}
+            valueLabelDisplay="auto"
+            min={item.min}
+            max={item.max}
+            step={item.step}
+            disabled={item.disabled}
+          />
+        )}
+      />
+      {item.description && (
+        <Typography variant="caption" color="text.secondary">
+          {item.description}
+        </Typography>
+      )}
+    </FieldWrapper>
+  );
+}
+
+// --- Radio Group ---
+export function RNGRadioGroup<S extends FormSchema>({ item }: { item: RadioGroupItem<S> }) {
+  const { control } = useFormContext();
+  return (
+    <FieldWrapper item={item}>
+      <FormControl component="fieldset" disabled={item.disabled}>
+        <FormLabel component="legend">{item.label}</FormLabel>
+        <Controller
+          name={item.name}
+          control={control}
+          render={({ field }) => (
+            <RadioGroup {...field} row={item.row}>
+              {item.options.map((opt) => (
+                <FormControlLabel
+                  key={opt.value.toString()}
+                  value={opt.value}
+                  control={<Radio />}
+                  label={opt.label}
+                />
+              ))}
+            </RadioGroup>
+          )}
+        />
+        {item.description && <FormHelperText>{item.description}</FormHelperText>}
+      </FormControl>
+    </FieldWrapper>
+  );
+}
+
+// --- Rating ---
+export function RNGRating<S extends FormSchema>({ item }: { item: RatingItem<S> }) {
+  const { control } = useFormContext();
+  return (
+    <FieldWrapper item={item}>
+      <Typography component="legend" gutterBottom>
+        {item.label}
+      </Typography>
+      <Controller
+        name={item.name}
+        control={control}
+        render={({ field }) => (
+          <Rating
+            name={field.name}
+            value={Number(field.value) || 0}
+            onChange={(_, newValue) => field.onChange(newValue)}
+            max={item.max}
+            precision={item.precision}
+            disabled={item.disabled}
+          />
+        )}
+      />
+      {item.description && <FormHelperText>{item.description}</FormHelperText>}
+    </FieldWrapper>
+  );
+}
+
+// --- Checkbox Group (Multi Select) ---
+export function RNGCheckboxGroup<S extends FormSchema>({ item }: { item: CheckboxGroupItem<S> }) {
+  const { control } = useFormContext();
+  return (
+    <FieldWrapper item={item}>
+      <FormControl component="fieldset" disabled={item.disabled}>
+        <FormLabel component="legend">{item.label}</FormLabel>
+        <Controller
+          name={item.name}
+          control={control}
+          render={({ field }) => {
+            const selected = (field.value as unknown[]) || [];
+            const handleChange = (value: string | number | boolean, checked: boolean) => {
+              if (checked) {
+                field.onChange([...selected, value]);
+              } else {
+                field.onChange(selected.filter((v) => v !== value));
+              }
+            };
+
+            return (
+              <FormGroup row={item.row}>
+                {item.options.map((opt) => (
+                  <FormControlLabel
+                    key={opt.value.toString()}
+                    control={
+                      <Checkbox
+                        checked={selected.includes(opt.value)}
+                        onChange={(e) => handleChange(opt.value, e.target.checked)}
+                      />
+                    }
+                    label={opt.label}
+                  />
+                ))}
+              </FormGroup>
+            );
+          }}
+        />
+      </FormControl>
     </FieldWrapper>
   );
 }

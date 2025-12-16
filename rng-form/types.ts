@@ -13,11 +13,16 @@ export type FieldType =
   | 'autocomplete'
   | 'date'
   | 'hidden'
-  // New Types
+  // Complex / New Types
   | 'rich-text'
   | 'async-autocomplete'
   | 'array'
-  | 'section';
+  | 'section'
+  | 'file'
+  | 'slider'
+  | 'radio'
+  | 'rating'
+  | 'checkbox-group';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type FormSchema = z.ZodType<FieldValues, any, any>;
@@ -25,21 +30,17 @@ export type FormSchema = z.ZodType<FieldValues, any, any>;
 // --- Base Item ---
 
 export type BaseFormItem<Schema extends FormSchema> = {
-  // Name is optional for Sections, but required for Inputs
   name?: Path<z.infer<Schema>>;
   label?: string;
   type: FieldType;
   description?: string | React.ReactNode;
   colProps?: GridProps;
-
-  // Optimization: Only re-render wrapper if these specific fields change
   dependencies?: Path<z.infer<Schema>>[];
-
   renderLogic?: (values: z.infer<Schema>) => boolean;
   disabled?: boolean;
 };
 
-// --- Existing Input Types (Unchanged/Briefly listed) ---
+// --- Basic Inputs ---
 export type TextFieldItem<S extends FormSchema> = BaseFormItem<S> & {
   type: 'text' | 'password';
   name: Path<z.infer<S>>;
@@ -65,6 +66,45 @@ export type HiddenFieldItem<S extends FormSchema> = BaseFormItem<S> & {
   name: Path<z.infer<S>>;
 };
 
+// --- New Simple Inputs ---
+export type SliderItem<S extends FormSchema> = BaseFormItem<S> & {
+  type: 'slider';
+  min?: number;
+  max?: number;
+  step?: number;
+  name: Path<z.infer<S>>;
+};
+
+export type RadioOption = { label: string; value: string | number | boolean };
+export type RadioGroupItem<S extends FormSchema> = BaseFormItem<S> & {
+  type: 'radio';
+  options: RadioOption[];
+  row?: boolean;
+  name: Path<z.infer<S>>;
+};
+
+export type RatingItem<S extends FormSchema> = BaseFormItem<S> & {
+  type: 'rating';
+  max?: number; // stars count
+  precision?: number;
+  name: Path<z.infer<S>>;
+};
+
+export type CheckboxGroupItem<S extends FormSchema> = BaseFormItem<S> & {
+  type: 'checkbox-group';
+  options: RadioOption[];
+  row?: boolean;
+  name: Path<z.infer<S>>;
+};
+
+// --- Advanced Inputs ---
+export type FileItem<S extends FormSchema> = BaseFormItem<S> & {
+  type: 'file';
+  accept?: string; // e.g. "image/*"
+  multiple?: boolean;
+  name: Path<z.infer<S>>;
+};
+
 // --- Autocomplete Types ---
 export type AutocompleteOption = string | Record<string, unknown>;
 
@@ -77,9 +117,6 @@ export type AutocompleteItem<S extends FormSchema> = BaseFormItem<S> & {
   name: Path<z.infer<S>>;
 };
 
-// --- NEW TYPES START HERE ---
-
-// 1. Async Autocomplete
 export type AsyncAutocompleteItem<S extends FormSchema> = BaseFormItem<S> & {
   type: 'async-autocomplete';
   loadOptions: (query: string) => Promise<AutocompleteOption[]>;
@@ -88,7 +125,7 @@ export type AsyncAutocompleteItem<S extends FormSchema> = BaseFormItem<S> & {
   name: Path<z.infer<S>>;
 };
 
-// 2. Rich Text (Tiptap)
+// --- Layout & Content ---
 export type RichTextItem<S extends FormSchema> = BaseFormItem<S> & {
   type: 'rich-text';
   minHeight?: string | number;
@@ -96,22 +133,18 @@ export type RichTextItem<S extends FormSchema> = BaseFormItem<S> & {
   name: Path<z.infer<S>>;
 };
 
-// 3. Section (Layout Group)
 export type SectionItem<S extends FormSchema> = BaseFormItem<S> & {
   type: 'section';
-  title?: string; // Optional Header
-  children: FormItem<S>[]; // Recursive Children
+  title?: string;
+  children: FormItem<S>[];
 };
 
-// 4. Array (Repeater)
 export type ArrayItem<S extends FormSchema> = BaseFormItem<S> & {
   type: 'array';
   name: Path<z.infer<S>>;
-  itemLabel?: string; // e.g. "Add Experience"
-  // FIX: Use FormItem<any> to allow relative paths (e.g. 'school') instead of requiring root paths (e.g. 'education.0.school')
+  itemLabel?: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   items: FormItem<any>[];
-  // Default value for new items (prevents uncontrolled warnings)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   defaultValue?: any;
 };
@@ -122,6 +155,11 @@ export type FormItem<S extends FormSchema> =
   | NumberFieldItem<S>
   | DateFieldItem<S>
   | SwitchFieldItem<S>
+  | SliderItem<S>
+  | RadioGroupItem<S>
+  | RatingItem<S>
+  | CheckboxGroupItem<S>
+  | FileItem<S>
   | AutocompleteItem<S>
   | AsyncAutocompleteItem<S>
   | RichTextItem<S>

@@ -29,25 +29,32 @@ const KitchenSinkSchema = z.object({
   username: zUtils.string,
   password: zUtils.password,
 
-  // 2. Numbers
+  // 2. Numbers & Ranges
   age: zUtils.number.min(18, 'Must be 18+'),
   salary: zUtils.number.min(0),
+  experience: z.number().min(0).max(10), // Slider
 
-  // 3. Date
+  // 3. Selectors & Groups
+  role: z.string().min(1, 'Required'), // Radio
+  interests: z.array(z.string()).min(1, 'Pick at least one'), // Checkbox Group
+  department: z.string().min(1, 'Required'), // Autocomplete
+
+  // 4. Date
   joinDate: zUtils.date,
 
-  // 4. Boolean & Conditional
+  // 5. Logic
   hasReferral: z.boolean(),
-  referralCode: z.string().optional(), // Conditional field
+  referralCode: z.string().optional(),
 
-  // 5. Selects
-  department: z.string().min(1, 'Required'), // Simple Autocomplete
-  skills: z.array(z.object({ id: z.string(), label: z.string() })).min(1, 'Pick one'), // Async Multi
+  // 6. Advanced
+  skills: z.array(z.object({ id: z.string(), label: z.string() })).min(1, 'Pick one'), // Async
+  resume: z.any().optional(), // File (Typed as any for browser File object)
+  rating: z.number().min(1).optional(), // Star Rating
 
-  // 6. Rich Text
+  // 7. Rich Text
   bio: z.string().min(10, 'Bio too short'),
 
-  // 7. Arrays (Nested)
+  // 8. Arrays
   education: z.array(
     z.object({
       school: zUtils.string,
@@ -63,6 +70,7 @@ export default function KitchenSinkPage() {
   const [result, setResult] = useState<any>(null);
 
   const handleSubmit = (values: FormValues) => {
+    // Note: File objects won't show nicely in JSON.stringify
     logInfo('Submitted:', values);
     setResult(values);
   };
@@ -85,13 +93,18 @@ export default function KitchenSinkPage() {
             password: '',
             age: undefined as any,
             salary: undefined as any,
+            experience: 5,
+            role: '',
+            interests: [],
+            department: '',
             joinDate: null as any,
             hasReferral: false,
             referralCode: '',
-            department: '',
             skills: [],
+            rating: 4,
             bio: '<p>Write about yourself...</p>',
             education: [],
+            resume: null,
           }}
           onSubmit={handleSubmit}
           uiSchema={[
@@ -115,7 +128,7 @@ export default function KitchenSinkPage() {
               ],
             },
 
-            // SECTION: Personal Stats
+            // SECTION: Stats & Sliders
             {
               type: 'section',
               title: 'Personal Stats',
@@ -124,40 +137,53 @@ export default function KitchenSinkPage() {
                   type: 'number',
                   name: 'age',
                   label: 'Age',
-                  colProps: { size: { xs: 6, md: 4 } },
+                  colProps: { size: { xs: 6, md: 3 } },
                 },
                 {
                   type: 'currency',
                   name: 'salary',
                   label: 'Expected Salary',
-                  colProps: { size: { xs: 6, md: 4 } },
+                  colProps: { size: { xs: 6, md: 3 } },
                 },
                 {
-                  type: 'date',
-                  name: 'joinDate',
-                  label: 'Joining Date',
-                  colProps: { size: { xs: 12, md: 4 } },
+                  type: 'slider',
+                  name: 'experience',
+                  label: 'Years of Experience (Slider)',
+                  min: 0,
+                  max: 10,
+                  colProps: { size: { xs: 12, md: 6 } },
                 },
               ],
             },
 
-            // SECTION: Logic
+            // SECTION: Choices
             {
               type: 'section',
-              title: 'Referral (Conditional Logic)',
+              title: 'Role & Interests',
               children: [
                 {
-                  type: 'switch',
-                  name: 'hasReferral',
-                  label: 'Do you have a referral?',
+                  type: 'radio',
+                  name: 'role',
+                  label: 'Primary Role',
+                  row: true,
+                  options: [
+                    { label: 'Developer', value: 'dev' },
+                    { label: 'Designer', value: 'des' },
+                    { label: 'Manager', value: 'mgr' },
+                  ],
+                  colProps: { size: 12 },
                 },
                 {
-                  type: 'text',
-                  name: 'referralCode',
-                  label: 'Referral Code',
-                  // LOGIC: Only show if hasReferral is true
-                  renderLogic: (values) => !!values.hasReferral,
-                  dependencies: ['hasReferral'],
+                  type: 'checkbox-group',
+                  name: 'interests',
+                  label: 'Areas of Interest',
+                  row: true,
+                  options: [
+                    { label: 'Frontend', value: 'fe' },
+                    { label: 'Backend', value: 'be' },
+                    { label: 'DevOps', value: 'ops' },
+                  ],
+                  colProps: { size: 12 },
                 },
               ],
             },
@@ -183,10 +209,58 @@ export default function KitchenSinkPage() {
                   colProps: { size: { xs: 12, md: 6 } },
                 },
                 {
+                  type: 'date',
+                  name: 'joinDate',
+                  label: 'Joining Date',
+                  colProps: { size: { xs: 12, md: 6 } },
+                },
+                {
+                  type: 'file',
+                  name: 'resume',
+                  label: 'Upload Resume (PDF)',
+                  accept: '.pdf,.doc,.docx',
+                  colProps: { size: { xs: 12, md: 6 } },
+                },
+              ],
+            },
+
+            // SECTION: Feedback
+            {
+              type: 'section',
+              title: 'Self Evaluation',
+              children: [
+                {
+                  type: 'rating',
+                  name: 'rating',
+                  label: 'How do you rate your coding skills?',
+                  max: 5,
+                  colProps: { size: 12 },
+                },
+                {
                   type: 'rich-text',
                   name: 'bio',
                   label: 'Biography',
                   minHeight: 150,
+                },
+              ],
+            },
+
+            // SECTION: Logic
+            {
+              type: 'section',
+              title: 'Referral (Conditional Logic)',
+              children: [
+                {
+                  type: 'switch',
+                  name: 'hasReferral',
+                  label: 'Do you have a referral?',
+                },
+                {
+                  type: 'text',
+                  name: 'referralCode',
+                  label: 'Referral Code',
+                  renderLogic: (values) => !!values.hasReferral,
+                  dependencies: ['hasReferral'],
                 },
               ],
             },
@@ -231,7 +305,21 @@ export default function KitchenSinkPage() {
         {result && (
           <Box sx={{ mt: 4, p: 2, bgcolor: 'grey.100', borderRadius: 2 }}>
             <Typography variant="h6">Form Output:</Typography>
-            <pre style={{ overflowX: 'auto' }}>{JSON.stringify(result, null, 2)}</pre>
+            <pre style={{ overflowX: 'auto' }}>
+              {JSON.stringify(
+                result,
+                (key, value) => {
+                  if (typeof File !== 'undefined' && value instanceof File) {
+                    return `File: ${value.name}`;
+                  }
+                  if (typeof FileList !== 'undefined' && value instanceof FileList) {
+                    return `FileList: ${value.length} files`;
+                  }
+                  return value;
+                },
+                2,
+              )}
+            </pre>
           </Box>
         )}
       </Paper>

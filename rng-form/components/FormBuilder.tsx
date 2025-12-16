@@ -5,10 +5,18 @@ import Grid from '@mui/material/Grid';
 import { FormItem, FormSchema } from '../types';
 
 import { useFormContext } from 'react-hook-form';
-import { RNGAutocomplete, RNGDateInput } from './AdvancedInputs';
+import { RNGAutocomplete, RNGDateInput, RNGFileUpload } from './AdvancedInputs';
 import { RNGArrayField } from './ArrayField';
 import { RNGAsyncAutocomplete } from './AsyncInputs';
-import { RNGNumberInput, RNGSwitch, RNGTextInput } from './Inputs';
+import {
+  RNGCheckboxGroup,
+  RNGNumberInput,
+  RNGRadioGroup,
+  RNGRating,
+  RNGSlider,
+  RNGSwitch,
+  RNGTextInput,
+} from './Inputs';
 import { RNGRichText } from './RichText';
 
 interface FormBuilderProps<S extends FormSchema> {
@@ -71,6 +79,21 @@ export function FormBuilder<S extends FormSchema>({ uiSchema, pathPrefix }: Form
 
           case 'rich-text':
             return <RNGRichText key={scopedName} item={scopedItem as any} />;
+
+          case 'file':
+            return <RNGFileUpload key={scopedName} item={scopedItem as any} />;
+
+          case 'slider':
+            return <RNGSlider key={scopedName} item={scopedItem as any} />;
+
+          case 'radio':
+            return <RNGRadioGroup key={scopedName} item={scopedItem as any} />;
+
+          case 'rating':
+            return <RNGRating key={scopedName} item={scopedItem as any} />;
+
+          case 'checkbox-group':
+            return <RNGCheckboxGroup key={scopedName} item={scopedItem as any} />;
 
           case 'hidden':
             return <input type="hidden" {...register(scopedName as any)} key={scopedName} />;

@@ -13,7 +13,6 @@ export type FieldType =
   | 'autocomplete'
   | 'date'
   | 'hidden'
-  // Complex / New Types
   | 'rich-text'
   | 'async-autocomplete'
   | 'array'
@@ -22,7 +21,11 @@ export type FieldType =
   | 'slider'
   | 'radio'
   | 'rating'
-  | 'checkbox-group';
+  | 'checkbox-group'
+  | 'tabs'
+  | 'accordion'
+  // NEW
+  | 'wizard';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type FormSchema = z.ZodType<FieldValues, any, any>;
@@ -66,7 +69,7 @@ export type HiddenFieldItem<S extends FormSchema> = BaseFormItem<S> & {
   name: Path<z.infer<S>>;
 };
 
-// --- New Simple Inputs ---
+// --- Simple Inputs ---
 export type SliderItem<S extends FormSchema> = BaseFormItem<S> & {
   type: 'slider';
   min?: number;
@@ -85,7 +88,7 @@ export type RadioGroupItem<S extends FormSchema> = BaseFormItem<S> & {
 
 export type RatingItem<S extends FormSchema> = BaseFormItem<S> & {
   type: 'rating';
-  max?: number; // stars count
+  max?: number;
   precision?: number;
   name: Path<z.infer<S>>;
 };
@@ -100,7 +103,7 @@ export type CheckboxGroupItem<S extends FormSchema> = BaseFormItem<S> & {
 // --- Advanced Inputs ---
 export type FileItem<S extends FormSchema> = BaseFormItem<S> & {
   type: 'file';
-  accept?: string; // e.g. "image/*"
+  accept?: string;
   multiple?: boolean;
   name: Path<z.infer<S>>;
 };
@@ -119,7 +122,8 @@ export type AutocompleteItem<S extends FormSchema> = BaseFormItem<S> & {
 
 export type AsyncAutocompleteItem<S extends FormSchema> = BaseFormItem<S> & {
   type: 'async-autocomplete';
-  loadOptions: (query: string) => Promise<AutocompleteOption[]>;
+  // FIX: Type definition now accepts values
+  loadOptions: (query: string, values: z.infer<S>) => Promise<AutocompleteOption[]>;
   getOptionLabel?: (option: AutocompleteOption) => string;
   multiple?: boolean;
   name: Path<z.infer<S>>;
@@ -137,6 +141,33 @@ export type SectionItem<S extends FormSchema> = BaseFormItem<S> & {
   type: 'section';
   title?: string;
   children: FormItem<S>[];
+};
+
+export type TabsItem<S extends FormSchema> = BaseFormItem<S> & {
+  type: 'tabs';
+  tabs: {
+    label: string;
+    children: FormItem<S>[];
+  }[];
+};
+
+export type AccordionItem<S extends FormSchema> = BaseFormItem<S> & {
+  type: 'accordion';
+  items: {
+    title: string;
+    defaultExpanded?: boolean;
+    children: FormItem<S>[];
+  }[];
+};
+
+// NEW: Wizard Type
+export type WizardItem<S extends FormSchema> = BaseFormItem<S> & {
+  type: 'wizard';
+  steps: {
+    label: string;
+    description?: string;
+    children: FormItem<S>[];
+  }[];
 };
 
 export type ArrayItem<S extends FormSchema> = BaseFormItem<S> & {
@@ -164,6 +195,9 @@ export type FormItem<S extends FormSchema> =
   | AsyncAutocompleteItem<S>
   | RichTextItem<S>
   | SectionItem<S>
+  | TabsItem<S>
+  | AccordionItem<S>
+  | WizardItem<S> // <--- Added
   | ArrayItem<S>
   | HiddenFieldItem<S>;
 

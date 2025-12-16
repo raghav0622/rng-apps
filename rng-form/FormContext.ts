@@ -1,10 +1,15 @@
+// rng-form/FormContext.ts
 'use client';
 import { createContext, useContext } from 'react';
 import { FieldValues } from 'react-hook-form';
 import { FormContextState } from './types';
 
-// Default to FieldValues (generic record) instead of any
-const Context = createContext<FormContextState<FieldValues> | null>(null);
+// Update type to include global readOnly flag
+type ExtendedContextState<T extends FieldValues> = FormContextState<T> & {
+  readOnly?: boolean;
+};
+
+const Context = createContext<ExtendedContextState<any> | null>(null);
 
 export function useRNGForm() {
   const ctx = useContext(Context);

@@ -1,6 +1,7 @@
 'use client';
 import { Visibility, VisibilityOff } from '@mui/icons-material';
 import {
+  Box,
   Checkbox,
   FormControl,
   FormControlLabel,
@@ -21,6 +22,7 @@ import React, { useState } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { InputAttributes, NumericFormat, NumericFormatProps } from 'react-number-format';
 import { FieldWrapper } from '../FieldWrapper';
+import { useRNGForm } from '../FormContext';
 import {
   CheckboxGroupItem,
   FormSchema,
@@ -32,11 +34,41 @@ import {
   TextFieldItem,
 } from '../types';
 
+// --- Helper: Read-Only Display ---
+const ReadOnlyValue = ({ label, value }: { label?: string; value: React.ReactNode }) => (
+  <Box sx={{ mb: 2 }}>
+    <Typography variant="caption" color="text.secondary" display="block">
+      {label}
+    </Typography>
+    <Typography variant="body1" fontWeight={500} sx={{ minHeight: '1.5em' }}>
+      {value ?? '-'}
+    </Typography>
+  </Box>
+);
+
 // --- Text Input ---
 export function RNGTextInput<S extends FormSchema>({ item }: { item: TextFieldItem<S> }) {
   const { control } = useFormContext();
+  const { readOnly } = useRNGForm();
   const [showPass, setShowPass] = useState(false);
   const isPass = item.type === 'password';
+
+  if (readOnly) {
+    return (
+      <FieldWrapper item={item}>
+        <Controller
+          name={item.name}
+          control={control}
+          render={({ field }) => (
+            <ReadOnlyValue
+              label={item.label}
+              value={isPass && field.value ? '********' : field.value}
+            />
+          )}
+        />
+      </FieldWrapper>
+    );
+  }
 
   return (
     <FieldWrapper item={item}>
@@ -69,7 +101,9 @@ export function RNGTextInput<S extends FormSchema>({ item }: { item: TextFieldIt
 }
 
 // --- Number/Currency Input ---
+
 interface CustomProps {
+  // We keep name as string here to match HTML standards
   onChange: (event: { target: { name: string; value: number | undefined } }) => void;
   name: string;
   inputRef: React.Ref<HTMLInputElement>;
@@ -99,7 +133,29 @@ const NumberFormatCustom = React.forwardRef<NumericFormatProps<InputAttributes>,
 
 export function RNGNumberInput<S extends FormSchema>({ item }: { item: NumberFieldItem<S> }) {
   const { control } = useFormContext();
+  const { readOnly } = useRNGForm();
   const isCurrency = item.type === 'currency';
+
+  if (readOnly) {
+    return (
+      <FieldWrapper item={item}>
+        <Controller
+          name={item.name}
+          control={control}
+          render={({ field }) => {
+            let displayVal = field.value;
+            if (isCurrency && typeof field.value === 'number') {
+              displayVal = new Intl.NumberFormat('en-IN', {
+                style: 'currency',
+                currency: 'INR',
+              }).format(field.value);
+            }
+            return <ReadOnlyValue label={item.label} value={displayVal} />;
+          }}
+        />
+      </FieldWrapper>
+    );
+  }
 
   return (
     <FieldWrapper item={item}>
@@ -109,6 +165,11 @@ export function RNGNumberInput<S extends FormSchema>({ item }: { item: NumberFie
         render={({ field, fieldState: { error } }) => (
           <TextField
             {...field}
+            // FIX: Explicitly cast the event to 'any' to resolve the type mismatch.
+            // MUI/NumberFormatCustom provides `name: string`, but RHF expects `name: Path<S>`.
+            // Since we pass `field.name` to inputProps below, we know the name is correct.
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            onChange={(e) => field.onChange(e as any)}
             fullWidth
             label={item.label}
             error={!!error}
@@ -132,6 +193,22 @@ export function RNGNumberInput<S extends FormSchema>({ item }: { item: NumberFie
 // --- Switch ---
 export function RNGSwitch<S extends FormSchema>({ item }: { item: SwitchFieldItem<S> }) {
   const { control } = useFormContext();
+  const { readOnly } = useRNGForm();
+
+  if (readOnly) {
+    return (
+      <FieldWrapper item={item}>
+        <Controller
+          name={item.name}
+          control={control}
+          render={({ field }) => (
+            <ReadOnlyValue label={item.label} value={field.value ? 'Yes' : 'No'} />
+          )}
+        />
+      </FieldWrapper>
+    );
+  }
+
   return (
     <FieldWrapper item={item}>
       <Controller
@@ -152,6 +229,20 @@ export function RNGSwitch<S extends FormSchema>({ item }: { item: SwitchFieldIte
 // --- Slider ---
 export function RNGSlider<S extends FormSchema>({ item }: { item: SliderItem<S> }) {
   const { control } = useFormContext();
+  const { readOnly } = useRNGForm();
+
+  if (readOnly) {
+    return (
+      <FieldWrapper item={item}>
+        <Controller
+          name={item.name}
+          control={control}
+          render={({ field }) => <ReadOnlyValue label={item.label} value={field.value} />}
+        />
+      </FieldWrapper>
+    );
+  }
+
   return (
     <FieldWrapper item={item}>
       <Typography gutterBottom>{item.label}</Typography>
@@ -182,6 +273,28 @@ export function RNGSlider<S extends FormSchema>({ item }: { item: SliderItem<S> 
 // --- Radio Group ---
 export function RNGRadioGroup<S extends FormSchema>({ item }: { item: RadioGroupItem<S> }) {
   const { control } = useFormContext();
+  const { readOnly } = useRNGForm();
+
+  if (readOnly) {
+    return (
+      <FieldWrapper item={item}>
+        <Controller
+          name={item.name}
+          control={control}
+          render={({ field }) => {
+            const selectedOption = item.options.find((opt) => opt.value === field.value);
+            return (
+              <ReadOnlyValue
+                label={item.label}
+                value={selectedOption ? selectedOption.label : field.value}
+              />
+            );
+          }}
+        />
+      </FieldWrapper>
+    );
+  }
+
   return (
     <FieldWrapper item={item}>
       <FormControl component="fieldset" disabled={item.disabled}>
@@ -211,6 +324,32 @@ export function RNGRadioGroup<S extends FormSchema>({ item }: { item: RadioGroup
 // --- Rating ---
 export function RNGRating<S extends FormSchema>({ item }: { item: RatingItem<S> }) {
   const { control } = useFormContext();
+  const { readOnly } = useRNGForm();
+
+  if (readOnly) {
+    return (
+      <FieldWrapper item={item}>
+        <Typography component="legend" variant="caption" color="text.secondary">
+          {item.label}
+        </Typography>
+        <Controller
+          name={item.name}
+          control={control}
+          render={({ field }) => (
+            <Box sx={{ mt: 0.5, mb: 2 }}>
+              <Rating
+                value={Number(field.value) || 0}
+                readOnly
+                max={item.max}
+                precision={item.precision}
+              />
+            </Box>
+          )}
+        />
+      </FieldWrapper>
+    );
+  }
+
   return (
     <FieldWrapper item={item}>
       <Typography component="legend" gutterBottom>
@@ -238,6 +377,29 @@ export function RNGRating<S extends FormSchema>({ item }: { item: RatingItem<S> 
 // --- Checkbox Group (Multi Select) ---
 export function RNGCheckboxGroup<S extends FormSchema>({ item }: { item: CheckboxGroupItem<S> }) {
   const { control } = useFormContext();
+  const { readOnly } = useRNGForm();
+
+  if (readOnly) {
+    return (
+      <FieldWrapper item={item}>
+        <Controller
+          name={item.name}
+          control={control}
+          render={({ field }) => {
+            const selectedValues = (field.value as unknown[]) || [];
+            // Map values to labels
+            const labels = item.options
+              .filter((opt) => selectedValues.includes(opt.value))
+              .map((opt) => opt.label)
+              .join(', ');
+
+            return <ReadOnlyValue label={item.label} value={labels || 'None'} />;
+          }}
+        />
+      </FieldWrapper>
+    );
+  }
+
   return (
     <FieldWrapper item={item}>
       <FormControl component="fieldset" disabled={item.disabled}>

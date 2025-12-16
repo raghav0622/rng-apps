@@ -17,7 +17,9 @@ import {
   RNGSwitch,
   RNGTextInput,
 } from './Inputs';
+import { RNGAccordionLayout, RNGTabsLayout } from './Layouts';
 import { RNGRichText } from './RichText';
+import { RNGWizard } from './Wizard';
 
 interface FormBuilderProps<S extends FormSchema> {
   uiSchema: FormItem<S>[];
@@ -30,10 +32,7 @@ export function FormBuilder<S extends FormSchema>({ uiSchema, pathPrefix }: Form
   return (
     <>
       {uiSchema.map((item, index) => {
-        // Construct scoped name
         const scopedName = pathPrefix && item.name ? `${pathPrefix}.${item.name}` : item.name;
-
-        // Create a scoped copy of the item
         const scopedItem = { ...item, name: scopedName } as FormItem<S>;
 
         switch (item.type) {
@@ -54,47 +53,45 @@ export function FormBuilder<S extends FormSchema>({ uiSchema, pathPrefix }: Form
               </Grid>
             );
 
+          // Layouts
+          case 'tabs':
+            return <RNGTabsLayout key={index} item={scopedItem as any} pathPrefix={pathPrefix} />;
+          case 'accordion':
+            return (
+              <RNGAccordionLayout key={index} item={scopedItem as any} pathPrefix={pathPrefix} />
+            );
+          case 'wizard':
+            return <RNGWizard key={index} item={scopedItem as any} pathPrefix={pathPrefix} />;
+
           case 'array':
             return <RNGArrayField key={scopedName} item={scopedItem as any} />;
 
           case 'text':
           case 'password':
             return <RNGTextInput key={scopedName} item={scopedItem as any} />;
-
           case 'number':
           case 'currency':
             return <RNGNumberInput key={scopedName} item={scopedItem as any} />;
-
           case 'switch':
             return <RNGSwitch key={scopedName} item={scopedItem as any} />;
-
           case 'date':
             return <RNGDateInput key={scopedName} item={scopedItem as any} />;
-
           case 'autocomplete':
             return <RNGAutocomplete key={scopedName} item={scopedItem as any} />;
-
           case 'async-autocomplete':
             return <RNGAsyncAutocomplete key={scopedName} item={scopedItem as any} />;
-
           case 'rich-text':
             return <RNGRichText key={scopedName} item={scopedItem as any} />;
-
           case 'file':
             return <RNGFileUpload key={scopedName} item={scopedItem as any} />;
-
           case 'slider':
             return <RNGSlider key={scopedName} item={scopedItem as any} />;
-
           case 'radio':
             return <RNGRadioGroup key={scopedName} item={scopedItem as any} />;
-
           case 'rating':
             return <RNGRating key={scopedName} item={scopedItem as any} />;
-
           case 'checkbox-group':
             return <RNGCheckboxGroup key={scopedName} item={scopedItem as any} />;
-
           case 'hidden':
             return <input type="hidden" {...register(scopedName as any)} key={scopedName} />;
 

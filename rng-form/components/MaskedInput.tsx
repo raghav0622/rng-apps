@@ -1,11 +1,10 @@
 'use client';
 
 import { TextField } from '@mui/material';
-import Grid from '@mui/material/Grid';
 import React from 'react';
-import { Controller, useFormContext } from 'react-hook-form';
 import { IMaskInput } from 'react-imask';
 import { MaskedTextItem } from '../types';
+import { FieldWrapper } from './FieldWrapper';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -23,39 +22,27 @@ const TextMaskCustom = React.forwardRef<HTMLInputElement, any>(function TextMask
   );
 });
 
-interface RNGMaskedInputProps {
-  item: MaskedTextItem<any>;
-}
-
-export function RNGMaskedInput({ item }: RNGMaskedInputProps) {
-  const { control } = useFormContext();
-
+export function RNGMaskedInput({ item }: { item: MaskedTextItem<any> }) {
   return (
-    <Grid size={12} {...item.colProps}>
-      <Controller
-        name={item.name}
-        control={control}
-        render={({ field: { onChange, value, ref }, fieldState: { error } }) => (
-          <TextField
-            fullWidth
-            label={item.label}
-            value={value || ''}
-            onChange={onChange}
-            inputRef={ref}
-            error={!!error}
-            helperText={error?.message || item.description}
-            disabled={item.disabled}
-            placeholder={item.placeholder}
-            InputProps={{
-              inputComponent: TextMaskCustom as any,
-              inputProps: {
-                mask: item.mask,
-                definitions: item.definitions,
-              },
-            }}
-          />
-        )}
-      />
-    </Grid>
+    <FieldWrapper item={item} name={item.name}>
+      {(field, fieldState, mergedItem) => (
+        <TextField
+          {...field}
+          value={field.value || ''}
+          fullWidth
+          error={!!fieldState.error}
+          // Fix: Ensure label is consistent with other fields
+          hiddenLabel
+          placeholder={mergedItem.placeholder}
+          InputProps={{
+            inputComponent: TextMaskCustom as any,
+            inputProps: {
+              mask: mergedItem.mask,
+              definitions: mergedItem.definitions,
+            },
+          }}
+        />
+      )}
+    </FieldWrapper>
   );
 }

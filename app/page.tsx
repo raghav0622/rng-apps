@@ -7,7 +7,6 @@ import { z } from 'zod';
 // Imports from your library structure
 import { RNGForm } from '@/rng-form';
 import { defineForm } from '@/rng-form/dsl';
-import { zUtils } from '@/rng-form/utils';
 
 // --- TAB PANEL HELPER ---
 function CustomTabPanel(props: { children?: React.ReactNode; index: number; value: number }) {
@@ -28,29 +27,12 @@ export default function PlaygroundPage() {
   // FORM 1: The "Kitchen Sink"
   // ---------------------------------------------------------------------------
   const schema1 = z.object({
-    fullName: zUtils.string,
-    phone: zUtils.phone,
-    creditCard: z.string().min(19, 'Incomplete card number'),
     price: z.number().min(0),
     quantity: z.number().min(1),
-    total: z.number().optional(),
-    bio: z.string().optional(),
+    total: z.coerce.number().optional(),
   });
 
   const ui1 = defineForm<typeof schema1>((f) => [
-    f.section('Basic Info', [
-      f.text('fullName', { label: 'Full Name', colProps: { size: { xs: 12, md: 6 } } }),
-      f.masked('phone', '(000) 000-0000', {
-        label: 'Phone (Masked)',
-        colProps: { size: { xs: 12, md: 6 } },
-      }),
-    ]),
-    f.section('Payment Details', [
-      f.masked('creditCard', '0000 0000 0000 0000', {
-        label: 'Credit Card (Masked)',
-        placeholder: '0000 0000 0000 0000',
-      }),
-    ]),
     f.section('Order Calculation (Real-time)', [
       f.currency('price', { label: 'Unit Price ($)', colProps: { size: { xs: 12, md: 4 } } }),
       f.number('quantity', { label: 'Quantity', colProps: { size: { xs: 12, md: 4 } } }),
@@ -70,7 +52,6 @@ export default function PlaygroundPage() {
         },
       ),
     ]),
-    f.section('Rich Content', [f.richText('bio', { label: 'Biography', minHeight: 150 })]),
   ]);
 
   // ---------------------------------------------------------------------------
@@ -235,7 +216,7 @@ export default function PlaygroundPage() {
           <RNGForm
             schema={schema1}
             uiSchema={ui1}
-            defaultValues={{ price: 10, quantity: 1, phone: '' }}
+            defaultValues={{ price: 10, quantity: 1 }}
             onSubmit={(data) => handleSubmit(data)}
             submitLabel="Test Submit"
             title="Feature Showcase"

@@ -20,22 +20,43 @@ import { FormBuilder } from './FormBuilder';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const getFieldNames = (items: FormItem<any>[], prefix?: string): string[] => {
   let names: string[] = [];
+
   items.forEach((item) => {
+    // 1. Add current item's name if it exists
     if (item.name) {
       names.push(prefix ? `${prefix}.${item.name}` : item.name);
     }
-    // Recursive search for nested fields
-    if (item.type === 'section' || item.type === 'tabs' || item.type === 'accordion') {
-      // @ts-expect-error - dynamic children access
-      const children =
-        item.children ||
-        item.tabs?.flatMap((t) => t.children) ||
-        item.items?.flatMap((i) => i.children);
-      if (children) {
-        names = names.concat(getFieldNames(children, prefix));
-      }
+
+    // 2. Recursively find names in nested structures
+    switch (item.type) {
+      case 'section':
+        if (item.children) {
+          names = names.concat(getFieldNames(item.children, prefix));
+        }
+        break;
+
+      case 'tabs':
+        if (item.tabs) {
+          item.tabs.forEach((tab) => {
+            names = names.concat(getFieldNames(tab.children, prefix));
+          });
+        }
+        break;
+
+      case 'accordion':
+        if (item.items) {
+          item.items.forEach((accordionItem) => {
+            names = names.concat(getFieldNames(accordionItem.children, prefix));
+          });
+        }
+        break;
+
+      // Note: We generally don't recurse into 'array' or 'wizard' inside a wizard step
+      // because they have their own scopes/validation triggers,
+      // but if needed, logic would go here.
     }
   });
+
   return names;
 };
 
@@ -73,18 +94,14 @@ export function RNGWizard<S extends FormSchema>({
 
   const isLastStep = activeStep === steps.length - 1;
 
-  // --- NEW: Handle Enter Key Navigation ---
+  // --- Handle Enter Key Navigation ---
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    // Only act on Enter key
     if (e.key !== 'Enter') return;
+    if (e.shiftKey) return; // Allow multiline in textareas
 
-    // Ignore if holding Shift (e.g. for new lines in textareas)
-    if (e.shiftKey) return;
-
-    // Check what element triggered the event
     const target = e.target as HTMLElement;
 
-    // Ignore textareas (RichText), buttons, or contentEditable elements
+    // Ignore textareas, buttons, or explicitly interactive elements
     if (
       target.tagName === 'TEXTAREA' ||
       target.tagName === 'BUTTON' ||
@@ -94,20 +111,14 @@ export function RNGWizard<S extends FormSchema>({
       return;
     }
 
-    // Check if event was already handled (e.g., by Autocomplete selecting an option)
     if (e.defaultPrevented) return;
 
     if (!isLastStep) {
-      // Prevent default form submission
       e.preventDefault();
       e.stopPropagation();
-
-      // Navigate to next step
       handleNext();
     }
-    // If it IS the last step, we let the event bubble.
-    // Since the "Submit" button is present in the DOM, standard form behavior
-    // will trigger a submit.
+    // If last step, let native submit happen
   };
 
   return (
@@ -135,7 +146,7 @@ export function RNGWizard<S extends FormSchema>({
                   {isLastStep ? (
                     <Button
                       variant="contained"
-                      type="submit" // Triggers form onSubmit
+                      type="submit"
                       disabled={isSubmitting}
                       startIcon={isSubmitting ? <CircularProgress size={16} /> : <Check />}
                     >
@@ -144,7 +155,7 @@ export function RNGWizard<S extends FormSchema>({
                   ) : (
                     <Button
                       variant="contained"
-                      type="button" // Important: Prevent default submit
+                      type="button"
                       onClick={handleNext}
                       endIcon={<ArrowForward />}
                     >
@@ -153,7 +164,7 @@ export function RNGWizard<S extends FormSchema>({
                   )}
 
                   <Button
-                    type="button" // Important: Prevent default submit
+                    type="button"
                     disabled={index === 0 || isSubmitting}
                     onClick={handleBack}
                     sx={{ mt: 1, mr: 1, float: 'right' }}

@@ -1,4 +1,3 @@
-// rng-form/index.tsx
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
@@ -20,7 +19,7 @@ import { z } from 'zod';
 
 import { FormBuilder } from './components/FormBuilder';
 import { RNGFormProvider } from './FormContext';
-import { useFormPersistence } from './hooks/useFormPersistence'; // Import the new hook
+import { useFormPersistence } from './hooks/useFormPersistence';
 import { FormItem, FormSchema } from './types';
 import { FormError } from './utils';
 
@@ -36,9 +35,8 @@ interface RNGFormProps<Schema extends FormSchema> {
   submitLabel?: string;
   loading?: boolean;
   hideFooter?: boolean;
-  // NEW PROPS
-  persistKey?: string; // If provided, auto-save is enabled
-  readOnly?: boolean; // If true, inputs render as text
+  persistKey?: string;
+  readOnly?: boolean;
 }
 
 export function RNGForm<Schema extends FormSchema>({
@@ -69,13 +67,11 @@ export function RNGForm<Schema extends FormSchema>({
     formState: { isSubmitting, errors },
   } = methods;
 
-  // Enable Persistence if key is provided
   useFormPersistence(persistKey || '', methods, !!persistKey);
 
   const handleSafeSubmit: SubmitHandler<z.infer<Schema>> = async (values) => {
     try {
       await onSubmit(values);
-      // Clear storage on successful submit
       if (persistKey) localStorage.removeItem(persistKey);
     } catch (error) {
       if (error instanceof FormError) {
@@ -99,7 +95,6 @@ export function RNGForm<Schema extends FormSchema>({
           value={{
             formId,
             methods: methods as unknown as UseFormReturn<FieldValues>,
-            readOnly, // Pass global readOnly state
           }}
         >
           <form onSubmit={handleSubmit(handleSafeSubmit)} noValidate>

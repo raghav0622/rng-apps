@@ -1,4 +1,4 @@
-import { GridProps } from '@mui/material/Grid';
+import { GridProps } from '@mui/material/Grid'; // Using Grid2 as Grid
 import { FieldValues, Path, UseFormReturn } from 'react-hook-form';
 import { z } from 'zod';
 
@@ -25,7 +25,6 @@ export type FieldType =
   | 'tabs'
   | 'accordion'
   | 'wizard'
-  // MISSING TYPES ADDED BACK:
   | 'masked-text'
   | 'calculated';
 
@@ -41,8 +40,10 @@ export type BaseFormItem<Schema extends FormSchema> = {
   description?: string | React.ReactNode;
   colProps?: GridProps;
   dependencies?: Path<z.infer<Schema>>[];
+  /** Return false to hide the field */
   renderLogic?: (values: z.infer<Schema>) => boolean;
-  propsLogic?: (values: z.infer<Schema>) => Partial<FormItem<Schema>>; // Added propsLogic
+  /** Return partial props to override (e.g., { disabled: true }) */
+  propsLogic?: (values: z.infer<Schema>) => Partial<FormItem<Schema>>;
   disabled?: boolean;
 };
 
@@ -51,12 +52,15 @@ export type TextFieldItem<S extends FormSchema> = BaseFormItem<S> & {
   type: 'text' | 'password';
   name: Path<z.infer<S>>;
   placeholder?: string;
+  multiline?: boolean;
+  rows?: number;
 };
 export type NumberFieldItem<S extends FormSchema> = BaseFormItem<S> & {
   type: 'number' | 'currency';
   min?: number;
   max?: number;
   name: Path<z.infer<S>>;
+  placeholder?: string;
 };
 export type DateFieldItem<S extends FormSchema> = BaseFormItem<S> & {
   type: 'date';
@@ -73,7 +77,7 @@ export type HiddenFieldItem<S extends FormSchema> = BaseFormItem<S> & {
   name: Path<z.infer<S>>;
 };
 
-// --- NEW: Masked Input ---
+// --- Masked Input ---
 export type MaskedTextItem<S extends FormSchema> = BaseFormItem<S> & {
   type: 'masked-text';
   mask: string;
@@ -83,12 +87,11 @@ export type MaskedTextItem<S extends FormSchema> = BaseFormItem<S> & {
   name: Path<z.infer<S>>;
 };
 
-// --- NEW: Calculated Field ---
-
+// --- Calculated Field ---
 export type CalculatedItem<S extends FormSchema> = BaseFormItem<S> & {
   type: 'calculated';
   calculate: (values: z.infer<S>) => string | number;
-  name: Path<z.infer<S>>; // ✅ Changed from optional (?) to required
+  name: Path<z.infer<S>>;
 };
 
 // --- Simple Inputs ---
@@ -220,7 +223,6 @@ export type FormItem<S extends FormSchema> =
   | WizardItem<S>
   | ArrayItem<S>
   | HiddenFieldItem<S>
-  // ADDED:
   | MaskedTextItem<S>
   | CalculatedItem<S>;
 

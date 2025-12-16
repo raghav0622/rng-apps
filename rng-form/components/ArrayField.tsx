@@ -1,5 +1,6 @@
 'use client';
-import { Add, Delete } from '@mui/icons-material';
+import { DragDropContext, Draggable, Droppable, DropResult } from '@hello-pangea/dnd';
+import { Add, Delete, DragIndicator } from '@mui/icons-material';
 import { Box, Button, IconButton, Paper, Stack, Typography } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import { useFieldArray, useFormContext } from 'react-hook-form';
@@ -9,10 +10,15 @@ import { FormBuilder } from './FormBuilder';
 
 export function RNGArrayField<S extends FormSchema>({ item }: { item: ArrayItem<S> }) {
   const { control } = useFormContext();
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, move } = useFieldArray({
     control,
     name: item.name,
   });
+
+  const handleDragEnd = (result: DropResult) => {
+    if (!result.destination) return;
+    move(result.source.index, result.destination.index);
+  };
 
   return (
     <FieldWrapper item={item}>
@@ -23,31 +29,67 @@ export function RNGArrayField<S extends FormSchema>({ item }: { item: ArrayItem<
         {item.description && <Typography variant="caption">{item.description}</Typography>}
       </Box>
 
-      {fields.map((field, index) => (
-        <Paper
-          key={field.id}
-          variant="outlined"
-          sx={{ p: 2, mb: 2, position: 'relative', bgcolor: 'background.default' }}
-        >
-          <Stack direction="row" alignItems="flex-start" spacing={2}>
-            <Box flexGrow={1}>
-              <Grid container spacing={2}>
-                {/* Recursive Render: Pass the current index path prefix */}
-                <FormBuilder uiSchema={item.items} pathPrefix={`${item.name}.${index}`} />
-              </Grid>
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <Droppable droppableId={item.name}>
+          {(provided) => (
+            <Box {...provided.droppableProps} ref={provided.innerRef}>
+              {fields.map((field, index) => (
+                <Draggable key={field.id} draggableId={field.id} index={index}>
+                  {(providedDrag, snapshot) => (
+                    <Paper
+                      ref={providedDrag.innerRef}
+                      {...providedDrag.draggableProps}
+                      variant="outlined"
+                      sx={{
+                        p: 2,
+                        mb: 2,
+                        position: 'relative',
+                        bgcolor: snapshot.isDragging ? 'action.hover' : 'background.default',
+                        transition: 'background-color 0.2s',
+                      }}
+                    >
+                      <Stack direction="row" alignItems="flex-start" spacing={2}>
+                        {/* Drag Handle */}
+                        <Box
+                          {...providedDrag.dragHandleProps}
+                          sx={{ mt: 1, cursor: 'grab', color: 'text.disabled' }}
+                        >
+                          <DragIndicator />
+                        </Box>
+
+                        {/* Content */}
+                        <Box flexGrow={1}>
+                          <Grid container spacing={2}>
+                            <FormBuilder
+                              uiSchema={item.items}
+                              pathPrefix={`${item.name}.${index}`}
+                            />
+                          </Grid>
+                        </Box>
+
+                        {/* Delete Action */}
+                        <IconButton
+                          color="error"
+                          onClick={() => remove(index)}
+                          aria-label="Remove item"
+                        >
+                          <Delete />
+                        </IconButton>
+                      </Stack>
+                    </Paper>
+                  )}
+                </Draggable>
+              ))}
+              {provided.placeholder}
             </Box>
-            <IconButton color="error" onClick={() => remove(index)} aria-label="Remove item">
-              <Delete />
-            </IconButton>
-          </Stack>
-        </Paper>
-      ))}
+          )}
+        </Droppable>
+      </DragDropContext>
 
       <Button
         startIcon={<Add />}
         variant="outlined"
         onClick={() => {
-          // Use provided default value or fallback to empty object
           append(item.defaultValue || {});
         }}
       >

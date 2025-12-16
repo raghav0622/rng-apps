@@ -27,7 +27,7 @@ export const zUtils = {
   date: z.date({ error: 'Date is required' }),
 
   // Custom: Indian Phone
-  phone: z.string().regex(/^[6-9]\d{9}$/, 'Invalid Indian Phone Number'),
+  phone: z.string(),
 
   // Custom: Password (Min 8 chars, 1 uppercase, etc. - adjustable)
   password: z.string().min(6, 'Password must be at least 6 characters'),

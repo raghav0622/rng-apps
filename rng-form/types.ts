@@ -24,8 +24,10 @@ export type FieldType =
   | 'checkbox-group'
   | 'tabs'
   | 'accordion'
-  // NEW
-  | 'wizard';
+  | 'wizard'
+  // MISSING TYPES ADDED BACK:
+  | 'masked-text'
+  | 'calculated';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type FormSchema = z.ZodType<FieldValues, any, any>;
@@ -40,6 +42,7 @@ export type BaseFormItem<Schema extends FormSchema> = {
   colProps?: GridProps;
   dependencies?: Path<z.infer<Schema>>[];
   renderLogic?: (values: z.infer<Schema>) => boolean;
+  propsLogic?: (values: z.infer<Schema>) => Partial<FormItem<Schema>>; // Added propsLogic
   disabled?: boolean;
 };
 
@@ -47,6 +50,7 @@ export type BaseFormItem<Schema extends FormSchema> = {
 export type TextFieldItem<S extends FormSchema> = BaseFormItem<S> & {
   type: 'text' | 'password';
   name: Path<z.infer<S>>;
+  placeholder?: string;
 };
 export type NumberFieldItem<S extends FormSchema> = BaseFormItem<S> & {
   type: 'number' | 'currency';
@@ -67,6 +71,24 @@ export type SwitchFieldItem<S extends FormSchema> = BaseFormItem<S> & {
 export type HiddenFieldItem<S extends FormSchema> = BaseFormItem<S> & {
   type: 'hidden';
   name: Path<z.infer<S>>;
+};
+
+// --- NEW: Masked Input ---
+export type MaskedTextItem<S extends FormSchema> = BaseFormItem<S> & {
+  type: 'masked-text';
+  mask: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  definitions?: Record<string, any>;
+  placeholder?: string;
+  name: Path<z.infer<S>>;
+};
+
+// --- NEW: Calculated Field ---
+
+export type CalculatedItem<S extends FormSchema> = BaseFormItem<S> & {
+  type: 'calculated';
+  calculate: (values: z.infer<S>) => string | number;
+  name: Path<z.infer<S>>; // ✅ Changed from optional (?) to required
 };
 
 // --- Simple Inputs ---
@@ -122,7 +144,6 @@ export type AutocompleteItem<S extends FormSchema> = BaseFormItem<S> & {
 
 export type AsyncAutocompleteItem<S extends FormSchema> = BaseFormItem<S> & {
   type: 'async-autocomplete';
-  // FIX: Type definition now accepts values
   loadOptions: (query: string, values: z.infer<S>) => Promise<AutocompleteOption[]>;
   getOptionLabel?: (option: AutocompleteOption) => string;
   multiple?: boolean;
@@ -160,7 +181,6 @@ export type AccordionItem<S extends FormSchema> = BaseFormItem<S> & {
   }[];
 };
 
-// NEW: Wizard Type
 export type WizardItem<S extends FormSchema> = BaseFormItem<S> & {
   type: 'wizard';
   steps: {
@@ -197,9 +217,12 @@ export type FormItem<S extends FormSchema> =
   | SectionItem<S>
   | TabsItem<S>
   | AccordionItem<S>
-  | WizardItem<S> // <--- Added
+  | WizardItem<S>
   | ArrayItem<S>
-  | HiddenFieldItem<S>;
+  | HiddenFieldItem<S>
+  // ADDED:
+  | MaskedTextItem<S>
+  | CalculatedItem<S>;
 
 export type FormContextState<TFieldValues extends FieldValues = FieldValues> = {
   formId: string;

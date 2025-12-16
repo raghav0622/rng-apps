@@ -2,12 +2,14 @@
 'use client';
 import { Divider, Typography } from '@mui/material';
 import Grid from '@mui/material/Grid';
+import { useFormContext } from 'react-hook-form';
 import { FormItem, FormSchema } from '../types';
 
-import { useFormContext } from 'react-hook-form';
+// Components
 import { RNGAutocomplete, RNGDateInput, RNGFileUpload } from './AdvancedInputs';
 import { RNGArrayField } from './ArrayField';
 import { RNGAsyncAutocomplete } from './AsyncInputs';
+import { RNGCalculatedField } from './CalculatedField'; // NEW
 import {
   RNGCheckboxGroup,
   RNGNumberInput,
@@ -18,6 +20,7 @@ import {
   RNGTextInput,
 } from './Inputs';
 import { RNGAccordionLayout, RNGTabsLayout } from './Layouts';
+import { RNGMaskedInput } from './MaskedInput'; // NEW
 import { RNGRichText } from './RichText';
 import { RNGWizard } from './Wizard';
 
@@ -33,6 +36,7 @@ export function FormBuilder<S extends FormSchema>({ uiSchema, pathPrefix }: Form
     <>
       {uiSchema.map((item, index) => {
         const scopedName = pathPrefix && item.name ? `${pathPrefix}.${item.name}` : item.name;
+        // Merge dynamic props if using the advanced logic system (Step 1), otherwise just basic item
         const scopedItem = { ...item, name: scopedName } as FormItem<S>;
 
         switch (item.type) {
@@ -63,9 +67,11 @@ export function FormBuilder<S extends FormSchema>({ uiSchema, pathPrefix }: Form
           case 'wizard':
             return <RNGWizard key={index} item={scopedItem as any} pathPrefix={pathPrefix} />;
 
+          // Arrays
           case 'array':
             return <RNGArrayField key={scopedName} item={scopedItem as any} />;
 
+          // Standard Inputs
           case 'text':
           case 'password':
             return <RNGTextInput key={scopedName} item={scopedItem as any} />;
@@ -94,6 +100,12 @@ export function FormBuilder<S extends FormSchema>({ uiSchema, pathPrefix }: Form
             return <RNGCheckboxGroup key={scopedName} item={scopedItem as any} />;
           case 'hidden':
             return <input type="hidden" {...register(scopedName as any)} key={scopedName} />;
+
+          // New Feature Inputs
+          case 'masked-text':
+            return <RNGMaskedInput key={scopedName} item={scopedItem as any} />;
+          case 'calculated':
+            return <RNGCalculatedField key={scopedName} item={scopedItem as any} />;
 
           default:
             return null;

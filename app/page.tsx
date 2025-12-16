@@ -1,232 +1,158 @@
-// app/page.tsx
 'use client';
 
-import { logInfo } from '@/lib/logger';
 import { RNGForm } from '@/rng-form';
 import { zUtils } from '@/rng-form/utils';
-import { Alert, Box, Container, Paper, Typography } from '@mui/material';
+import { Box, Container, Paper, Typography } from '@mui/material';
 import { useState } from 'react';
 import { z } from 'zod';
 
-// --- 1. Define Schema with Conditional Logic ---
-const KitchenSinkSchema = z
-  .object({
-    // Identity
-    fullName: zUtils.string,
-    email: z.string().email('Invalid email address'),
-    password: zUtils.password,
+// --- Schema Definition ---
 
-    // Numbers (Allow null/undefined for empty initial state)
-    age: z.number({ error: 'Age is required' }).min(18, 'Must be 18+'),
-    salary: z.number({ error: 'Salary is required' }).min(10000, 'Minimum salary is ₹10,000'),
+const ExperienceSchema = z.object({
+  company: zUtils.string,
+  role: zUtils.string,
+  description: z.string().optional(), // For Rich Text
+});
 
-    // Dates
-    joiningDate: zUtils.date,
+const AdvancedFormSchema = z.object({
+  // Section 1: Basic
+  firstName: zUtils.string,
+  lastName: zUtils.string,
 
-    // Dropdowns
-    department: z.string().min(1, 'Department is required'),
+  // Section 2: Async Data
+  manager: z.object({ id: z.string(), label: z.string() }).nullable(), // Async result object
 
-    // Logic Triggers
-    isDeveloper: z.boolean(),
+  // Section 3: History (Array)
+  workHistory: z.array(ExperienceSchema).min(1, 'Add at least one job experience'),
 
-    // Dependent Fields (Initially optional to pass base validation)
-    githubProfile: z.string().optional(),
-    yearsOfExperience: z.number().optional(),
-    techStack: z.array(z.string()).optional(),
+  // Section 4: Formatting
+  coverLetter: z.string().min(20, 'Cover letter must be at least 20 chars'),
+});
 
-    // Hidden
-    source: z.string(),
-  })
-  .superRefine((data, ctx) => {
-    // CRITICAL FIX: Only validate these fields if isDeveloper is TRUE
-    if (data.isDeveloper) {
-      if (!data.techStack || data.techStack.length === 0) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'Select at least one technology',
-          path: ['techStack'],
-        });
-      }
-      if (!data.githubProfile || data.githubProfile.length < 3) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'GitHub profile is required for developers',
-          path: ['githubProfile'],
-        });
-      }
-    }
-  });
+// --- Mock Async Loader ---
+const mockFetchManagers = async (query: string) => {
+  await new Promise((r) => setTimeout(r, 800)); // Simulate lag
+  const allManagers = [
+    { id: '1', label: 'Alice Johnson' },
+    { id: '2', label: 'Bob Smith' },
+    { id: '3', label: 'Charlie Brown' },
+    { id: '4', label: 'David Williams' },
+  ];
+  if (!query) return allManagers;
+  return allManagers.filter((m) => m.label.toLowerCase().includes(query.toLowerCase()));
+};
 
-// --- 2. Constants ---
-const DEPARTMENTS = ['Engineering', 'HR', 'Sales', 'Marketing', 'Product'];
-const TECH_STACK = ['React', 'Next.js', 'Node.js', 'Python', 'Go', 'Rust', 'Docker'];
-
-export default function KitchenSinkPage() {
+export default function AdvancedPage() {
   const [submittedData, setSubmittedData] = useState<null | object>(null);
 
   return (
-    <Container maxWidth="md">
-      <Paper
-        elevation={0}
-        variant="outlined"
-        sx={{ p: 4, borderRadius: 2, bgcolor: 'background.paper' }}
-      >
+    <Container maxWidth="md" sx={{ py: 4 }}>
+      <Paper elevation={3} sx={{ p: 4, borderRadius: 2 }}>
         <Box sx={{ mb: 4, textAlign: 'center' }}>
-          <Typography variant="h4" fontWeight="bold" color="primary" gutterBottom>
-            RNG Form Playground
+          <Typography variant="h4" color="primary">
+            Advanced RNG Form
           </Typography>
-          <Typography variant="body1" color="text.secondary">
-            Testing Inputs, Validation, and Conditional Logic
+          <Typography variant="subtitle1" color="text.secondary">
+            Testing Sections, Arrays, Async & Rich Text
           </Typography>
         </Box>
-        {/* --- Results Section --- */}
-        {submittedData && (
-          <Box sx={{ mt: 5, borderTop: '1px solid #eee', pt: 3 }}>
-            <Alert severity="success" sx={{ mb: 2 }}>
-              Validation Passed & Data Captured!
-            </Alert>
-            <Typography variant="subtitle2" gutterBottom>
-              Submitted JSON:
-            </Typography>
-            <Box
-              component="pre"
-              sx={{
-                p: 2,
-                bgcolor: '#1E1E1E',
-                color: '#A9B7C6',
-                borderRadius: 2,
-                overflowX: 'auto',
-                fontSize: '0.85rem',
-                fontFamily: 'Consolas, monospace',
-              }}
-            >
-              {JSON.stringify(submittedData, null, 2)}
-            </Box>
-          </Box>
-        )}
 
         <RNGForm
-          title="Employee Onboarding"
-          description="Complete the form below to test all component types."
-          submitLabel="Run Test Submission"
-          // FIX: "Clean Slate" default values
+          schema={AdvancedFormSchema}
+          title="Candidate Application"
           defaultValues={{
-            fullName: '',
-            email: '',
-            password: '',
-            age: undefined,
-            salary: undefined,
-            isDeveloper: false,
-            githubProfile: '',
-            yearsOfExperience: undefined,
-            techStack: [],
-            // @ts-expect-error: Allowing null for empty date
-            joiningDate: null,
-            department: '',
-            source: 'kitchen-sink-v2',
+            firstName: '',
+            lastName: '',
+            manager: null,
+            workHistory: [{ company: '', role: '', description: '<p>Initial content...</p>' }],
+            coverLetter: '',
           }}
-          schema={KitchenSinkSchema}
-          onSubmit={async (values) => {
-            // Simulate API Latency
-            await new Promise((resolve) => setTimeout(resolve, 1500));
-            logInfo('Form Submitted:', values);
+          onSubmit={(values) => {
             setSubmittedData(values);
-            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
           }}
           uiSchema={[
-            // --- Row 1: Basic Info ---
             {
-              type: 'text',
-              name: 'fullName',
-              label: 'Full Name',
-              colProps: { size: { xs: 12, md: 6 } },
+              type: 'section',
+              title: 'Personal Information',
+              children: [
+                {
+                  type: 'text',
+                  name: 'firstName',
+                  label: 'First Name',
+                  colProps: { size: { xs: 12, md: 6 } },
+                },
+                {
+                  type: 'text',
+                  name: 'lastName',
+                  label: 'Last Name',
+                  colProps: { size: { xs: 12, md: 6 } },
+                },
+              ],
             },
             {
-              type: 'number',
-              name: 'age',
-              label: 'Age',
-              colProps: { size: { xs: 12, md: 6 } },
-            },
-
-            // --- Row 2: Account ---
-            {
-              type: 'text',
-              name: 'email',
-              label: 'Work Email',
-              colProps: { size: { xs: 12, md: 6 } },
-            },
-            {
-              type: 'password',
-              name: 'password',
-              label: 'Password',
-              description: 'Min 6 chars',
-              colProps: { size: { xs: 12, md: 6 } },
-            },
-
-            // --- Row 3: Compensation & Role ---
-            {
-              type: 'currency',
-              name: 'salary',
-              label: 'Annual CTC',
-              colProps: { size: { xs: 12, md: 6 } },
+              type: 'section',
+              title: 'Referral Details',
+              children: [
+                {
+                  type: 'async-autocomplete',
+                  name: 'manager',
+                  label: 'Referring Manager (Search...)',
+                  loadOptions: mockFetchManagers,
+                  colProps: { size: 12 },
+                },
+              ],
             },
             {
-              type: 'autocomplete',
-              name: 'department',
-              label: 'Department',
-              options: DEPARTMENTS,
-              colProps: { size: { xs: 12, md: 6 } },
-            },
-
-            // --- Row 4: Dates ---
-            {
-              type: 'date',
-              name: 'joiningDate',
-              label: 'Date of Joining',
-              colProps: { size: { xs: 12 } },
-            },
-
-            // --- Row 5: Logic Switch ---
-            {
-              type: 'switch',
-              name: 'isDeveloper',
-              label: 'Is this an Engineering role?',
-              colProps: { size: { xs: 12 } },
-            },
-
-            // --- Conditional Fields (Only visible if isDeveloper === true) ---
-            {
-              type: 'text',
-              name: 'githubProfile',
-              label: 'GitHub Username',
-              colProps: { size: { xs: 12, md: 6 } },
-              renderLogic: (values) => !!values.isDeveloper,
-            },
-            {
-              type: 'number',
-              name: 'yearsOfExperience',
-              label: 'Years of Exp.',
-              colProps: { size: { xs: 12, md: 6 } },
-              renderLogic: (values) => !!values.isDeveloper,
+              type: 'section',
+              title: 'Professional Experience',
+              children: [
+                {
+                  type: 'array',
+                  name: 'workHistory',
+                  label: 'Past Employment',
+                  itemLabel: 'Add Job',
+                  items: [
+                    {
+                      type: 'text',
+                      name: 'company',
+                      label: 'Company Name',
+                      colProps: { size: { xs: 12, md: 6 } },
+                    },
+                    {
+                      type: 'text',
+                      name: 'role',
+                      label: 'Job Title',
+                      colProps: { size: { xs: 12, md: 6 } },
+                    },
+                    {
+                      type: 'rich-text',
+                      name: 'description',
+                      label: 'Job Responsibilities',
+                    },
+                  ],
+                },
+              ],
             },
             {
-              type: 'autocomplete',
-              name: 'techStack',
-              label: 'Tech Stack (Multi-select)',
-              multiple: true,
-              options: TECH_STACK,
-              colProps: { size: { xs: 12, md: 6 } },
-              renderLogic: (values) => !!values.isDeveloper,
-            },
-
-            // --- Hidden ---
-            {
-              type: 'hidden',
-              name: 'source',
-              label: '',
+              type: 'section',
+              title: 'Additional Info',
+              children: [
+                {
+                  type: 'rich-text',
+                  name: 'coverLetter',
+                  label: 'Cover Letter',
+                  minHeight: 200,
+                },
+              ],
             },
           ]}
         />
+
+        {submittedData && (
+          <Box sx={{ mt: 4, p: 2, bgcolor: '#f5f5f5', borderRadius: 2 }}>
+            <pre>{JSON.stringify(submittedData, null, 2)}</pre>
+          </Box>
+        )}
       </Paper>
     </Container>
   );

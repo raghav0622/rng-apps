@@ -1,13 +1,10 @@
 'use client';
 import { createContext, useContext } from 'react';
-import { UseFormReturn } from 'react-hook-form';
+import { FieldValues } from 'react-hook-form';
+import { FormContextState } from './types';
 
-type FormContextType = {
-  formId: string;
-  methods: UseFormReturn<any>;
-};
-
-const Context = createContext<FormContextType | null>(null);
+// Default to FieldValues (generic record) instead of any
+const Context = createContext<FormContextState<FieldValues> | null>(null);
 
 export function useRNGForm() {
   const ctx = useContext(Context);

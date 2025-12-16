@@ -1,12 +1,13 @@
 'use client';
 import { Autocomplete, Chip, TextField } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { Dayjs } from 'dayjs';
 import { Controller, useFormContext } from 'react-hook-form';
 import { FieldWrapper } from '../FieldWrapper';
-import { AutocompleteItem, DateFieldItem } from '../types';
+import { AutocompleteItem, AutocompleteOption, DateFieldItem, FormSchema } from '../types';
 
 // --- Date Input ---
-export function RNGDateInput({ item }: { item: DateFieldItem<any> }) {
+export function RNGDateInput<S extends FormSchema>({ item }: { item: DateFieldItem<S> }) {
   const { control } = useFormContext();
 
   return (
@@ -17,11 +18,11 @@ export function RNGDateInput({ item }: { item: DateFieldItem<any> }) {
         render={({ field, fieldState: { error } }) => (
           <DatePicker
             label={item.label}
-            value={field.value || null}
+            value={field.value as Dayjs | null}
             onChange={field.onChange}
             disabled={item.disabled}
-            minDate={item.minDate}
-            maxDate={item.maxDate}
+            minDate={item.minDate ? (item.minDate as unknown as Dayjs) : undefined}
+            maxDate={item.maxDate ? (item.maxDate as unknown as Dayjs) : undefined}
             slotProps={{
               textField: {
                 fullWidth: true,
@@ -37,8 +38,14 @@ export function RNGDateInput({ item }: { item: DateFieldItem<any> }) {
 }
 
 // --- Autocomplete (Select/Combobox) ---
-export function RNGAutocomplete({ item }: { item: AutocompleteItem<any> }) {
+export function RNGAutocomplete<S extends FormSchema>({ item }: { item: AutocompleteItem<S> }) {
   const { control } = useFormContext();
+
+  const getLabel = (option: string | AutocompleteOption): string => {
+    if (typeof option === 'string') return option;
+    if (item.getOptionLabel) return item.getOptionLabel(option);
+    return JSON.stringify(option);
+  };
 
   return (
     <FieldWrapper item={item}>
@@ -49,11 +56,10 @@ export function RNGAutocomplete({ item }: { item: AutocompleteItem<any> }) {
           <Autocomplete
             {...field}
             multiple={item.multiple}
-            freeSolo={item.creatable} // Allows creating new items
+            freeSolo={item.creatable}
             options={item.options}
-            getOptionLabel={item.getOptionLabel || ((opt) => opt)}
-            // Ensure we handle the onChange correctly for object/string values
-            onChange={(_, data) => field.onChange(data)}
+            getOptionLabel={(option) => getLabel(option as AutocompleteOption)}
+            onChange={(_event, data) => field.onChange(data)}
             renderInput={(params) => (
               <TextField
                 {...params}
@@ -62,12 +68,13 @@ export function RNGAutocomplete({ item }: { item: AutocompleteItem<any> }) {
                 helperText={error?.message || item.description}
               />
             )}
-            renderTags={(value: any[], getTagProps) =>
-              value.map((option: any, index: number) => (
+            renderTags={(value: readonly AutocompleteOption[], getTagProps) =>
+              value.map((option, index) => (
                 <Chip
                   variant="outlined"
-                  label={item.getOptionLabel ? item.getOptionLabel(option) : option}
+                  label={getLabel(option)}
                   {...getTagProps({ index })}
+                  key={index}
                 />
               ))
             }

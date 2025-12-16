@@ -1,31 +1,28 @@
 'use client';
 import Grid from '@mui/material/Grid';
-import { useFormContext, useWatch } from 'react-hook-form';
-import { BaseFormItem } from './types';
+import { FieldValues, useFormContext, useWatch } from 'react-hook-form';
+import { z } from 'zod';
+import { BaseFormItem, FormSchema } from './types';
 
-type Props = {
-  item: BaseFormItem<any>;
+type Props<S extends FormSchema> = {
+  item: BaseFormItem<S>;
   children: React.ReactNode;
 };
 
-export function FieldWrapper({ item, children }: Props) {
-  const { control } = useFormContext();
+export function FieldWrapper<S extends FormSchema>({ item, children }: Props<S>) {
+  const { control } = useFormContext<FieldValues>();
 
   // Watch all values to determine visibility
-  // Performance Note: For massive forms, we might optimize this,
-  // but for standard forms, watching root is fine.
   const values = useWatch({ control });
 
   // Handle Render Logic
-  if (item.renderLogic && !item.renderLogic(values)) {
+  // Casting values to infer<S> is safe here as S matches the form structure
+  if (item.renderLogic && !item.renderLogic(values as z.infer<S>)) {
     return null;
   }
 
   return (
-    <Grid
-      size={{ xs: 12, ...item.colSize }} // Default to full width
-      {...item.colProps}
-    >
+    <Grid size={item.colSize?.size ?? 12} {...item.colProps}>
       {children}
     </Grid>
   );

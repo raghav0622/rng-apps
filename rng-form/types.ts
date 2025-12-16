@@ -108,8 +108,12 @@ export type ArrayItem<S extends FormSchema> = BaseFormItem<S> & {
   type: 'array';
   name: Path<z.infer<S>>;
   itemLabel?: string; // e.g. "Add Experience"
-  // The schema for a SINGLE row
-  items: FormItem<S>[];
+  // FIX: Use FormItem<any> to allow relative paths (e.g. 'school') instead of requiring root paths (e.g. 'education.0.school')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  items: FormItem<any>[];
+  // Default value for new items (prevents uncontrolled warnings)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  defaultValue?: any;
 };
 
 // --- Union Type ---

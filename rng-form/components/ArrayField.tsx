@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 import { Add, Delete } from '@mui/icons-material';
 import { Box, Button, IconButton, Paper, Stack, Typography } from '@mui/material';
@@ -6,7 +5,7 @@ import Grid from '@mui/material/Grid';
 import { useFieldArray, useFormContext } from 'react-hook-form';
 import { FieldWrapper } from '../FieldWrapper';
 import { ArrayItem, FormSchema } from '../types';
-import { FormBuilder } from './FormBuilder'; // We will create this
+import { FormBuilder } from './FormBuilder';
 
 export function RNGArrayField<S extends FormSchema>({ item }: { item: ArrayItem<S> }) {
   const { control } = useFormContext();
@@ -48,9 +47,8 @@ export function RNGArrayField<S extends FormSchema>({ item }: { item: ArrayItem<
         startIcon={<Add />}
         variant="outlined"
         onClick={() => {
-          // Append empty object roughly matching schema shape
-          // (Zod defaults handles strictness, usually append({}) is fine for controlled inputs)
-          append({} as any);
+          // Use provided default value or fallback to empty object
+          append(item.defaultValue || {});
         }}
       >
         {item.itemLabel || 'Add Item'}

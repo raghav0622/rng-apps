@@ -1,156 +1,237 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
+import { logInfo } from '@/lib/logger';
 import { RNGForm } from '@/rng-form';
 import { zUtils } from '@/rng-form/utils';
 import { Box, Container, Paper, Typography } from '@mui/material';
 import { useState } from 'react';
 import { z } from 'zod';
 
-// --- Schema Definition ---
+// --- MOCK ASYNC DATA ---
+const mockSkills = [
+  { id: '1', label: 'React' },
+  { id: '2', label: 'Node.js' },
+  { id: '3', label: 'TypeScript' },
+  { id: '4', label: 'Python' },
+  { id: '5', label: 'Go' },
+];
 
-const ExperienceSchema = z.object({
-  company: zUtils.string,
-  role: zUtils.string,
-  description: z.string().optional(), // For Rich Text
-});
-
-const AdvancedFormSchema = z.object({
-  // Section 1: Basic
-  firstName: zUtils.string,
-  lastName: zUtils.string,
-
-  // Section 2: Async Data
-  manager: z.object({ id: z.string(), label: z.string() }).nullable(), // Async result object
-
-  // Section 3: History (Array)
-  workHistory: z.array(ExperienceSchema).min(1, 'Add at least one job experience'),
-
-  // Section 4: Formatting
-  coverLetter: z.string().min(20, 'Cover letter must be at least 20 chars'),
-});
-
-// --- Mock Async Loader ---
-const mockFetchManagers = async (query: string) => {
-  await new Promise((r) => setTimeout(r, 800)); // Simulate lag
-  const allManagers = [
-    { id: '1', label: 'Alice Johnson' },
-    { id: '2', label: 'Bob Smith' },
-    { id: '3', label: 'Charlie Brown' },
-    { id: '4', label: 'David Williams' },
-  ];
-  if (!query) return allManagers;
-  return allManagers.filter((m) => m.label.toLowerCase().includes(query.toLowerCase()));
+const mockFetchSkills = async (query: string) => {
+  await new Promise((r) => setTimeout(r, 500));
+  if (!query) return mockSkills;
+  return mockSkills.filter((s) => s.label.toLowerCase().includes(query.toLowerCase()));
 };
 
-export default function AdvancedPage() {
-  const [submittedData, setSubmittedData] = useState<null | object>(null);
+// --- SCHEMA DEFINITION ---
+const KitchenSinkSchema = z.object({
+  // 1. Text & Password
+  username: zUtils.string,
+  password: zUtils.password,
+
+  // 2. Numbers
+  age: zUtils.number.min(18, 'Must be 18+'),
+  salary: zUtils.number.min(0),
+
+  // 3. Date
+  joinDate: zUtils.date,
+
+  // 4. Boolean & Conditional
+  hasReferral: z.boolean(),
+  referralCode: z.string().optional(), // Conditional field
+
+  // 5. Selects
+  department: z.string().min(1, 'Required'), // Simple Autocomplete
+  skills: z.array(z.object({ id: z.string(), label: z.string() })).min(1, 'Pick one'), // Async Multi
+
+  // 6. Rich Text
+  bio: z.string().min(10, 'Bio too short'),
+
+  // 7. Arrays (Nested)
+  education: z.array(
+    z.object({
+      school: zUtils.string,
+      degree: zUtils.string,
+      year: zUtils.number,
+    }),
+  ),
+});
+
+type FormValues = z.infer<typeof KitchenSinkSchema>;
+
+export default function KitchenSinkPage() {
+  const [result, setResult] = useState<any>(null);
+
+  const handleSubmit = (values: FormValues) => {
+    logInfo('Submitted:', values);
+    setResult(values);
+  };
 
   return (
     <Container maxWidth="md" sx={{ py: 4 }}>
-      <Paper elevation={3} sx={{ p: 4, borderRadius: 2 }}>
-        <Box sx={{ mb: 4, textAlign: 'center' }}>
-          <Typography variant="h4" color="primary">
-            Advanced RNG Form
-          </Typography>
-          <Typography variant="subtitle1" color="text.secondary">
-            Testing Sections, Arrays, Async & Rich Text
-          </Typography>
-        </Box>
+      <Typography variant="h4" gutterBottom>
+        RNG Form Kitchen Sink
+      </Typography>
+      <Typography sx={{ mb: 3, color: 'text.secondary' }}>
+        Testing all input types, validation, conditional logic, and layout.
+      </Typography>
 
+      <Paper sx={{ p: 4 }}>
         <RNGForm
-          schema={AdvancedFormSchema}
-          title="Candidate Application"
+          schema={KitchenSinkSchema}
+          title="Employee Onboarding"
           defaultValues={{
-            firstName: '',
-            lastName: '',
-            manager: null,
-            workHistory: [{ company: '', role: '', description: '<p>Initial content...</p>' }],
-            coverLetter: '',
+            username: '',
+            password: '',
+            age: undefined as any,
+            salary: undefined as any,
+            joinDate: null as any,
+            hasReferral: false,
+            referralCode: '',
+            department: '',
+            skills: [],
+            bio: '<p>Write about yourself...</p>',
+            education: [],
           }}
-          onSubmit={(values) => {
-            setSubmittedData(values);
-          }}
+          onSubmit={handleSubmit}
           uiSchema={[
+            // SECTION: Account
             {
               type: 'section',
-              title: 'Personal Information',
+              title: 'Account Details',
               children: [
                 {
                   type: 'text',
-                  name: 'firstName',
-                  label: 'First Name',
+                  name: 'username',
+                  label: 'Username',
                   colProps: { size: { xs: 12, md: 6 } },
                 },
                 {
-                  type: 'text',
-                  name: 'lastName',
-                  label: 'Last Name',
+                  type: 'password',
+                  name: 'password',
+                  label: 'Password',
                   colProps: { size: { xs: 12, md: 6 } },
                 },
               ],
             },
+
+            // SECTION: Personal Stats
             {
               type: 'section',
-              title: 'Referral Details',
+              title: 'Personal Stats',
               children: [
+                {
+                  type: 'number',
+                  name: 'age',
+                  label: 'Age',
+                  colProps: { size: { xs: 6, md: 4 } },
+                },
+                {
+                  type: 'currency',
+                  name: 'salary',
+                  label: 'Expected Salary',
+                  colProps: { size: { xs: 6, md: 4 } },
+                },
+                {
+                  type: 'date',
+                  name: 'joinDate',
+                  label: 'Joining Date',
+                  colProps: { size: { xs: 12, md: 4 } },
+                },
+              ],
+            },
+
+            // SECTION: Logic
+            {
+              type: 'section',
+              title: 'Referral (Conditional Logic)',
+              children: [
+                {
+                  type: 'switch',
+                  name: 'hasReferral',
+                  label: 'Do you have a referral?',
+                },
+                {
+                  type: 'text',
+                  name: 'referralCode',
+                  label: 'Referral Code',
+                  // LOGIC: Only show if hasReferral is true
+                  renderLogic: (values) => !!values.hasReferral,
+                  dependencies: ['hasReferral'],
+                },
+              ],
+            },
+
+            // SECTION: Professional
+            {
+              type: 'section',
+              title: 'Professional Info',
+              children: [
+                {
+                  type: 'autocomplete',
+                  name: 'department',
+                  label: 'Department',
+                  options: ['Engineering', 'HR', 'Sales', 'Marketing'],
+                  colProps: { size: { xs: 12, md: 6 } },
+                },
                 {
                   type: 'async-autocomplete',
-                  name: 'manager',
-                  label: 'Referring Manager (Search...)',
-                  loadOptions: mockFetchManagers,
-                  colProps: { size: 12 },
+                  name: 'skills',
+                  label: 'Skills (Async Search)',
+                  multiple: true,
+                  loadOptions: mockFetchSkills,
+                  colProps: { size: { xs: 12, md: 6 } },
+                },
+                {
+                  type: 'rich-text',
+                  name: 'bio',
+                  label: 'Biography',
+                  minHeight: 150,
                 },
               ],
             },
+
+            // SECTION: Array
             {
               type: 'section',
-              title: 'Professional Experience',
+              title: 'Education History',
               children: [
                 {
                   type: 'array',
-                  name: 'workHistory',
-                  label: 'Past Employment',
-                  itemLabel: 'Add Job',
+                  name: 'education',
+                  label: 'Schools Attended',
+                  itemLabel: 'Add School',
+                  defaultValue: { school: '', degree: '', year: 2020 },
                   items: [
                     {
                       type: 'text',
-                      name: 'company',
-                      label: 'Company Name',
-                      colProps: { size: { xs: 12, md: 6 } },
+                      name: 'school',
+                      label: 'School Name',
+                      colProps: { size: 6 },
                     },
                     {
                       type: 'text',
-                      name: 'role',
-                      label: 'Job Title',
-                      colProps: { size: { xs: 12, md: 6 } },
+                      name: 'degree',
+                      label: 'Degree',
+                      colProps: { size: 3 },
                     },
                     {
-                      type: 'rich-text',
-                      name: 'description',
-                      label: 'Job Responsibilities',
+                      type: 'number',
+                      name: 'year',
+                      label: 'Year',
+                      colProps: { size: 3 },
                     },
                   ],
-                },
-              ],
-            },
-            {
-              type: 'section',
-              title: 'Additional Info',
-              children: [
-                {
-                  type: 'rich-text',
-                  name: 'coverLetter',
-                  label: 'Cover Letter',
-                  minHeight: 200,
                 },
               ],
             },
           ]}
         />
 
-        {submittedData && (
-          <Box sx={{ mt: 4, p: 2, bgcolor: '#f5f5f5', borderRadius: 2 }}>
-            <pre>{JSON.stringify(submittedData, null, 2)}</pre>
+        {result && (
+          <Box sx={{ mt: 4, p: 2, bgcolor: 'grey.100', borderRadius: 2 }}>
+            <Typography variant="h6">Form Output:</Typography>
+            <pre style={{ overflowX: 'auto' }}>{JSON.stringify(result, null, 2)}</pre>
           </Box>
         )}
       </Paper>

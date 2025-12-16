@@ -2,6 +2,7 @@
 import { Box, Button, ButtonGroup, FormHelperText, Paper, Typography } from '@mui/material';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import { useEffect } from 'react';
 import { Controller, useFormContext } from 'react-hook-form';
 import { FieldWrapper } from '../FieldWrapper';
 import { FormSchema, RichTextItem } from '../types';
@@ -59,6 +60,8 @@ export function RNGRichText<S extends FormSchema>({ item }: { item: RichTextItem
           const editor = useEditor({
             extensions: [StarterKit],
             content: field.value || '',
+            // FIX: Disable immediate render to prevent Next.js SSR hydration mismatch
+            immediatelyRender: false,
             onUpdate: ({ editor }) => {
               // Get HTML content
               field.onChange(editor.getHTML());
@@ -70,14 +73,17 @@ export function RNGRichText<S extends FormSchema>({ item }: { item: RichTextItem
             },
           });
 
-          // Sync external changes (e.g. reset)
-          if (editor && field.value !== editor.getHTML()) {
-            // Only update if content is drastically different to avoid cursor jumps
-            // For simple forms, we might skip this or use useEffect
-            if (field.value === '' && editor.getText() !== '') {
-              editor.commands.setContent('');
+          // Sync external changes (e.g. form reset) via useEffect
+          // eslint-disable-next-line react-hooks/rules-of-hooks
+          useEffect(() => {
+            if (editor && field.value !== editor.getHTML()) {
+              // If the field value is empty (reset) or completely different, sync it.
+              // We check if it is focused to avoid cursor jumping while typing
+              if (!editor.isFocused) {
+                editor.commands.setContent(field.value || '');
+              }
             }
-          }
+          }, [field.value, editor]);
 
           return (
             <>

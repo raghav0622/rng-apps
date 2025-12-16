@@ -25,8 +25,7 @@ export type BaseFormItem<Schema extends FormSchema> = {
   label: string;
   type: FieldType;
   description?: string | React.ReactNode;
-  colSize?: Pick<GridProps, 'size'>;
-  colProps?: Omit<GridProps, 'size'>;
+  colProps?: GridProps;
 
   renderLogic?: (values: z.infer<Schema>) => boolean;
 

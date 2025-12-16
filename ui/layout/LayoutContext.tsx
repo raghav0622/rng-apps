@@ -26,7 +26,7 @@ export const LayoutContextProvider: React.FC<{ children: React.ReactNode }> = ({
   const mobile = useMediaQuery(theme.breakpoints.only('xs'));
   const drawerWidth = 250;
   const padding = 2;
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(true);
   const [isDrawerClosing, setDrawerIsClosing] = useState(false);
 
   const handleDrawerClose = () => {

@@ -1,7 +1,7 @@
 'use client';
 import { Autocomplete, Chip, TextField } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { Dayjs } from 'dayjs';
+import dayjs, { Dayjs } from 'dayjs'; // FIX 1: Import dayjs default
 import { Controller, useFormContext } from 'react-hook-form';
 import { FieldWrapper } from '../FieldWrapper';
 import { AutocompleteItem, AutocompleteOption, DateFieldItem, FormSchema } from '../types';
@@ -18,11 +18,15 @@ export function RNGDateInput<S extends FormSchema>({ item }: { item: DateFieldIt
         render={({ field, fieldState: { error } }) => (
           <DatePicker
             label={item.label}
-            value={field.value as Dayjs | null}
-            onChange={field.onChange}
+            // FIX 2: Convert native Date (from form state) to Dayjs (for MUI)
+            value={field.value ? dayjs(field.value) : null}
+            // FIX 3: Convert Dayjs (from MUI) back to native Date (for Zod validation)
+            onChange={(date: Dayjs | null) => {
+              field.onChange(date ? date.toDate() : null);
+            }}
             disabled={item.disabled}
-            minDate={item.minDate ? (item.minDate as unknown as Dayjs) : undefined}
-            maxDate={item.maxDate ? (item.maxDate as unknown as Dayjs) : undefined}
+            minDate={item.minDate ? dayjs(item.minDate) : undefined}
+            maxDate={item.maxDate ? dayjs(item.maxDate) : undefined}
             slotProps={{
               textField: {
                 fullWidth: true,
@@ -37,14 +41,16 @@ export function RNGDateInput<S extends FormSchema>({ item }: { item: DateFieldIt
   );
 }
 
-// --- Autocomplete (Select/Combobox) ---
+// ... rest of the file (RNGAutocomplete) remains unchanged
 export function RNGAutocomplete<S extends FormSchema>({ item }: { item: AutocompleteItem<S> }) {
   const { control } = useFormContext();
 
   const getLabel = (option: string | AutocompleteOption): string => {
     if (typeof option === 'string') return option;
     if (item.getOptionLabel) return item.getOptionLabel(option);
-    return JSON.stringify(option);
+    // Fallback for objects if getOptionLabel isn't provided
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (option as any).label || JSON.stringify(option);
   };
 
   return (

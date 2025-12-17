@@ -1,9 +1,11 @@
 import { AnyFieldType } from './types/field-registry';
 
 interface FieldConfig {
+  /** If true, the component handles its own label rendering, so FieldWrapper shouldn't render one. */
   hasInternalLabel?: boolean;
 }
 
+// Strictly typed against AnyFieldType to ensure no field is missed
 export const FIELD_CONFIG: Record<AnyFieldType, FieldConfig> = {
   // Primitives
   text: {},

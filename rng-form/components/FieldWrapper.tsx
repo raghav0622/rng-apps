@@ -3,6 +3,7 @@
 import { FIELD_CONFIG } from '@/rng-form/config';
 import { useFieldLogic } from '@/rng-form/hooks/useFieldLogic';
 import { BaseFormItem, FormSchema } from '@/rng-form/types';
+import { AnyFieldType } from '@/rng-form/types/field-registry';
 import { FormControl, FormHelperText, FormLabel, Grid } from '@mui/material';
 import {
   Controller,
@@ -32,20 +33,23 @@ export function FieldWrapper<S extends FormSchema, T extends BaseFormItem<S>>({
   const { control } = useFormContext();
 
   // Logic extracted to custom hook
-  const { isVisible, mergedItem } = useFieldLogic(item);
+  // We pass the generic T through to preserve the specific 'type' literal
+  const { isVisible, mergedItem } = useFieldLogic<S, T>(item);
 
   if (!isVisible) return null;
 
   // Accessibility & ID Generation
-  const fieldId = `field-${name.replace(/\./g, '-')}`;
+
+  const fieldId = `field-${(name as string).replace(/\./g, '-')}`;
   const errorId = `${fieldId}-error`;
   const labelId = `${fieldId}-label`;
 
-  const config = FIELD_CONFIG[mergedItem.type] || {};
+  // Safe lookup: mergedItem.type is string, we cast to AnyFieldType for the config key
+  const config = FIELD_CONFIG[mergedItem.type as AnyFieldType] || {};
   const showExternalLabel = !config.hasInternalLabel && !!mergedItem.label;
 
   return (
-    <Grid size={mergedItem.colProps?.size ?? { xs: 12 }} {...mergedItem.colProps}>
+    <Grid size={mergedItem.colProps?.size ?? 12} {...mergedItem.colProps}>
       <Controller
         name={name}
         control={control}
@@ -73,7 +77,7 @@ export function FieldWrapper<S extends FormSchema, T extends BaseFormItem<S>>({
               )}
 
               {/* Render the actual input component */}
-              {children(enrichedField, fieldState, mergedItem as T)}
+              {children(enrichedField, fieldState, mergedItem)}
 
               {(fieldState.error?.message || mergedItem.description) && (
                 <FormHelperText id={errorId}>

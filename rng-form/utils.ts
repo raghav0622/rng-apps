@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { FormItem } from './types';
 
 // Standardized Error Handling for Server Actions or API calls
 export class FormError extends Error {
@@ -40,4 +41,47 @@ export const formatCurrency = (amount: number) => {
     currency: 'INR',
     maximumFractionDigits: 0,
   }).format(amount);
+};
+
+// Helper to recursively collect field names from a list of FormItems
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const getFieldNames = (items: FormItem<any>[], prefix?: string): string[] => {
+  let names: string[] = [];
+
+  items.forEach((item) => {
+    // 1. Add current item's name if it exists (handles primitives, arrays, etc.)
+    if (item.name) {
+      names.push(prefix ? `${prefix}.${item.name}` : item.name);
+    }
+
+    // 2. Recursively find names in nested layout structures
+    switch (item.type) {
+      case 'section':
+        if (item.children) {
+          names = names.concat(getFieldNames(item.children, prefix));
+        }
+        break;
+
+      case 'tabs':
+        if (item.tabs) {
+          item.tabs.forEach((tab) => {
+            names = names.concat(getFieldNames(tab.children, prefix));
+          });
+        }
+        break;
+
+      case 'accordion':
+        if (item.items) {
+          item.items.forEach((accordionItem) => {
+            names = names.concat(getFieldNames(accordionItem.children, prefix));
+          });
+        }
+        break;
+
+      // Note: We generally don't recurse into 'wizard' (nested wizards have own scope)
+      // or 'array' children (array is validated as a single field usually)
+    }
+  });
+
+  return names;
 };

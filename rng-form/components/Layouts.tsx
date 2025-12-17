@@ -1,17 +1,25 @@
 'use client';
-import { ExpandMore } from '@mui/icons-material';
+import { Close, ExpandMore } from '@mui/icons-material';
 import {
   Accordion,
   AccordionDetails,
   AccordionSummary,
   Box,
+  Button,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  Step,
+  StepLabel,
+  Stepper,
   Tab,
   Tabs,
   Typography,
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import { useState } from 'react';
-import { AccordionItem, FormSchema, TabsItem } from '../types';
+import { AccordionItem, FormSchema, ModalFormItem, StepperItem, TabsItem } from '../types';
 import { FormBuilder } from './FormBuilder';
 
 // --- TABS LAYOUT ---
@@ -80,5 +88,62 @@ export function RNGAccordionLayout<S extends FormSchema>({
         </Accordion>
       ))}
     </Box>
+  );
+}
+
+// --- STEPPER (DISPLAY ONLY) ---
+export function RNGStepperDisplay<S extends FormSchema>({ item }: { item: StepperItem<S> }) {
+  return (
+    <Box sx={{ width: '100%', mb: 3 }}>
+      <Stepper activeStep={item.activeStepIndex ?? 0} alternativeLabel>
+        {item.steps.map((step, index) => (
+          <Step key={index}>
+            <StepLabel
+              optional={
+                step.description ? (
+                  <Typography variant="caption">{step.description}</Typography>
+                ) : null
+              }
+            >
+              {step.label}
+            </StepLabel>
+          </Step>
+        ))}
+      </Stepper>
+    </Box>
+  );
+}
+
+// --- MODAL FORM WRAPPER ---
+export function RNGModalForm<S extends FormSchema>({
+  item,
+  pathPrefix,
+}: {
+  item: ModalFormItem<S>;
+  pathPrefix?: string;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <Button variant="outlined" onClick={() => setOpen(true)}>
+        {item.triggerLabel}
+      </Button>
+      <Dialog open={open} onClose={() => setOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle
+          sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+        >
+          {item.dialogTitle || item.triggerLabel}
+          <IconButton onClick={() => setOpen(false)}>
+            <Close />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent dividers>
+          <Grid container spacing={2}>
+            <FormBuilder uiSchema={item.children} pathPrefix={pathPrefix} />
+          </Grid>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

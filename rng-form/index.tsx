@@ -15,6 +15,8 @@ interface RNGFormProps<S extends FormSchema> {
   title?: string;
   submitLabel?: string;
   readOnly?: boolean;
+  /** Hides the default submit button. Useful for Wizards or custom layouts. */
+  hideSubmitButton?: boolean;
 }
 
 export function RNGForm<S extends FormSchema>({
@@ -25,9 +27,9 @@ export function RNGForm<S extends FormSchema>({
   title,
   submitLabel = 'Submit',
   readOnly = false,
+  hideSubmitButton = false,
 }: RNGFormProps<S>) {
   // Fix 1: Cast resolver to 'any' to bypass strict generic Input vs Output checks
-  // which often cause friction in generic wrapper components.
   const methods = useForm<z.infer<S>>({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(schema) as any,
@@ -55,7 +57,7 @@ export function RNGForm<S extends FormSchema>({
 
             <FormBuilder uiSchema={uiSchema} />
 
-            {!readOnly && (
+            {!readOnly && !hideSubmitButton && (
               <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
                 <Button
                   type="submit"

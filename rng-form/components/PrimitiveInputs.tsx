@@ -1,7 +1,7 @@
 'use client';
 
-import { InputAdornment, TextField } from '@mui/material';
-import { NumberFieldItem, TextFieldItem } from '../types';
+import { Box, InputAdornment, TextField } from '@mui/material';
+import { ColorItem, NumberFieldItem, TextFieldItem } from '../types';
 import { FieldWrapper } from './FieldWrapper';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -62,6 +62,45 @@ export function RNGNumberInput({ item }: { item: NumberFieldItem<any> }) {
             },
           }}
         />
+      )}
+    </FieldWrapper>
+  );
+}
+
+export function RNGColorInput({ item }: { item: ColorItem<any> }) {
+  return (
+    <FieldWrapper item={item} name={item.name}>
+      {(field, fieldState) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <TextField
+            {...field}
+            value={field.value ?? '#000000'}
+            fullWidth
+            type="text"
+            error={!!fieldState.error}
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <input
+                      type="color"
+                      value={field.value ?? '#000000'}
+                      onChange={(e) => field.onChange(e.target.value)}
+                      style={{
+                        width: 32,
+                        height: 32,
+                        padding: 0,
+                        border: 'none',
+                        background: 'none',
+                        cursor: 'pointer',
+                      }}
+                    />
+                  </InputAdornment>
+                ),
+              },
+            }}
+          />
+        </Box>
       )}
     </FieldWrapper>
   );

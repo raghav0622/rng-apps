@@ -10,8 +10,8 @@ const schema = z.object({
   username: z.string().min(3),
   email: z.string().email(),
   plan: z.string(),
-  paymentMethod: z.string(),
-  agree: z.boolean().refine((val) => val === true, 'You must agree'),
+  // Ensure default logic or required messages are clear
+  agree: z.boolean().refine((val) => val === true, { message: 'You must agree to the terms' }),
 });
 
 const ui = defineForm<typeof schema>((f) => [
@@ -58,9 +58,17 @@ export default function WizardPage() {
       <Typography variant="h5" gutterBottom>
         Multi-Step Wizard
       </Typography>
-      <RNGForm schema={schema} uiSchema={ui} defaultValues={{ plan: 'free' }} onSubmit={setData} />
+      <RNGForm
+        schema={schema}
+        uiSchema={ui}
+        defaultValues={{ plan: 'free' }}
+        onSubmit={setData}
+        // IMPORTANT: Hide the global submit button so only the Wizard's submit button is used
+        hideSubmitButton={true}
+      />
       {data && (
         <Paper sx={{ p: 2 }}>
+          <Typography variant="h6">Form Submitted:</Typography>
           <pre>{JSON.stringify(data, null, 2)}</pre>
         </Paper>
       )}

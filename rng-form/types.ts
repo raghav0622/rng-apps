@@ -28,22 +28,32 @@ export type FieldType =
   | 'date'
   | 'hidden'
   | 'masked-text'
+  | 'color' // New
+  | 'otp' // New
   // Selection
   | 'switch'
   | 'checkbox-group'
   | 'radio'
+  | 'toggle-group' // New
   | 'slider'
   | 'rating'
   | 'autocomplete'
   | 'async-autocomplete'
+  | 'transfer-list' // New
   // Complex / Layout
   | 'rich-text'
   | 'file'
+  | 'signature' // New
+  | 'location' // New
+  | 'date-range' // New
   | 'array'
+  | 'data-grid' // New
   | 'section'
   | 'tabs'
   | 'accordion'
   | 'wizard'
+  | 'stepper' // New (Display only)
+  | 'modal-form' // New
   | 'calculated';
 
 // =============================================================================
@@ -118,11 +128,26 @@ export type CalculatedItem<S extends FormSchema> = BaseFormItem<S> & {
   calculate: (values: z.infer<S>) => string | number;
 };
 
+export type ColorItem<S extends FormSchema> = BaseFormItem<S> & {
+  type: 'color';
+  name: Path<z.infer<S>>;
+};
+
+export type OtpItem<S extends FormSchema> = BaseFormItem<S> & {
+  type: 'otp';
+  name: Path<z.infer<S>>;
+  length?: number;
+};
+
 // =============================================================================
 // SELECTION FIELDS
 // =============================================================================
 
-export type RadioOption = { label: string; value: string | number | boolean };
+export type RadioOption = {
+  label: string;
+  value: string | number | boolean;
+  icon?: React.ReactNode;
+};
 
 export type SwitchFieldItem<S extends FormSchema> = BaseFormItem<S> & {
   type: 'switch';
@@ -156,6 +181,20 @@ export type CheckboxGroupItem<S extends FormSchema> = BaseFormItem<S> & {
   name: Path<z.infer<S>>;
   options: RadioOption[];
   row?: boolean;
+};
+
+export type ToggleGroupItem<S extends FormSchema> = BaseFormItem<S> & {
+  type: 'toggle-group';
+  name: Path<z.infer<S>>;
+  options: RadioOption[];
+  exclusive?: boolean;
+};
+
+export type TransferListItem<S extends FormSchema> = BaseFormItem<S> & {
+  type: 'transfer-list';
+  name: Path<z.infer<S>>;
+  options: RadioOption[];
+  titles?: [string, string]; // [Left Title, Right Title]
 };
 
 export type AutocompleteOption = string | Record<string, unknown>;
@@ -195,6 +234,26 @@ export type RichTextItem<S extends FormSchema> = BaseFormItem<S> & {
   placeholder?: string;
 };
 
+export type SignatureItem<S extends FormSchema> = BaseFormItem<S> & {
+  type: 'signature';
+  name: Path<z.infer<S>>;
+  height?: number;
+};
+
+export type LocationItem<S extends FormSchema> = BaseFormItem<S> & {
+  type: 'location';
+  name: Path<z.infer<S>>;
+  placeholder?: string;
+  provider?: 'google' | 'mapbox' | 'mock'; // For future expansion
+};
+
+export type DateRangeItem<S extends FormSchema> = BaseFormItem<S> & {
+  type: 'date-range';
+  name: Path<z.infer<S>>; // Value is { start: Date, end: Date }
+  minDate?: Date;
+  maxDate?: Date;
+};
+
 export type SectionItem<S extends FormSchema> = BaseFormItem<S> & {
   type: 'section';
   title?: string;
@@ -227,12 +286,37 @@ export type WizardItem<S extends FormSchema> = BaseFormItem<S> & {
   }[];
 };
 
+export type StepperItem<S extends FormSchema> = BaseFormItem<S> & {
+  type: 'stepper';
+  activeStepIndex?: number; // Logic controlled by external state usually, or simple display
+  steps: {
+    label: string;
+    description?: string;
+  }[];
+};
+
+export type ModalFormItem<S extends FormSchema> = BaseFormItem<S> & {
+  type: 'modal-form';
+  triggerLabel: string;
+  dialogTitle?: string;
+  children: FormItem<S>[];
+};
+
 export type ArrayItem<S extends FormSchema> = BaseFormItem<S> & {
   type: 'array';
   name: Path<z.infer<S>>;
   itemLabel?: string;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   items: FormItem<any>[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  defaultValue?: any;
+};
+
+export type DataGridItem<S extends FormSchema> = BaseFormItem<S> & {
+  type: 'data-grid';
+  name: Path<z.infer<S>>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  columns: { header: string; field: FormItem<any>; width?: number | string }[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   defaultValue?: any;
 };
@@ -248,17 +332,27 @@ export type FormItem<S extends FormSchema> =
   | HiddenFieldItem<S>
   | MaskedTextItem<S>
   | CalculatedItem<S>
+  | ColorItem<S>
+  | OtpItem<S>
   | SwitchFieldItem<S>
   | SliderItem<S>
   | RatingItem<S>
   | RadioGroupItem<S>
   | CheckboxGroupItem<S>
+  | ToggleGroupItem<S>
+  | TransferListItem<S>
   | AutocompleteItem<S>
   | AsyncAutocompleteItem<S>
   | FileItem<S>
   | RichTextItem<S>
+  | SignatureItem<S>
+  | LocationItem<S>
+  | DateRangeItem<S>
   | SectionItem<S>
   | TabsItem<S>
   | AccordionItem<S>
   | WizardItem<S>
-  | ArrayItem<S>;
+  | StepperItem<S>
+  | ModalFormItem<S>
+  | ArrayItem<S>
+  | DataGridItem<S>;

@@ -11,6 +11,8 @@ import {
   Rating,
   Slider,
   Switch,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from '@mui/material';
 import {
@@ -19,6 +21,7 @@ import {
   RatingItem,
   SliderItem,
   SwitchFieldItem,
+  ToggleGroupItem,
 } from '../types';
 import { FieldWrapper } from './FieldWrapper';
 
@@ -101,6 +104,34 @@ export function RNGCheckboxGroup({ item }: { item: CheckboxGroupItem<any> }) {
           </>
         );
       }}
+    </FieldWrapper>
+  );
+}
+
+export function RNGToggleGroup({ item }: { item: ToggleGroupItem<any> }) {
+  return (
+    <FieldWrapper item={item} name={item.name}>
+      {(field, _, mergedItem) => (
+        <Box>
+          <FormLabel component="legend" sx={{ fontWeight: 500, mb: 1 }}>
+            {mergedItem.label}
+          </FormLabel>
+          <ToggleButtonGroup
+            value={field.value}
+            exclusive={mergedItem.exclusive}
+            onChange={(_, newVal) => field.onChange(newVal)}
+            aria-label={mergedItem.label}
+            fullWidth
+          >
+            {mergedItem.options.map((opt) => (
+              <ToggleButton key={opt.value.toString()} value={opt.value}>
+                {opt.icon && <Box sx={{ mr: 1, display: 'flex' }}>{opt.icon}</Box>}
+                {opt.label}
+              </ToggleButton>
+            ))}
+          </ToggleButtonGroup>
+        </Box>
+      )}
     </FieldWrapper>
   );
 }

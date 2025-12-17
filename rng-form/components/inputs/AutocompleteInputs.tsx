@@ -8,6 +8,14 @@ import { FieldWrapper } from '../FieldWrapper';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+// Helper to safe compare options
+const compareOptions = (opt: any, val: any) => {
+  if (!val) return false;
+  const optVal = typeof opt === 'string' ? opt : opt.value;
+  const fieldVal = typeof val === 'string' ? val : val.value;
+  return optVal === fieldVal;
+};
+
 // --- SYNC AUTOCOMPLETE ---
 export function RNGAutocomplete({ item }: { item: AutocompleteItem<any> }) {
   return (
@@ -21,9 +29,8 @@ export function RNGAutocomplete({ item }: { item: AutocompleteItem<any> }) {
             mergedItem.getOptionLabel ||
             ((opt) => (typeof opt === 'string' ? opt : (opt as any).label || ''))
           }
-          isOptionEqualToValue={(opt, val) =>
-            typeof opt === 'string' ? opt === val : (opt as any).value === (val as any).value
-          }
+          // Fix: Handle null/undefined values safely
+          isOptionEqualToValue={compareOptions}
           onChange={(_, data) => field.onChange(data)}
           renderInput={(params) => (
             <TextField {...params} placeholder={mergedItem.label} variant="outlined" />
@@ -90,11 +97,7 @@ export function RNGAsyncAutocomplete({ item }: { item: AsyncAutocompleteItem<any
             mergedItem.getOptionLabel ||
             ((opt) => (typeof opt === 'string' ? opt : (opt as any).label || ''))
           }
-          isOptionEqualToValue={(opt, val) => {
-            const optVal = typeof opt === 'string' ? opt : (opt as any).value;
-            const fieldVal = typeof val === 'string' ? val : (val as any).value;
-            return optVal === fieldVal;
-          }}
+          isOptionEqualToValue={compareOptions}
           onChange={(_, data) => field.onChange(data)}
           renderInput={(params) => (
             <TextField

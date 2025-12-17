@@ -16,7 +16,7 @@ const schema = z.object({
   color: z.string(),
   satisfaction: z.number().min(1).max(5),
   volume: z.number().min(0).max(100),
-  interests: z.array(z.string()), // Transfer list
+  interests: z.array(z.string()), // Transfer list returns strings
 
   // Advanced
   location: z
@@ -32,7 +32,13 @@ const schema = z.object({
   signature: z.string().optional(),
 
   // Autocomplete
-  country: z.string(),
+  // FIX: Autocomplete returns the full option object { label, value }, not just string.
+  // We also handle nullable() because clearing the input sets it to null.
+  country: z
+    .object({ label: z.string(), value: z.string() })
+    .nullable()
+    // Optional: Add refinement if you want to force selection
+    .refine((val) => val !== null, { message: 'Country is required' }),
 });
 
 // 2. UI
@@ -95,6 +101,7 @@ export default function AdvancedInputsPage() {
         schema={schema}
         uiSchema={ui}
         defaultValues={{
+          appointmentDate: new Date(),
           color: '#1976d2',
           satisfaction: 3,
           volume: 50,

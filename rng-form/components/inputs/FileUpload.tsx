@@ -1,12 +1,9 @@
 'use client';
+import { FieldWrapper } from '@/rng-form/components/FieldWrapper';
+import { FormSchema, InputItem } from '@/rng-form/types';
 import { CloudUpload } from '@mui/icons-material';
 import { Box, Chip, styled, Typography } from '@mui/material';
-import { FileItem } from '../../types';
-import { FieldWrapper } from '../FieldWrapper';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
-// Visually hidden but accessible input
 const VisuallyHiddenInput = styled('input')({
   clip: 'rect(0 0 0 0)',
   clipPath: 'inset(50%)',
@@ -19,7 +16,11 @@ const VisuallyHiddenInput = styled('input')({
   width: 1,
 });
 
-export function RNGFileUpload({ item }: { item: FileItem<any> }) {
+interface RNGFileUploadProps<S extends FormSchema> {
+  item: InputItem<S> & { type: 'file' };
+}
+
+export function RNGFileUpload<S extends FormSchema>({ item }: RNGFileUploadProps<S>) {
   return (
     <FieldWrapper item={item} name={item.name}>
       {(field, _, mergedItem) => (
@@ -33,20 +34,19 @@ export function RNGFileUpload({ item }: { item: FileItem<any> }) {
             border: '2px dashed #ccc',
             borderRadius: 2,
             p: 3,
-            cursor: 'pointer',
+            cursor: mergedItem.disabled ? 'not-allowed' : 'pointer',
+            opacity: mergedItem.disabled ? 0.6 : 1,
             transition: 'border .2s ease-in-out',
-            '&:hover': { borderColor: 'primary.main', bgcolor: 'action.hover' },
-            '&:focus-within': {
-              borderColor: 'primary.main',
-              outline: '2px solid',
-              outlineColor: 'primary.main',
-            },
+            '&:hover': !mergedItem.disabled
+              ? { borderColor: 'primary.main', bgcolor: 'action.hover' }
+              : {},
           }}
         >
           <VisuallyHiddenInput
             type="file"
             multiple={mergedItem.multiple}
             accept={mergedItem.accept}
+            disabled={mergedItem.disabled}
             onChange={(e) => {
               const files = e.target.files;
               if (files && files.length > 0) {
@@ -60,17 +60,7 @@ export function RNGFileUpload({ item }: { item: FileItem<any> }) {
           {field.value && (
             <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
               {Array.isArray(field.value) ? (
-                field.value.map((f: File, i: number) => (
-                  <Chip
-                    key={i}
-                    label={f.name}
-                    onDelete={() => {
-                      // Note: Removing individual files from a FileList is tricky naturally,
-                      // usually requires maintaining a separate state or DataTransfer
-                      // For now, this is a display-only chip unless we implement full state management
-                    }}
-                  />
-                ))
+                field.value.map((f: File, i: number) => <Chip key={i} label={f.name} />)
               ) : (
                 <Chip label={(field.value as File).name} />
               )}

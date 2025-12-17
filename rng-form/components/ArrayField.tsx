@@ -1,18 +1,21 @@
 'use client';
+import { FieldWrapper } from '@/rng-form/components/FieldWrapper';
+import { FormBuilder } from '@/rng-form/components/FormBuilder';
+import { FormSchema, LayoutItem } from '@/rng-form/types';
 import { Add, Delete } from '@mui/icons-material';
-import { Box, Button, IconButton, Paper, Typography } from '@mui/material';
-import Grid from '@mui/material/Grid';
+import { Box, Button, Grid, IconButton, Paper, Typography } from '@mui/material';
 import { useFieldArray, useFormContext } from 'react-hook-form';
-import { ArrayItem } from '../types';
-import { FieldWrapper } from './FieldWrapper';
-import { FormBuilder } from './FormBuilder';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-export function RNGArrayField({ item }: { item: ArrayItem<any> }) {
+interface RNGArrayFieldProps<S extends FormSchema> {
+  item: LayoutItem<S> & { type: 'array' };
+  pathPrefix?: string;
+}
+
+export function RNGArrayField<S extends FormSchema>({ item }: RNGArrayFieldProps<S>) {
   const { control } = useFormContext();
 
-  // We use FieldWrapper mostly for layout/logic, but we need the raw Name for useFieldArray
   return (
     <FieldWrapper item={item} name={item.name}>
       {() => <ArrayFieldContent item={item} control={control} />}
@@ -20,7 +23,13 @@ export function RNGArrayField({ item }: { item: ArrayItem<any> }) {
   );
 }
 
-function ArrayFieldContent({ item, control }: { item: ArrayItem<any>; control: any }) {
+function ArrayFieldContent({
+  item,
+  control,
+}: {
+  item: LayoutItem<any> & { type: 'array' };
+  control: any;
+}) {
   const { fields, append, remove } = useFieldArray({
     control,
     name: item.name as string,
@@ -40,9 +49,8 @@ function ArrayFieldContent({ item, control }: { item: ArrayItem<any>; control: a
           </Box>
 
           <Grid container spacing={2}>
-            {/* We render the children schema for THIS index.
-               The FormBuilder needs a `pathPrefix` to know where these fields live.
-               pathPrefix = "parentName.0", "parentName.1" etc.
+            {/* pathPrefix construction is key here:
+              parentName.0.fieldName 
             */}
             <FormBuilder uiSchema={item.items} pathPrefix={`${item.name}.${index}`} />
           </Grid>

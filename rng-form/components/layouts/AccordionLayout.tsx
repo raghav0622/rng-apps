@@ -1,4 +1,6 @@
 'use client';
+import { FormBuilder } from '@/rng-form/components/FormBuilder';
+import { FormSchema, LayoutItem } from '@/rng-form/types';
 import { ExpandMore } from '@mui/icons-material';
 import {
   Accordion,
@@ -8,16 +10,16 @@ import {
   Grid,
   Typography,
 } from '@mui/material';
-import { AccordionItem, FormSchema } from '../../types';
-import { FormBuilder } from '../FormBuilder';
+
+interface RNGAccordionLayoutProps<S extends FormSchema> {
+  item: LayoutItem<S> & { type: 'accordion' };
+  pathPrefix?: string;
+}
 
 export function RNGAccordionLayout<S extends FormSchema>({
   item,
   pathPrefix,
-}: {
-  item: AccordionItem<S>;
-  pathPrefix?: string;
-}) {
+}: RNGAccordionLayoutProps<S>) {
   return (
     <Box sx={{ width: '100%', mb: 2 }}>
       {item.items.map((accordionItem, index) => (

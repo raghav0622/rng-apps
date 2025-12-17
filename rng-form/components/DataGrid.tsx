@@ -1,4 +1,7 @@
 'use client';
+import { FieldWrapper } from '@/rng-form/components/FieldWrapper';
+import { FormBuilder } from '@/rng-form/components/FormBuilder';
+import { FormSchema, LayoutItem } from '@/rng-form/types';
 import { Add, Delete } from '@mui/icons-material';
 import {
   Box,
@@ -13,13 +16,15 @@ import {
   TableRow,
 } from '@mui/material';
 import { useFieldArray, useFormContext } from 'react-hook-form';
-import { DataGridItem } from '../types';
-import { FieldWrapper } from './FieldWrapper';
-import { FormBuilder } from './FormBuilder';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-export function RNGDataGrid({ item }: { item: DataGridItem<any> }) {
+interface RNGDataGridProps<S extends FormSchema> {
+  item: LayoutItem<S> & { type: 'data-grid' };
+  pathPrefix?: string;
+}
+
+export function RNGDataGrid<S extends FormSchema>({ item }: RNGDataGridProps<S>) {
   const { control } = useFormContext();
 
   return (
@@ -29,7 +34,13 @@ export function RNGDataGrid({ item }: { item: DataGridItem<any> }) {
   );
 }
 
-function DataGridContent({ item, control }: { item: DataGridItem<any>; control: any }) {
+function DataGridContent({
+  item,
+  control,
+}: {
+  item: LayoutItem<any> & { type: 'data-grid' };
+  control: any;
+}) {
   const { fields, append, remove } = useFieldArray({
     control,
     name: item.name as string,
@@ -56,10 +67,8 @@ function DataGridContent({ item, control }: { item: DataGridItem<any>; control: 
               <TableRow key={field.id} hover>
                 {item.columns.map((col, colIdx) => (
                   <TableCell key={colIdx}>
-                    {/* Renders a single field cell without the heavy Grid layout 
-                      We trick FormBuilder by passing a single item array
-                    */}
                     <Box sx={{ '& .MuiFormControl-root': { mb: 0 } }}>
+                      {/* Trick: Render a single item array for the cell */}
                       <FormBuilder uiSchema={[col.field]} pathPrefix={`${item.name}.${index}`} />
                     </Box>
                   </TableCell>

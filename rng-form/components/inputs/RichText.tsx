@@ -1,5 +1,6 @@
 'use client';
-
+import { FieldWrapper } from '@/rng-form/components/FieldWrapper';
+import { FormSchema, InputItem } from '@/rng-form/types';
 import {
   FormatBold,
   FormatItalic,
@@ -10,8 +11,6 @@ import { Box, Paper, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useEffect } from 'react';
-import { RichTextItem } from '../../types';
-import { FieldWrapper } from '../FieldWrapper';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -57,7 +56,11 @@ function TiptapToolbar({ editor }: { editor: any }) {
   );
 }
 
-export function RNGRichText({ item }: { item: RichTextItem<any> }) {
+interface RNGRichTextProps<S extends FormSchema> {
+  item: InputItem<S> & { type: 'rich-text' };
+}
+
+export function RNGRichText<S extends FormSchema>({ item }: RNGRichTextProps<S>) {
   return (
     <FieldWrapper item={item} name={item.name}>
       {(field, fieldState, mergedItem) => {
@@ -65,6 +68,7 @@ export function RNGRichText({ item }: { item: RichTextItem<any> }) {
         const editor = useEditor({
           extensions: [StarterKit],
           content: field.value || '',
+          editable: !mergedItem.disabled,
           onUpdate: ({ editor }) => {
             const html = editor.getHTML();
             field.onChange(html === '<p></p>' ? '' : html);
@@ -89,12 +93,21 @@ export function RNGRichText({ item }: { item: RichTextItem<any> }) {
           }
         }, [field.value, editor]);
 
+        // Sync disabled state
+        // eslint-disable-next-line react-hooks/rules-of-hooks
+        useEffect(() => {
+          if (editor) {
+            editor.setEditable(!mergedItem.disabled);
+          }
+        }, [mergedItem.disabled, editor]);
+
         return (
           <Paper
             variant="outlined"
             sx={{
               borderColor: fieldState.error ? 'error.main' : 'inherit',
               overflow: 'hidden',
+              bgcolor: mergedItem.disabled ? 'action.disabledBackground' : 'background.paper',
             }}
           >
             <TiptapToolbar editor={editor} />

@@ -1,52 +1,33 @@
 'use client';
+import { FormBuilder } from '@/rng-form/components/FormBuilder';
+import { FormSchema, LayoutItem } from '@/rng-form/types';
 import { Box, Grid, Tab, Tabs } from '@mui/material';
 import { useState } from 'react';
-import { FormSchema, TabsItem } from '../../types';
-import { FormBuilder } from '../FormBuilder';
 
-export function RNGTabsLayout<S extends FormSchema>({
-  item,
-  pathPrefix,
-}: {
-  item: TabsItem<S>;
+interface TabsLayoutProps<S extends FormSchema> {
+  item: LayoutItem<S> & { type: 'tabs' };
   pathPrefix?: string;
-}) {
-  const [value, setValue] = useState(0);
+}
 
-  const handleChange = (event: React.SyntheticEvent, newValue: number) => {
-    setValue(newValue);
-  };
+export function RNGTabsLayout<S extends FormSchema>({ item, pathPrefix }: TabsLayoutProps<S>) {
+  const [activeTab, setActiveTab] = useState(0);
 
   return (
-    <Box sx={{ width: '100%', mb: 2 }}>
-      <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-        <Tabs value={value} onChange={handleChange} variant="scrollable" scrollButtons="auto">
-          {item.tabs.map((tab, index) => (
-            <Tab
-              label={tab.label}
-              key={index}
-              id={`tab-${index}`}
-              aria-controls={`tabpanel-${index}`}
-            />
-          ))}
-        </Tabs>
+    <Grid size={item.colProps?.size ?? 12} {...item.colProps}>
+      <Box sx={{ width: '100%' }}>
+        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+          <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} variant="scrollable">
+            {item.tabs.map((tab, idx) => (
+              <Tab key={idx} label={tab.label} />
+            ))}
+          </Tabs>
+        </Box>
+        {item.tabs.map((tab, idx) => (
+          <div role="tabpanel" hidden={activeTab !== idx} key={idx} style={{ padding: '16px 0' }}>
+            {activeTab === idx && <FormBuilder uiSchema={tab.children} pathPrefix={pathPrefix} />}
+          </div>
+        ))}
       </Box>
-      {item.tabs.map((tab, index) => (
-        <div
-          role="tabpanel"
-          hidden={value !== index}
-          id={`tabpanel-${index}`}
-          aria-labelledby={`tab-${index}`}
-          key={index}
-          style={{ paddingTop: 20, paddingBottom: 10 }}
-        >
-          {value === index && (
-            <Grid container spacing={2}>
-              <FormBuilder uiSchema={tab.children} pathPrefix={pathPrefix} />
-            </Grid>
-          )}
-        </div>
-      ))}
-    </Box>
+    </Grid>
   );
 }

@@ -19,27 +19,24 @@ const ui = defineForm<typeof schema>((f) => [
   f.section('Personal Info', [
     f.text('firstName', { label: 'First Name', colProps: { size: { xs: 12, md: 6 } } }),
     f.text('lastName', { label: 'Last Name', colProps: { size: { xs: 12, md: 6 } } }),
-    f.masked('phone', '(000) 000-0000', {
+    f.masked('phone', {
       label: 'Phone Number',
+      mask: '(000) 000-0000',
       placeholder: '(555) 555-5555',
     }),
   ]),
   f.section('Order Calculation (Real-time)', [
     f.currency('price', { label: 'Unit Price ($)', colProps: { size: { xs: 12, md: 4 } } }),
     f.number('quantity', { label: 'Quantity', colProps: { size: { xs: 12, md: 4 } } }),
-    f.calculated(
-      'total',
-      (values) => {
-        const p = Number(values.price) || 0;
-        const q = Number(values.quantity) || 0;
-        return (p * q).toFixed(2);
+    f.calculated('total', {
+      label: 'Total Price',
+      calculate: (values) => {
+        const { price, quantity } = values;
+        console.log(price * quantity);
+        return price * quantity;
       },
-      {
-        label: 'Total (Calculated)',
-        dependencies: ['price', 'quantity'],
-        colProps: { size: { xs: 12, md: 4 } },
-      },
-    ),
+      colProps: { size: { xs: 12, md: 4 } },
+    }),
   ]),
 ]);
 

@@ -1,18 +1,21 @@
 'use client';
+import { FieldWrapper } from '@/rng-form/components/FieldWrapper';
+import { FormSchema, InputItem } from '@/rng-form/types';
 import { Stack, TextField } from '@mui/material';
-import { DateFieldItem, DateRangeItem } from '../../types';
-import { FieldWrapper } from '../FieldWrapper';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+interface RNGDateInputProps<S extends FormSchema> {
+  item: InputItem<S> & { type: 'date' };
+}
 
-export function RNGDateInput({ item }: { item: DateFieldItem<any> }) {
+export function RNGDateInput<S extends FormSchema>({ item }: RNGDateInputProps<S>) {
   return (
     <FieldWrapper item={item} name={item.name}>
-      {(field, fieldState) => (
+      {(field, fieldState, mergedItem) => (
         <TextField
           {...field}
           type="date"
           fullWidth
+          disabled={mergedItem.disabled}
           error={!!fieldState.error}
           // Handle string vs Date object for input value
           value={
@@ -28,10 +31,14 @@ export function RNGDateInput({ item }: { item: DateFieldItem<any> }) {
   );
 }
 
-export function RNGDateRange({ item }: { item: DateRangeItem<any> }) {
+interface RNGDateRangeProps<S extends FormSchema> {
+  item: InputItem<S> & { type: 'date-range' };
+}
+
+export function RNGDateRange<S extends FormSchema>({ item }: RNGDateRangeProps<S>) {
   return (
     <FieldWrapper item={item} name={item.name}>
-      {(field) => {
+      {(field, _fieldState, mergedItem) => {
         const val = field.value || { start: null, end: null };
         return (
           <Stack direction="row" spacing={2}>
@@ -39,6 +46,7 @@ export function RNGDateRange({ item }: { item: DateRangeItem<any> }) {
               type="date"
               label="Start Date"
               fullWidth
+              disabled={mergedItem.disabled}
               InputLabelProps={{ shrink: true }}
               value={
                 val.start instanceof Date
@@ -56,6 +64,7 @@ export function RNGDateRange({ item }: { item: DateRangeItem<any> }) {
               type="date"
               label="End Date"
               fullWidth
+              disabled={mergedItem.disabled}
               InputLabelProps={{ shrink: true }}
               value={
                 val.end instanceof Date ? val.end.toISOString().split('T')[0] : (val.end ?? '')

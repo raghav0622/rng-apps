@@ -1,25 +1,27 @@
 'use client';
 import { FieldWrapper } from '@/rng-form/components/FieldWrapper';
-import { TextFieldItem } from '@/rng-form/types';
+import { FormSchema, InputItem } from '@/rng-form/types';
 import { TextField } from '@mui/material';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function RNGTextInput({ item }: { item: TextFieldItem<any> }) {
+// We allow this component to handle both 'text' and 'password' items
+interface RNGTextInputProps<S extends FormSchema> {
+  item: InputItem<S> & { type: 'text' | 'password' };
+}
+
+export function RNGTextInput<S extends FormSchema>({ item }: RNGTextInputProps<S>) {
   return (
     <FieldWrapper item={item} name={item.name}>
       {(field, fieldState, mergedItem) => (
         <TextField
           {...field}
-          value={field.value ?? ''}
           fullWidth
-          // Label is handled externally by FieldWrapper for consistency
-          label={undefined}
-          type={mergedItem.type}
+          type={mergedItem.type === 'password' ? 'password' : 'text'}
           placeholder={mergedItem.placeholder}
-          multiline={mergedItem.multiline}
-          rows={mergedItem.rows}
+          multiline={mergedItem.type === 'text' && mergedItem.multiline}
+          rows={mergedItem.type === 'text' ? mergedItem.rows : undefined}
           error={!!fieldState.error}
-          variant="outlined"
+          // Explicitly map value to avoid uncontrolled/controlled warnings
+          value={field.value ?? ''}
         />
       )}
     </FieldWrapper>

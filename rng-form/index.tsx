@@ -29,15 +29,15 @@ export function RNGForm<S extends FormSchema>({
   readOnly = false,
   hideSubmitButton = false,
 }: RNGFormProps<S>) {
-  // Fix 1: Cast resolver to 'any' to bypass strict generic Input vs Output checks
   const methods = useForm<z.infer<S>>({
+    // We cast to any because hook-form resolver types are sometimes slightly mismatched
+    // with strict Zod inference, though it works at runtime.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     resolver: zodResolver(schema) as any,
     defaultValues,
     mode: 'onBlur',
   });
 
-  // Fix 2: Explicitly type the handler to match the form's inferred type
   const handleFormSubmit: SubmitHandler<z.infer<S>> = (data) => {
     onSubmit(data);
   };

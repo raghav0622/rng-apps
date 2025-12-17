@@ -1,43 +1,43 @@
 'use client';
 import { FieldWrapper } from '@/rng-form/components/FieldWrapper';
-import { CheckboxGroupItem } from '@/rng-form/types';
-import { Checkbox, FormControlLabel, FormGroup, FormLabel } from '@mui/material';
+import { FormSchema, InputItem } from '@/rng-form/types';
+import { Checkbox, FormControlLabel, FormGroup } from '@mui/material';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function RNGCheckboxGroup({ item }: { item: CheckboxGroupItem<any> }) {
+interface RNGCheckboxGroupProps<S extends FormSchema> {
+  item: InputItem<S> & { type: 'checkbox-group' };
+}
+
+export function RNGCheckboxGroup<S extends FormSchema>({ item }: RNGCheckboxGroupProps<S>) {
   return (
     <FieldWrapper item={item} name={item.name}>
-      {(field, _, mergedItem) => {
-        const handleToggle = (optionValue: string | number | boolean) => {
-          const currentValues = Array.isArray(field.value) ? field.value : [];
+      {(field, _fieldState, mergedItem) => {
+        const value = (Array.isArray(field.value) ? field.value : []) as string[];
 
-          const newValues = currentValues.includes(optionValue)
-            ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              currentValues.filter((v: any) => v !== optionValue)
-            : [...currentValues, optionValue];
-          field.onChange(newValues);
+        const handleToggle = (optionValue: string | number | boolean, checked: boolean) => {
+          const strValue = String(optionValue);
+          if (checked) {
+            field.onChange([...value, strValue]);
+          } else {
+            field.onChange(value.filter((v) => v !== strValue));
+          }
         };
 
         return (
-          <>
-            <FormLabel component="legend" sx={{ fontWeight: 500, mb: 1 }}>
-              {mergedItem.label}
-            </FormLabel>
-            <FormGroup row={mergedItem.row}>
-              {mergedItem.options.map((opt) => (
-                <FormControlLabel
-                  key={opt.value.toString()}
-                  control={
-                    <Checkbox
-                      checked={Array.isArray(field.value) && field.value.includes(opt.value)}
-                      onChange={() => handleToggle(opt.value)}
-                    />
-                  }
-                  label={opt.label}
-                />
-              ))}
-            </FormGroup>
-          </>
+          <FormGroup row={mergedItem.row}>
+            {mergedItem.options.map((option) => (
+              <FormControlLabel
+                key={String(option.value)}
+                control={
+                  <Checkbox
+                    checked={value.includes(String(option.value))}
+                    onChange={(e) => handleToggle(option.value, e.target.checked)}
+                  />
+                }
+                label={option.label}
+                disabled={mergedItem.disabled}
+              />
+            ))}
+          </FormGroup>
         );
       }}
     </FieldWrapper>

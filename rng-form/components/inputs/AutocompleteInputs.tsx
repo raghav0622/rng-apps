@@ -1,10 +1,10 @@
 'use client';
 import { logError } from '@/lib/logger';
+import { FieldWrapper } from '@/rng-form/components/FieldWrapper';
+import { AutocompleteOption, FormSchema, InputItem } from '@/rng-form/types';
 import { Autocomplete, CircularProgress, TextField } from '@mui/material';
 import React, { useEffect, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
-import { AsyncAutocompleteItem, AutocompleteItem, AutocompleteOption } from '../../types';
-import { FieldWrapper } from '../FieldWrapper';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -17,23 +17,32 @@ const compareOptions = (opt: any, val: any) => {
 };
 
 // --- SYNC AUTOCOMPLETE ---
-export function RNGAutocomplete({ item }: { item: AutocompleteItem<any> }) {
+interface RNGAutocompleteProps<S extends FormSchema> {
+  item: InputItem<S> & { type: 'autocomplete' };
+}
+
+export function RNGAutocomplete<S extends FormSchema>({ item }: RNGAutocompleteProps<S>) {
   return (
     <FieldWrapper item={item} name={item.name}>
       {(field, _, mergedItem) => (
         <Autocomplete
           {...field}
           multiple={mergedItem.multiple}
-          options={mergedItem.options}
+          options={mergedItem.options as readonly any[]}
           getOptionLabel={
             mergedItem.getOptionLabel ||
             ((opt) => (typeof opt === 'string' ? opt : (opt as any).label || ''))
           }
-          // Fix: Handle null/undefined values safely
           isOptionEqualToValue={compareOptions}
           onChange={(_, data) => field.onChange(data)}
+          disabled={mergedItem.disabled}
           renderInput={(params) => (
-            <TextField {...params} placeholder={mergedItem.label} variant="outlined" />
+            <TextField
+              {...params}
+              placeholder={mergedItem.label}
+              variant="outlined"
+              error={!!_?.error}
+            />
           )}
         />
       )}
@@ -42,7 +51,11 @@ export function RNGAutocomplete({ item }: { item: AutocompleteItem<any> }) {
 }
 
 // --- ASYNC AUTOCOMPLETE ---
-export function RNGAsyncAutocomplete({ item }: { item: AsyncAutocompleteItem<any> }) {
+interface RNGAsyncAutocompleteProps<S extends FormSchema> {
+  item: InputItem<S> & { type: 'async-autocomplete' };
+}
+
+export function RNGAsyncAutocomplete<S extends FormSchema>({ item }: RNGAsyncAutocompleteProps<S>) {
   const [open, setOpen] = useState(false);
   const [options, setOptions] = useState<readonly AutocompleteOption[]>([]);
   const [loading, setLoading] = useState(false);
@@ -61,7 +74,8 @@ export function RNGAsyncAutocomplete({ item }: { item: AsyncAutocompleteItem<any
       setLoading(true);
       try {
         const currentFormValues = getValues();
-        const results = await item.loadOptions(inputValue, currentFormValues);
+        // We know item.loadOptions exists because of strict type
+        const results = await item.loadOptions(inputValue, currentFormValues as any);
         if (active) {
           setOptions(results);
         }
@@ -93,6 +107,7 @@ export function RNGAsyncAutocomplete({ item }: { item: AsyncAutocompleteItem<any
           multiple={mergedItem.multiple}
           options={options}
           loading={loading}
+          disabled={mergedItem.disabled}
           getOptionLabel={
             mergedItem.getOptionLabel ||
             ((opt) => (typeof opt === 'string' ? opt : (opt as any).label || ''))

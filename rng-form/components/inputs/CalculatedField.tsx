@@ -1,29 +1,32 @@
 'use client';
+import { FieldWrapper } from '@/rng-form/components/FieldWrapper';
+import { FormSchema, InputItem } from '@/rng-form/types';
 import { TextField } from '@mui/material';
 import { useEffect } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
-import { CalculatedItem } from '../../types';
-import { FieldWrapper } from '../FieldWrapper';
+import { z } from 'zod';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-export function RNGCalculatedField({ item }: { item: CalculatedItem<any> }) {
+interface RNGCalculatedFieldProps<S extends FormSchema> {
+  item: InputItem<S> & { type: 'calculated' };
+}
+
+export function RNGCalculatedField<S extends FormSchema>({ item }: RNGCalculatedFieldProps<S>) {
   const { control, setValue } = useFormContext();
 
-  // Optimized watch: only re-render when dependencies change.
-  // If no dependencies are listed, this optimization is lost and it may not trigger on every change efficiently.
   const watchedValues = useWatch({
     control,
     name: (item.dependencies as any) || [],
   });
 
   useEffect(() => {
-    // If no dependencies are provided, we shouldn't run this effect continuously to avoid loops.
-    // We assume explicit dependencies for calculation.
     if (!item.dependencies || item.dependencies.length === 0) return;
 
-    // Use current form values for calculation
-    const currentValues = control._formValues;
+    // Fix: Cast _formValues (FieldValues) to z.infer<S>
+    // We use 'unknown' first to escape strict overlap checks
+    const currentValues = (control as any)._formValues as unknown as z.infer<S>;
+
     const result = item.calculate(currentValues);
 
     setValue(item.name as string, result, {

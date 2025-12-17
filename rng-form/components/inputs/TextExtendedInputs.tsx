@@ -1,9 +1,9 @@
 'use client';
+import { FieldWrapper } from '@/rng-form/components/FieldWrapper';
+import { FormSchema, InputItem } from '@/rng-form/types';
 import { Stack, TextField } from '@mui/material';
 import React from 'react';
 import { IMaskInput } from 'react-imask';
-import { MaskedTextItem, OtpItem } from '../../types';
-import { FieldWrapper } from '../FieldWrapper';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -22,7 +22,11 @@ const TextMaskCustom = React.forwardRef<HTMLElement, any>(function TextMaskCusto
   );
 });
 
-export function RNGMaskedInput({ item }: { item: MaskedTextItem<any> }) {
+interface RNGMaskedInputProps<S extends FormSchema> {
+  item: InputItem<S> & { type: 'masked-text' };
+}
+
+export function RNGMaskedInput<S extends FormSchema>({ item }: RNGMaskedInputProps<S>) {
   return (
     <FieldWrapper item={item} name={item.name}>
       {(field, fieldState, mergedItem) => (
@@ -48,8 +52,13 @@ export function RNGMaskedInput({ item }: { item: MaskedTextItem<any> }) {
 }
 
 // --- OTP INPUT ---
-export function RNGOtpInput({ item }: { item: OtpItem<any> }) {
+interface RNGOtpInputProps<S extends FormSchema> {
+  item: InputItem<S> & { type: 'otp' };
+}
+
+export function RNGOtpInput<S extends FormSchema>({ item }: RNGOtpInputProps<S>) {
   const length = item.length || 6;
+
   return (
     <FieldWrapper item={item} name={item.name}>
       {(field) => {

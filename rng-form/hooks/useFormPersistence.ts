@@ -1,12 +1,10 @@
-// rng-form/hooks/useFormPersistence.ts
 import { logError } from '@/lib/logger';
 import { useEffect } from 'react';
-import { UseFormReturn } from 'react-hook-form';
+import { FieldValues, UseFormReturn } from 'react-hook-form';
 
-export function useFormPersistence(
+export function useFormPersistence<TFieldValues extends FieldValues>(
   key: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  methods: UseFormReturn<any>,
+  methods: UseFormReturn<TFieldValues>,
   enabled: boolean = false,
 ) {
   const { watch, reset, getValues } = methods;
@@ -23,18 +21,16 @@ export function useFormPersistence(
         const merged = { ...getValues(), ...parsed };
         reset(merged);
       } catch (e) {
-        logError('Failed to parse saved form data');
+        logError('Failed to parse saved form data', { error: e });
       }
     }
   }, [enabled, key, reset, getValues]);
 
-  // 2. Save data on change (Debounced manually via useEffect timeout)
+  // 2. Save data on change (Debounced)
   useEffect(() => {
     if (!enabled || typeof window === 'undefined') return;
 
     const subscription = watch((value) => {
-      // Simple debounce: saving on every keystroke is expensive,
-      // but localStorage is sync. For heavy forms, consider a real debounce function.
       const handler = setTimeout(() => {
         localStorage.setItem(key, JSON.stringify(value));
       }, 1000);

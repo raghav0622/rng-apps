@@ -1,9 +1,7 @@
 'use client';
-import { Box, Divider, Paper, Stack, Typography } from '@mui/material';
-import Grid from '@mui/material/Grid';
-import { JSXElementConstructor, Key, ReactElement, ReactNode, ReactPortal } from 'react';
+import { Box, Divider, Grid, Paper, Stack, Typography } from '@mui/material';
 import { useFormContext } from 'react-hook-form';
-import { z } from 'zod'; // Added import
+import { z } from 'zod';
 import { FormItem, FormSchema } from '../types';
 import { formatCurrency } from '../utils';
 
@@ -37,11 +35,15 @@ export function FormSummary<S extends FormSchema>({ uiSchema, pathPrefix }: Form
         return new Date(value).toLocaleDateString();
       case 'radio':
       case 'autocomplete': {
+        // Handle object-based options (Autocomplete/Radio) if they store objects
+        if (typeof value === 'object' && value !== null && 'label' in value) {
+          return (value as any).label;
+        }
         return String(value);
       }
       case 'file':
         if (Array.isArray(value)) return `${value.length} files`;
-        return 'File uploaded';
+        return (value as File)?.name || 'File uploaded';
       case 'password':
         return '********';
       default:
@@ -76,43 +78,15 @@ export function FormSummary<S extends FormSchema>({ uiSchema, pathPrefix }: Form
         if (item.type === 'wizard') {
           return (
             <Grid key={index} size={12}>
-              {item.steps.map(
-                (
-                  step: {
-                    label:
-                      | string
-                      | number
-                      | bigint
-                      | boolean
-                      | ReactElement<unknown, string | JSXElementConstructor<any>>
-                      | Iterable<ReactNode>
-                      | ReactPortal
-                      | Promise<
-                          | string
-                          | number
-                          | bigint
-                          | boolean
-                          | ReactPortal
-                          | ReactElement<unknown, string | JSXElementConstructor<any>>
-                          | Iterable<ReactNode>
-                          | null
-                          | undefined
-                        >
-                      | null
-                      | undefined;
-                    children: any[];
-                  },
-                  i: Key | null | undefined,
-                ) => (
-                  <Box key={i} sx={{ mb: 3 }}>
-                    <Typography variant="subtitle1" fontWeight="bold">
-                      {step.label}
-                    </Typography>
-                    <Divider sx={{ mb: 1, borderStyle: 'dashed' }} />
-                    <FormSummary uiSchema={step.children} pathPrefix={pathPrefix} />
-                  </Box>
-                ),
-              )}
+              {item.steps.map((step, i) => (
+                <Box key={i} sx={{ mb: 3 }}>
+                  <Typography variant="subtitle1" fontWeight="bold">
+                    {step.label}
+                  </Typography>
+                  <Divider sx={{ mb: 1, borderStyle: 'dashed' }} />
+                  <FormSummary uiSchema={step.children} pathPrefix={pathPrefix} />
+                </Box>
+              ))}
             </Grid>
           );
         }
@@ -124,7 +98,7 @@ export function FormSummary<S extends FormSchema>({ uiSchema, pathPrefix }: Form
             return (
               <Grid key={index} size={12}>
                 <Typography variant="subtitle2" color="text.secondary">
-                  {item.label}
+                  {item.itemLabel || 'Items'}
                 </Typography>
                 <Typography variant="body2">No items</Typography>
               </Grid>
@@ -133,7 +107,7 @@ export function FormSummary<S extends FormSchema>({ uiSchema, pathPrefix }: Form
           return (
             <Grid key={index} size={12}>
               <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                {item.label}
+                {item.itemLabel || 'Items'}
               </Typography>
               <Stack spacing={2}>
                 {arrayValues.map((_: any, i: number) => (
@@ -153,14 +127,22 @@ export function FormSummary<S extends FormSchema>({ uiSchema, pathPrefix }: Form
           );
         }
 
+        // --- Recursively Handle other Layouts (Tabs, Modal, Accordion) ---
+        // For simple summary, we often just render their children flat or in blocks
+        if ('children' in item && Array.isArray((item as any).children)) {
+          return (
+            <Grid key={index} size={12}>
+              <FormSummary uiSchema={(item as any).children} pathPrefix={pathPrefix} />
+            </Grid>
+          );
+        }
+
         // --- Handle Standard Fields ---
-        // FIX 1: Cast allValues to z.infer<S>
         if (item.renderLogic && !item.renderLogic(allValues as z.infer<S>)) return null;
 
         const value = getValue(fullPath);
 
         return (
-          // FIX 2: Use 'size' prop for Grid v2, removed 'md' prop.
           <Grid key={index} size={{ xs: 12, md: 6 }} {...item.colProps}>
             <Box>
               <Typography variant="caption" color="text.secondary" display="block">

@@ -1,4 +1,6 @@
 'use client';
+import { FormBuilder } from '@/rng-form/components/FormBuilder';
+import { FormSchema, LayoutItem } from '@/rng-form/types';
 import { getFieldNames } from '@/rng-form/utils';
 import { ArrowBack, ArrowForward, Check } from '@mui/icons-material';
 import {
@@ -14,16 +16,16 @@ import {
 } from '@mui/material';
 import React, { useState } from 'react';
 import { useFormContext } from 'react-hook-form';
-import { FormSchema, WizardItem } from '../../types';
-import { FormBuilder } from '../FormBuilder';
+
+interface RNGWizardLayoutProps<S extends FormSchema> {
+  item: LayoutItem<S> & { type: 'wizard' };
+  pathPrefix?: string;
+}
 
 export function RNGWizardLayout<S extends FormSchema>({
   item,
   pathPrefix,
-}: {
-  item: WizardItem<S>;
-  pathPrefix?: string;
-}) {
+}: RNGWizardLayoutProps<S>) {
   const [activeStep, setActiveStep] = useState(0);
   const {
     trigger,
@@ -34,6 +36,7 @@ export function RNGWizardLayout<S extends FormSchema>({
   const isLastStep = activeStep === steps.length - 1;
 
   const handleNext = async () => {
+    // getFieldNames must be compatible with the new recursive types
     const currentStepFields = getFieldNames(steps[activeStep].children, pathPrefix);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const isValid = await trigger(currentStepFields as any);
@@ -47,15 +50,12 @@ export function RNGWizardLayout<S extends FormSchema>({
     setActiveStep((prev) => prev - 1);
   };
 
-  // --- Handle Enter Key Navigation ---
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key !== 'Enter') return;
-    if (e.shiftKey) return; // Allow multiline in textareas
+    if (e.shiftKey) return;
 
     const target = e.target as HTMLElement;
 
-    // Ignore textareas, buttons, or explicitly interactive elements
-    // We want 'Enter' to submit/next only when in a standard input
     if (
       target.tagName === 'TEXTAREA' ||
       target.tagName === 'BUTTON' ||
@@ -65,13 +65,11 @@ export function RNGWizardLayout<S extends FormSchema>({
       return;
     }
 
-    // Stop propagation to prevent double-submits or conflicts
     if (!isLastStep) {
       e.preventDefault();
       e.stopPropagation();
       handleNext();
     }
-    // If last step, we let the event bubble so the <form> 'submit' event fires natively
   };
 
   return (

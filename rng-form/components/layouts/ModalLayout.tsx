@@ -1,17 +1,16 @@
 'use client';
+import { FormBuilder } from '@/rng-form/components/FormBuilder';
+import { FormSchema, LayoutItem } from '@/rng-form/types';
 import { Close } from '@mui/icons-material';
 import { Button, Dialog, DialogContent, DialogTitle, Grid, IconButton } from '@mui/material';
 import { useState } from 'react';
-import { FormSchema, ModalFormItem } from '../../types';
-import { FormBuilder } from '../FormBuilder';
 
-export function RNGModalLayout<S extends FormSchema>({
-  item,
-  pathPrefix,
-}: {
-  item: ModalFormItem<S>;
+interface RNGModalLayoutProps<S extends FormSchema> {
+  item: LayoutItem<S> & { type: 'modal-form' };
   pathPrefix?: string;
-}) {
+}
+
+export function RNGModalLayout<S extends FormSchema>({ item, pathPrefix }: RNGModalLayoutProps<S>) {
   const [open, setOpen] = useState(false);
 
   return (

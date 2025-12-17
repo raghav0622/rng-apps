@@ -1,12 +1,13 @@
 'use client';
-
+import { FieldWrapper } from '@/rng-form/components/FieldWrapper';
+import { FormSchema, InputItem } from '@/rng-form/types';
 import { Box, Rating, Slider, Typography } from '@mui/material';
-import { RatingItem, SliderItem } from '../../types';
-import { FieldWrapper } from '../FieldWrapper';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+interface RNGSliderProps<S extends FormSchema> {
+  item: InputItem<S> & { type: 'slider' };
+}
 
-export function RNGSlider({ item }: { item: SliderItem<any> }) {
+export function RNGSlider<S extends FormSchema>({ item }: RNGSliderProps<S>) {
   return (
     <FieldWrapper item={item} name={item.name}>
       {(field, _, mergedItem) => (
@@ -21,6 +22,7 @@ export function RNGSlider({ item }: { item: SliderItem<any> }) {
             max={mergedItem.max}
             step={mergedItem.step}
             valueLabelDisplay="auto"
+            disabled={mergedItem.disabled}
           />
         </Box>
       )}
@@ -28,7 +30,11 @@ export function RNGSlider({ item }: { item: SliderItem<any> }) {
   );
 }
 
-export function RNGRating({ item }: { item: RatingItem<any> }) {
+interface RNGRatingProps<S extends FormSchema> {
+  item: InputItem<S> & { type: 'rating' };
+}
+
+export function RNGRating<S extends FormSchema>({ item }: RNGRatingProps<S>) {
   return (
     <FieldWrapper item={item} name={item.name}>
       {(field, _, mergedItem) => (
@@ -41,6 +47,7 @@ export function RNGRating({ item }: { item: RatingItem<any> }) {
             onChange={(_, val) => field.onChange(Number(val))}
             max={mergedItem.max}
             precision={mergedItem.precision}
+            disabled={mergedItem.disabled}
           />
         </Box>
       )}

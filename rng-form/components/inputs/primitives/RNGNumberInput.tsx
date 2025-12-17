@@ -1,34 +1,45 @@
 'use client';
 import { FieldWrapper } from '@/rng-form/components/FieldWrapper';
-import { NumberFieldItem } from '@/rng-form/types';
-import { TextField } from '@mui/material';
-import { NumericFormat } from 'react-number-format';
+import { FormSchema, InputItem } from '@/rng-form/types';
+import { InputAdornment, TextField } from '@mui/material';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function RNGNumberInput({ item }: { item: NumberFieldItem<any> }) {
+interface RNGNumberInputProps<S extends FormSchema> {
+  item: InputItem<S> & { type: 'number' | 'currency' };
+}
+
+export function RNGNumberInput<S extends FormSchema>({ item }: RNGNumberInputProps<S>) {
   return (
     <FieldWrapper item={item} name={item.name}>
-      {(field, fieldState, mergedItem) => (
-        <NumericFormat
-          customInput={TextField}
-          {...field}
-          value={field.value ?? ''}
-          fullWidth
-          placeholder={mergedItem.placeholder}
-          decimalScale={mergedItem.type === 'currency' ? 2 : undefined}
-          fixedDecimalScale={mergedItem.type === 'currency'}
-          allowNegative={mergedItem.min === undefined || mergedItem.min < 0}
-          min={mergedItem.min}
-          max={mergedItem.max}
-          thousandSeparator={mergedItem.type === 'currency' ? ',' : undefined}
-          prefix={mergedItem.type === 'currency' ? '₹' : undefined}
-          onValueChange={(values) => {
-            const floatVal = values.floatValue;
-            field.onChange(floatVal === undefined ? '' : floatVal);
-          }}
-          error={!!fieldState.error}
-        />
-      )}
+      {(field, fieldState, mergedItem) => {
+        const isCurrency = mergedItem.type === 'currency';
+
+        return (
+          <TextField
+            {...field}
+            fullWidth
+            type="number"
+            placeholder={mergedItem.placeholder}
+            error={!!fieldState.error}
+            value={field.value ?? ''}
+            onChange={(e) => {
+              // Ensure we pass a number back to the form state
+              const val = e.target.value === '' ? '' : Number(e.target.value);
+              field.onChange(val);
+            }}
+            slotProps={{
+              input: {
+                startAdornment: isCurrency ? (
+                  <InputAdornment position="start">{mergedItem.currencyCode || '₹'}</InputAdornment>
+                ) : undefined,
+                inputProps: {
+                  min: mergedItem.min,
+                  max: mergedItem.max,
+                },
+              },
+            }}
+          />
+        );
+      }}
     </FieldWrapper>
   );
 }

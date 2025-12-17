@@ -6,6 +6,7 @@ import { FormItem } from './types/index';
 
 /**
  * A Type-Safe Builder Class.
+ * Provides convenience methods for all registered field types.
  */
 export class FormBuilderDSL<S extends FormSchema> {
   // ===========================================================================
@@ -20,6 +21,10 @@ export class FormBuilderDSL<S extends FormSchema> {
   // GENERIC FIELD BUILDER
   // ===========================================================================
 
+  /**
+   * Generic method to create any input field.
+   * Useful for dynamic generation or types not covered by specific methods.
+   */
   field<K extends keyof InputFieldRegistry<S>>(
     type: K,
     name: Path<z.infer<S>>,
@@ -29,7 +34,7 @@ export class FormBuilderDSL<S extends FormSchema> {
   }
 
   // ===========================================================================
-  // CONVENIENCE METHODS
+  // PRIMITIVES
   // ===========================================================================
 
   text(name: Path<z.infer<S>>, props?: InputFieldRegistry<S>['text'] & Partial<BaseFormItem<S>>) {
@@ -50,16 +55,31 @@ export class FormBuilderDSL<S extends FormSchema> {
     return this.field('number', name, props);
   }
 
-  switch(
+  currency(
     name: Path<z.infer<S>>,
-    props?: InputFieldRegistry<S>['switch'] & Partial<BaseFormItem<S>>,
+    props?: InputFieldRegistry<S>['currency'] & Partial<BaseFormItem<S>>,
   ) {
-    return this.field('switch', name, props);
+    return this.field('currency', name, props);
+  }
+
+  hidden(
+    name: Path<z.infer<S>>,
+    props?: InputFieldRegistry<S>['hidden'] & Partial<BaseFormItem<S>>,
+  ) {
+    return this.field('hidden', name, props);
+  }
+
+  color(name: Path<z.infer<S>>, props?: InputFieldRegistry<S>['color'] & Partial<BaseFormItem<S>>) {
+    return this.field('color', name, props);
   }
 
   date(name: Path<z.infer<S>>, props?: InputFieldRegistry<S>['date'] & Partial<BaseFormItem<S>>) {
     return this.field('date', name, props);
   }
+
+  // ===========================================================================
+  // EXTENDED TEXT
+  // ===========================================================================
 
   masked(
     name: Path<z.infer<S>>,
@@ -68,11 +88,33 @@ export class FormBuilderDSL<S extends FormSchema> {
     return this.field('masked-text', name, props);
   }
 
+  otp(name: Path<z.infer<S>>, props: InputFieldRegistry<S>['otp'] & Partial<BaseFormItem<S>>) {
+    return this.field('otp', name, props);
+  }
+
   calculated(
     name: Path<z.infer<S>>,
     props: InputFieldRegistry<S>['calculated'] & Partial<BaseFormItem<S>>,
   ) {
     return this.field('calculated', name, props);
+  }
+
+  richText(
+    name: Path<z.infer<S>>,
+    props?: InputFieldRegistry<S>['rich-text'] & Partial<BaseFormItem<S>>,
+  ) {
+    return this.field('rich-text', name, props);
+  }
+
+  // ===========================================================================
+  // SELECTION & CHOICE
+  // ===========================================================================
+
+  switch(
+    name: Path<z.infer<S>>,
+    props?: InputFieldRegistry<S>['switch'] & Partial<BaseFormItem<S>>,
+  ) {
+    return this.field('switch', name, props);
   }
 
   radio(name: Path<z.infer<S>>, props: InputFieldRegistry<S>['radio'] & Partial<BaseFormItem<S>>) {
@@ -84,6 +126,34 @@ export class FormBuilderDSL<S extends FormSchema> {
     props: InputFieldRegistry<S>['checkbox-group'] & Partial<BaseFormItem<S>>,
   ) {
     return this.field('checkbox-group', name, props);
+  }
+
+  toggleGroup(
+    name: Path<z.infer<S>>,
+    props: InputFieldRegistry<S>['toggle-group'] & Partial<BaseFormItem<S>>,
+  ) {
+    return this.field('toggle-group', name, props);
+  }
+
+  slider(
+    name: Path<z.infer<S>>,
+    props?: InputFieldRegistry<S>['slider'] & Partial<BaseFormItem<S>>,
+  ) {
+    return this.field('slider', name, props);
+  }
+
+  rating(
+    name: Path<z.infer<S>>,
+    props?: InputFieldRegistry<S>['rating'] & Partial<BaseFormItem<S>>,
+  ) {
+    return this.field('rating', name, props);
+  }
+
+  transferList(
+    name: Path<z.infer<S>>,
+    props: InputFieldRegistry<S>['transfer-list'] & Partial<BaseFormItem<S>>,
+  ) {
+    return this.field('transfer-list', name, props);
   }
 
   autocomplete(
@@ -100,24 +170,38 @@ export class FormBuilderDSL<S extends FormSchema> {
     return this.field('async-autocomplete', name, props);
   }
 
+  // ===========================================================================
+  // ADVANCED
+  // ===========================================================================
+
   file(name: Path<z.infer<S>>, props?: InputFieldRegistry<S>['file'] & Partial<BaseFormItem<S>>) {
     return this.field('file', name, props);
   }
 
-  richText(
+  signature(
     name: Path<z.infer<S>>,
-    props?: InputFieldRegistry<S>['rich-text'] & Partial<BaseFormItem<S>>,
+    props?: InputFieldRegistry<S>['signature'] & Partial<BaseFormItem<S>>,
   ) {
-    return this.field('rich-text', name, props);
+    return this.field('signature', name, props);
+  }
+
+  location(
+    name: Path<z.infer<S>>,
+    props?: InputFieldRegistry<S>['location'] & Partial<BaseFormItem<S>>,
+  ) {
+    return this.field('location', name, props);
+  }
+
+  dateRange(
+    name: Path<z.infer<S>>,
+    props?: InputFieldRegistry<S>['date-range'] & Partial<BaseFormItem<S>>,
+  ) {
+    return this.field('date-range', name, props);
   }
 
   // ===========================================================================
   // LAYOUTS
   // ===========================================================================
-
-  // NOTE: For layouts, we pass 'any' to LayoutRegistry lookup in the DSL signature
-  // to avoid complex generic constraints, or simply rely on the method parameters
-  // to implicitly match the shape.
 
   section(title: string, children: FormItem<S>[], props?: Partial<BaseFormItem<S>>) {
     return this.create('section', undefined, { title, children, ...props });
@@ -127,12 +211,38 @@ export class FormBuilderDSL<S extends FormSchema> {
     return this.create('tabs', undefined, { tabs, ...props });
   }
 
+  accordion(
+    items: LayoutRegistry<S, FormItem<S>>['accordion']['items'],
+    props?: Partial<BaseFormItem<S>>,
+  ) {
+    return this.create('accordion', undefined, { items, ...props });
+  }
+
   wizard(
     steps: LayoutRegistry<S, FormItem<S>>['wizard']['steps'],
     props?: Partial<BaseFormItem<S>>,
   ) {
     return this.create('wizard', undefined, { steps, ...props });
   }
+
+  stepper(
+    activeStepIndex: number,
+    steps: LayoutRegistry<S, FormItem<S>>['stepper']['steps'],
+    props?: Partial<BaseFormItem<S>>,
+  ) {
+    return this.create('stepper', undefined, { activeStepIndex, steps, ...props });
+  }
+
+  modal(
+    triggerLabel: string,
+    children: FormItem<S>[],
+    props?: Omit<LayoutRegistry<S, FormItem<S>>['modal-form'], 'triggerLabel' | 'children'> &
+      Partial<BaseFormItem<S>>,
+  ) {
+    return this.create('modal-form', undefined, { triggerLabel, children, ...props });
+  }
+
+  // Data Iterators
 
   array(
     name: Path<z.infer<S>>,

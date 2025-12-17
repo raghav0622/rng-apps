@@ -1,8 +1,14 @@
 'use client';
+import { FormSchema, LayoutItem } from '@/rng-form/types';
 import { Box, Step, StepLabel, Stepper, Typography } from '@mui/material';
-import { FormSchema, StepperItem } from '../../types';
 
-export function RNGStepperLayout<S extends FormSchema>({ item }: { item: StepperItem<S> }) {
+interface RNGStepperLayoutProps<S extends FormSchema> {
+  item: LayoutItem<S> & { type: 'stepper' };
+  // Stepper doesn't have children usually, it's a visualizer, so pathPrefix might not be used, but good to have for standard signature
+  pathPrefix?: string;
+}
+
+export function RNGStepperLayout<S extends FormSchema>({ item }: RNGStepperLayoutProps<S>) {
   return (
     <Box sx={{ width: '100%', mb: 3 }}>
       <Stepper activeStep={item.activeStepIndex ?? 0} alternativeLabel>

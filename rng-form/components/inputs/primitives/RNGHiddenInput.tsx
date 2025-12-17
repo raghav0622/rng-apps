@@ -1,13 +1,14 @@
 'use client';
-import { FieldWrapper } from '@/rng-form/components/FieldWrapper';
-import { HiddenFieldItem } from '@/rng-form/types';
+import { FormSchema, InputItem } from '@/rng-form/types';
+import { useFormContext } from 'react-hook-form';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function RNGHiddenInput({ item }: { item: HiddenFieldItem<any> }) {
-  const { name } = item;
-  return (
-    <FieldWrapper item={item} name={name}>
-      {(field) => <input type="hidden" {...field} value={field.value ?? ''} />}
-    </FieldWrapper>
-  );
+interface RNGHiddenInputProps<S extends FormSchema> {
+  item: InputItem<S> & { type: 'hidden' };
+}
+
+export function RNGHiddenInput<S extends FormSchema>({ item }: RNGHiddenInputProps<S>) {
+  const { register } = useFormContext();
+  // Hidden inputs are often rendered directly in FormBuilder,
+  // but if this component is used, we ensure it registers correctly.
+  return <input type="hidden" {...register(item.name)} />;
 }

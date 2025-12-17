@@ -1,11 +1,10 @@
-import { FieldType } from './types';
+import { AnyFieldType } from './types/field-registry';
 
 interface FieldConfig {
-  /** If true, the component handles its own label rendering, so FieldWrapper shouldn't render one. */
   hasInternalLabel?: boolean;
 }
 
-export const FIELD_CONFIG: Record<FieldType, FieldConfig> = {
+export const FIELD_CONFIG: Record<AnyFieldType, FieldConfig> = {
   // Primitives
   text: {},
   password: {},
@@ -22,14 +21,14 @@ export const FIELD_CONFIG: Record<FieldType, FieldConfig> = {
   switch: { hasInternalLabel: true },
   'checkbox-group': { hasInternalLabel: true },
   radio: { hasInternalLabel: true },
-  'toggle-group': {}, // Usually needs a label
+  'toggle-group': {},
   slider: {},
   rating: {},
   autocomplete: {},
   'async-autocomplete': {},
   'transfer-list': {},
 
-  // Complex
+  // Advanced
   file: { hasInternalLabel: true },
   'rich-text': {},
   signature: {},

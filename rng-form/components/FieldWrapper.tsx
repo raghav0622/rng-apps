@@ -45,7 +45,7 @@ export function FieldWrapper<S extends FormSchema, T extends BaseFormItem<S>>({
   const showExternalLabel = !config.hasInternalLabel && !!mergedItem.label;
 
   return (
-    <Grid size={mergedItem.colProps?.size ?? 12} {...mergedItem.colProps}>
+    <Grid size={mergedItem.colProps?.size ?? { xs: 12 }} {...mergedItem.colProps}>
       <Controller
         name={name}
         control={control}

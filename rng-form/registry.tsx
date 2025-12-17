@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from 'react';
-import { FieldType } from './types';
+import { InputType } from './types';
 
 // =============================================================================
 // EAGER IMPORTS (Lightweight Primitives)
@@ -23,6 +23,7 @@ import { RNGTransferList } from './components/inputs/TransferList';
 // =============================================================================
 
 // We use 'any' here for the import promise because we cast strictly in the component usage
+/* eslint-disable @typescript-eslint/no-explicit-any */
 const RNGAsyncAutocomplete = lazy(() =>
   import('./components/inputs/AutocompleteInputs').then((m) => ({
     default: m.RNGAsyncAutocomplete,
@@ -68,8 +69,7 @@ const withSuspense = <P extends object>(Component: React.ComponentType<P>) => {
 // REGISTRY
 // =============================================================================
 // Only includes "Leaf" nodes (inputs) to avoid circular dependencies with FormBuilder
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const INPUT_REGISTRY: Partial<Record<FieldType, React.ComponentType<any>>> = {
+export const INPUT_REGISTRY: Partial<Record<InputType, React.ComponentType<any>>> = {
   // Primitives
   text: RNGTextInput,
   password: RNGTextInput,

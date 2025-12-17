@@ -30,7 +30,7 @@ export const zUtils = {
   // Custom: Indian Phone
   phone: z.string(),
 
-  // Custom: Password (Min 8 chars, 1 uppercase, etc. - adjustable)
+  // Custom: Password (Min 6 chars)
   password: z.string().min(6, 'Password must be at least 6 characters'),
 };
 
@@ -57,6 +57,7 @@ export const getFieldNames = (items: FormItem<any>[], prefix?: string): string[]
     // 2. Recursively find names in nested layout structures
     switch (item.type) {
       case 'section':
+      case 'modal-form': // Added modal-form
         if (item.children) {
           names = names.concat(getFieldNames(item.children, prefix));
         }
@@ -78,8 +79,16 @@ export const getFieldNames = (items: FormItem<any>[], prefix?: string): string[]
         }
         break;
 
-      // Note: We generally don't recurse into 'wizard' (nested wizards have own scope)
-      // or 'array' children (array is validated as a single field usually)
+      case 'wizard':
+        if (item.steps) {
+          item.steps.forEach((step) => {
+            names = names.concat(getFieldNames(step.children, prefix));
+          });
+        }
+        break;
+
+      // Note: We generally don't recurse into 'array' or 'data-grid' children
+      // because they are validated as a single field usually or handle their own sub-scopes dynamically.
     }
   });
 

@@ -1,198 +1,164 @@
 import { Path } from 'react-hook-form';
 import { z } from 'zod';
-import * as T from './types';
+import { BaseFormItem, FormSchema } from './types/core';
+import { InputFieldRegistry, LayoutRegistry } from './types/field-registry';
+import { FormItem } from './types/index';
 
 /**
- * A Type-Safe Builder Class to generate FormItems.
- * Uses a generic factory method to enforce DRY principles.
+ * A Type-Safe Builder Class.
  */
-export class FormBuilderDSL<S extends T.FormSchema> {
-  /**
-   * Internal factory to generate the field object.
-   * Keeps implementation DRY while public methods enforce strict typing.
-   */
-  private create<Item extends T.BaseFormItem<S>>(
-    type: Item['type'],
-    name?: Path<z.infer<S>>,
-    props?: Omit<Item, 'type' | 'name'>,
-  ): Item {
-    return { type, name, ...props } as Item;
+export class FormBuilderDSL<S extends FormSchema> {
+  // ===========================================================================
+  // INTERNAL FACTORY
+  // ===========================================================================
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private create<T extends string, P>(type: T, name: Path<z.infer<S>> | undefined, props: P): any {
+    return { type, name, ...props };
   }
 
   // ===========================================================================
-  // BASIC INPUTS
+  // GENERIC FIELD BUILDER
   // ===========================================================================
 
-  text(name: Path<z.infer<S>>, props?: Omit<T.TextFieldItem<S>, 'type' | 'name'>) {
-    return this.create<T.TextFieldItem<S>>('text', name, props);
-  }
-
-  password(name: Path<z.infer<S>>, props?: Omit<T.TextFieldItem<S>, 'type' | 'name'>) {
-    return this.create<T.TextFieldItem<S>>('password', name, props);
-  }
-
-  number(name: Path<z.infer<S>>, props?: Omit<T.NumberFieldItem<S>, 'type' | 'name'>) {
-    return this.create<T.NumberFieldItem<S>>('number', name, props);
-  }
-
-  currency(name: Path<z.infer<S>>, props?: Omit<T.NumberFieldItem<S>, 'type' | 'name'>) {
-    return this.create<T.NumberFieldItem<S>>('currency', name, props);
-  }
-
-  hidden(name: Path<z.infer<S>>, props?: Omit<T.HiddenFieldItem<S>, 'type' | 'name'>) {
-    return this.create<T.HiddenFieldItem<S>>('hidden', name, props);
-  }
-
-  color(name: Path<z.infer<S>>, props?: Omit<T.ColorItem<S>, 'type' | 'name'>) {
-    return this.create<T.ColorItem<S>>('color', name, props);
-  }
-
-  switch(name: Path<z.infer<S>>, props?: Omit<T.SwitchFieldItem<S>, 'type' | 'name'>) {
-    return this.create<T.SwitchFieldItem<S>>('switch', name, props);
-  }
-
-  date(name: Path<z.infer<S>>, props?: Omit<T.DateFieldItem<S>, 'type' | 'name'>) {
-    return this.create<T.DateFieldItem<S>>('date', name, props);
-  }
-
-  dateRange(name: Path<z.infer<S>>, props?: Omit<T.DateRangeItem<S>, 'type' | 'name'>) {
-    return this.create<T.DateRangeItem<S>>('date-range', name, props);
+  field<K extends keyof InputFieldRegistry<S>>(
+    type: K,
+    name: Path<z.infer<S>>,
+    props?: Omit<InputFieldRegistry<S>[K], 'type'> & Partial<BaseFormItem<S>>,
+  ): FormItem<S> {
+    return this.create(type, name, props || {});
   }
 
   // ===========================================================================
-  // ADVANCED & SPECIALIZED INPUTS
+  // CONVENIENCE METHODS
   // ===========================================================================
+
+  text(name: Path<z.infer<S>>, props?: InputFieldRegistry<S>['text'] & Partial<BaseFormItem<S>>) {
+    return this.field('text', name, props);
+  }
+
+  password(
+    name: Path<z.infer<S>>,
+    props?: InputFieldRegistry<S>['password'] & Partial<BaseFormItem<S>>,
+  ) {
+    return this.field('password', name, props);
+  }
+
+  number(
+    name: Path<z.infer<S>>,
+    props?: InputFieldRegistry<S>['number'] & Partial<BaseFormItem<S>>,
+  ) {
+    return this.field('number', name, props);
+  }
+
+  switch(
+    name: Path<z.infer<S>>,
+    props?: InputFieldRegistry<S>['switch'] & Partial<BaseFormItem<S>>,
+  ) {
+    return this.field('switch', name, props);
+  }
+
+  date(name: Path<z.infer<S>>, props?: InputFieldRegistry<S>['date'] & Partial<BaseFormItem<S>>) {
+    return this.field('date', name, props);
+  }
 
   masked(
     name: Path<z.infer<S>>,
-    mask: string,
-    props?: Omit<T.MaskedTextItem<S>, 'type' | 'name' | 'mask'>,
+    props: InputFieldRegistry<S>['masked-text'] & Partial<BaseFormItem<S>>,
   ) {
-    return this.create<T.MaskedTextItem<S>>('masked-text', name, { mask, ...props });
+    return this.field('masked-text', name, props);
   }
 
   calculated(
     name: Path<z.infer<S>>,
-    calculate: (values: z.infer<S>) => string | number,
-    props?: Omit<T.CalculatedItem<S>, 'type' | 'name' | 'calculate'>,
+    props: InputFieldRegistry<S>['calculated'] & Partial<BaseFormItem<S>>,
   ) {
-    return this.create<T.CalculatedItem<S>>('calculated', name, { calculate, ...props });
+    return this.field('calculated', name, props);
   }
 
-  richText(name: Path<z.infer<S>>, props?: Omit<T.RichTextItem<S>, 'type' | 'name'>) {
-    return this.create<T.RichTextItem<S>>('rich-text', name, props);
-  }
-
-  file(name: Path<z.infer<S>>, props?: Omit<T.FileItem<S>, 'type' | 'name'>) {
-    return this.create<T.FileItem<S>>('file', name, props);
-  }
-
-  slider(name: Path<z.infer<S>>, props?: Omit<T.SliderItem<S>, 'type' | 'name'>) {
-    return this.create<T.SliderItem<S>>('slider', name, props);
-  }
-
-  rating(name: Path<z.infer<S>>, props?: Omit<T.RatingItem<S>, 'type' | 'name'>) {
-    return this.create<T.RatingItem<S>>('rating', name, props);
-  }
-
-  signature(name: Path<z.infer<S>>, props?: Omit<T.SignatureItem<S>, 'type' | 'name'>) {
-    return this.create<T.SignatureItem<S>>('signature', name, props);
-  }
-
-  location(name: Path<z.infer<S>>, props?: Omit<T.LocationItem<S>, 'type' | 'name'>) {
-    return this.create<T.LocationItem<S>>('location', name, props);
-  }
-
-  // ===========================================================================
-  // SELECTION INPUTS
-  // ===========================================================================
-
-  radio(
-    name: Path<z.infer<S>>,
-    options: T.RadioGroupItem<S>['options'],
-    props?: Omit<T.RadioGroupItem<S>, 'type' | 'name' | 'options'>,
-  ) {
-    return this.create<T.RadioGroupItem<S>>('radio', name, { options, ...props });
+  radio(name: Path<z.infer<S>>, props: InputFieldRegistry<S>['radio'] & Partial<BaseFormItem<S>>) {
+    return this.field('radio', name, props);
   }
 
   checkbox(
     name: Path<z.infer<S>>,
-    options: T.CheckboxGroupItem<S>['options'],
-    props?: Omit<T.CheckboxGroupItem<S>, 'type' | 'name' | 'options'>,
+    props: InputFieldRegistry<S>['checkbox-group'] & Partial<BaseFormItem<S>>,
   ) {
-    return this.create<T.CheckboxGroupItem<S>>('checkbox-group', name, { options, ...props });
-  }
-
-  transferList(
-    name: Path<z.infer<S>>,
-    options: T.TransferListItem<S>['options'],
-    props?: Omit<T.TransferListItem<S>, 'type' | 'name' | 'options'>,
-  ) {
-    return this.create<T.TransferListItem<S>>('transfer-list', name, { options, ...props });
+    return this.field('checkbox-group', name, props);
   }
 
   autocomplete(
     name: Path<z.infer<S>>,
-    options: T.AutocompleteItem<S>['options'],
-    props?: Omit<T.AutocompleteItem<S>, 'type' | 'name' | 'options'>,
+    props: InputFieldRegistry<S>['autocomplete'] & Partial<BaseFormItem<S>>,
   ) {
-    return this.create<T.AutocompleteItem<S>>('autocomplete', name, { options, ...props });
+    return this.field('autocomplete', name, props);
   }
 
   asyncAutocomplete(
     name: Path<z.infer<S>>,
-    loadOptions: T.AsyncAutocompleteItem<S>['loadOptions'],
-    props?: Omit<T.AsyncAutocompleteItem<S>, 'type' | 'name' | 'loadOptions'>,
+    props: InputFieldRegistry<S>['async-autocomplete'] & Partial<BaseFormItem<S>>,
   ) {
-    return this.create<T.AsyncAutocompleteItem<S>>('async-autocomplete', name, {
-      loadOptions,
-      ...props,
-    });
+    return this.field('async-autocomplete', name, props);
+  }
+
+  file(name: Path<z.infer<S>>, props?: InputFieldRegistry<S>['file'] & Partial<BaseFormItem<S>>) {
+    return this.field('file', name, props);
+  }
+
+  richText(
+    name: Path<z.infer<S>>,
+    props?: InputFieldRegistry<S>['rich-text'] & Partial<BaseFormItem<S>>,
+  ) {
+    return this.field('rich-text', name, props);
   }
 
   // ===========================================================================
-  // LAYOUTS & CONTAINERS
+  // LAYOUTS
   // ===========================================================================
 
-  section(
-    title: string,
-    children: T.FormItem<S>[],
-    props?: Omit<T.SectionItem<S>, 'type' | 'title' | 'children'>,
+  // NOTE: For layouts, we pass 'any' to LayoutRegistry lookup in the DSL signature
+  // to avoid complex generic constraints, or simply rely on the method parameters
+  // to implicitly match the shape.
+
+  section(title: string, children: FormItem<S>[], props?: Partial<BaseFormItem<S>>) {
+    return this.create('section', undefined, { title, children, ...props });
+  }
+
+  tabs(tabs: LayoutRegistry<S, FormItem<S>>['tabs']['tabs'], props?: Partial<BaseFormItem<S>>) {
+    return this.create('tabs', undefined, { tabs, ...props });
+  }
+
+  wizard(
+    steps: LayoutRegistry<S, FormItem<S>>['wizard']['steps'],
+    props?: Partial<BaseFormItem<S>>,
   ) {
-    return this.create<T.SectionItem<S>>('section', undefined, { title, children, ...props });
-  }
-
-  tabs(tabs: T.TabsItem<S>['tabs'], props?: Omit<T.TabsItem<S>, 'type' | 'tabs'>) {
-    return this.create<T.TabsItem<S>>('tabs', undefined, { tabs, ...props });
-  }
-
-  accordion(
-    items: T.AccordionItem<S>['items'],
-    props?: Omit<T.AccordionItem<S>, 'type' | 'items'>,
-  ) {
-    return this.create<T.AccordionItem<S>>('accordion', undefined, { items, ...props });
-  }
-
-  wizard(steps: T.WizardItem<S>['steps'], props?: Omit<T.WizardItem<S>, 'type' | 'steps'>) {
-    return this.create<T.WizardItem<S>>('wizard', undefined, { steps, ...props });
+    return this.create('wizard', undefined, { steps, ...props });
   }
 
   array(
     name: Path<z.infer<S>>,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    items: T.FormItem<any>[],
-    props?: Omit<T.ArrayItem<S>, 'type' | 'name' | 'items'>,
+    items: FormItem<any>[],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    props?: Omit<LayoutRegistry<S, any>['array'], 'items' | 'name'> & Partial<BaseFormItem<S>>,
   ) {
-    return this.create<T.ArrayItem<S>>('array', name, { items, ...props });
+    return this.create('array', name, { items, ...props });
+  }
+
+  dataGrid(
+    name: Path<z.infer<S>>,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    columns: LayoutRegistry<S, any>['data-grid']['columns'],
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    props?: Omit<LayoutRegistry<S, any>['data-grid'], 'columns' | 'name'> &
+      Partial<BaseFormItem<S>>,
+  ) {
+    return this.create('data-grid', name, { columns, ...props });
   }
 }
 
-/**
- * Helper function to define form schema with type safety.
- */
-export function defineForm<S extends T.FormSchema>(
-  builderFn: (f: FormBuilderDSL<S>) => T.FormItem<S>[],
-): T.FormItem<S>[] {
+export function defineForm<S extends FormSchema>(
+  builderFn: (f: FormBuilderDSL<S>) => FormItem<S>[],
+): FormItem<S>[] {
   const builder = new FormBuilderDSL<S>();
   return builderFn(builder);
 }

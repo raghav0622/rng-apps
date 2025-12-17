@@ -4,7 +4,7 @@ import { logError } from '@/lib/logger';
 import { Grid } from '@mui/material';
 import { useFormContext } from 'react-hook-form';
 import { INPUT_REGISTRY } from '../registry';
-import { FormItem, FormSchema } from '../types';
+import { FormItem, FormSchema, LayoutType } from '../types';
 import { RNGArrayField } from './ArrayField';
 import { RNGDataGrid } from './DataGrid';
 import {
@@ -17,7 +17,7 @@ import {
 } from './layouts';
 
 // Define Layout mapping locally to centralize logic without circular registry imports
-const LAYOUT_REGISTRY: Record<string, React.ComponentType<any>> = {
+const LAYOUT_REGISTRY: Record<LayoutType, React.ComponentType<any>> = {
   section: RNGSectionLayout,
   tabs: RNGTabsLayout,
   accordion: RNGAccordionLayout,
@@ -51,13 +51,15 @@ export function FormBuilder<S extends FormSchema>({ uiSchema, pathPrefix }: Form
           return <input type="hidden" key={key} {...register(scopedName as any)} />;
         }
 
-        // 2. Unified Component Lookup (Layouts -> Registry)
-        const Component =
-          LAYOUT_REGISTRY[item.type] || INPUT_REGISTRY[item.type as keyof typeof INPUT_REGISTRY];
+        // 2. Unified Component Lookup
+        // We cast to 'any' for the lookup key because item.type is a union of InputType | LayoutType
+        const Component = (LAYOUT_REGISTRY as any)[item.type] || (INPUT_REGISTRY as any)[item.type];
 
         if (Component) {
-          // Pass pathPrefix only if it's potentially a layout or complex component
-          return <Component key={key} item={scopedItem} pathPrefix={pathPrefix} />;
+          // We pass 'scopedItem' as 'item'.
+          // Typescript cannot verify at this level that the specific item subtype matches the Component props,
+          // so we cast to 'any' to allow the render. The Component itself asserts strict types internally.
+          return <Component key={key} item={scopedItem as any} pathPrefix={pathPrefix} />;
         }
 
         logError(`No component found for type: ${item.type}`);

@@ -1,71 +1,99 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Path } from 'react-hook-form';
 import { z } from 'zod';
 import { BaseFormItem, FormSchema } from './core';
+import { LayoutRegistry } from './field-registry';
 import { FormItem } from './index';
 
-export type SectionItem<S extends FormSchema> = BaseFormItem<S> & {
-  type: 'section';
-  title?: string;
-  children: FormItem<S>[];
-};
+/**
+ * Helper to get props from registry WITHOUT triggering circular deps.
+ * We pass 'any' as the ItemType because we will manually redefine children/items below.
+ */
 
-export type TabsItem<S extends FormSchema> = BaseFormItem<S> & {
+type SafeLayoutProps<S extends FormSchema, K extends keyof LayoutRegistry<S>> = LayoutRegistry<
+  S,
+  any
+>[K];
+
+// =============================================================================
+// RECURSIVE LAYOUT INTERFACES
+// =============================================================================
+
+export interface SectionItem<S extends FormSchema>
+  extends BaseFormItem<S>, Omit<SafeLayoutProps<S, 'section'>, 'children'> {
+  type: 'section';
+  children: FormItem<S>[];
+}
+
+export interface TabsItem<S extends FormSchema>
+  extends BaseFormItem<S>, Omit<SafeLayoutProps<S, 'tabs'>, 'tabs'> {
   type: 'tabs';
   tabs: {
     label: string;
     children: FormItem<S>[];
   }[];
-};
+}
 
-export type AccordionItem<S extends FormSchema> = BaseFormItem<S> & {
+export interface AccordionItem<S extends FormSchema>
+  extends BaseFormItem<S>, Omit<SafeLayoutProps<S, 'accordion'>, 'items'> {
   type: 'accordion';
   items: {
     title: string;
     defaultExpanded?: boolean;
     children: FormItem<S>[];
   }[];
-};
+}
 
-export type WizardItem<S extends FormSchema> = BaseFormItem<S> & {
+export interface WizardItem<S extends FormSchema>
+  extends BaseFormItem<S>, Omit<SafeLayoutProps<S, 'wizard'>, 'steps'> {
   type: 'wizard';
   steps: {
     label: string;
     description?: string;
     children: FormItem<S>[];
   }[];
-};
+}
 
-export type StepperItem<S extends FormSchema> = BaseFormItem<S> & {
+export interface StepperItem<S extends FormSchema>
+  extends BaseFormItem<S>, SafeLayoutProps<S, 'stepper'> {
   type: 'stepper';
-  activeStepIndex?: number;
-  steps: {
-    label: string;
-    description?: string;
-  }[];
-};
+  // Stepper doesn't have recursive children in its props (it just tracks state),
+  // but if it did, we'd handle it like above.
+}
 
-export type ModalFormItem<S extends FormSchema> = BaseFormItem<S> & {
+export interface ModalFormItem<S extends FormSchema>
+  extends BaseFormItem<S>, Omit<SafeLayoutProps<S, 'modal-form'>, 'children'> {
   type: 'modal-form';
-  triggerLabel: string;
-  dialogTitle?: string;
   children: FormItem<S>[];
-};
+}
 
-export type ArrayItem<S extends FormSchema> = BaseFormItem<S> & {
+export interface ArrayItem<S extends FormSchema>
+  extends BaseFormItem<S>, Omit<SafeLayoutProps<S, 'array'>, 'items' | 'name'> {
   type: 'array';
   name: Path<z.infer<S>>;
-  itemLabel?: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  items: FormItem<any>[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  defaultValue?: any;
-};
+  items: FormItem<any>[]; // Array items often need 'any' schema context or a sub-schema
+}
 
-export type DataGridItem<S extends FormSchema> = BaseFormItem<S> & {
+export interface DataGridItem<S extends FormSchema>
+  extends BaseFormItem<S>, Omit<SafeLayoutProps<S, 'data-grid'>, 'columns' | 'name'> {
   type: 'data-grid';
   name: Path<z.infer<S>>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  columns: { header: string; field: FormItem<any>; width?: number | string }[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  defaultValue?: any;
-};
+  columns: {
+    header: string;
+    field: FormItem<any>;
+    width?: number | string;
+  }[];
+}
+
+/**
+ * Union of all Layout Items
+ */
+export type LayoutItem<S extends FormSchema> =
+  | SectionItem<S>
+  | TabsItem<S>
+  | AccordionItem<S>
+  | WizardItem<S>
+  | StepperItem<S>
+  | ModalFormItem<S>
+  | ArrayItem<S>
+  | DataGridItem<S>;

@@ -2,6 +2,7 @@ import { GridProps } from '@mui/material/Grid';
 import { FieldValues, Path, UseFormReturn } from 'react-hook-form';
 import { z } from 'zod';
 
+// Stricter schema definition
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type FormSchema = z.ZodType<any, any, any>;
 
@@ -11,50 +12,10 @@ export type FormContextState<TFieldValues extends FieldValues = FieldValues> = {
   readOnly?: boolean;
 };
 
-export type PrimitiveFieldType =
-  | 'text'
-  | 'password'
-  | 'number'
-  | 'currency'
-  | 'date'
-  | 'hidden'
-  | 'masked-text'
-  | 'color'
-  | 'otp'
-  | 'calculated';
-
-export type SelectionFieldType =
-  | 'switch'
-  | 'checkbox-group'
-  | 'radio'
-  | 'toggle-group'
-  | 'slider'
-  | 'rating'
-  | 'autocomplete'
-  | 'async-autocomplete'
-  | 'transfer-list';
-
-export type AdvancedFieldType = 'rich-text' | 'file' | 'signature' | 'location' | 'date-range';
-
-export type LayoutFieldType =
-  | 'array'
-  | 'data-grid'
-  | 'section'
-  | 'tabs'
-  | 'accordion'
-  | 'wizard'
-  | 'stepper'
-  | 'modal-form';
-
-export type FieldType =
-  | PrimitiveFieldType
-  | SelectionFieldType
-  | AdvancedFieldType
-  | LayoutFieldType;
-
+// Base Item Definition used by all fields
 export type BaseFormItem<Schema extends FormSchema> = {
   /** The specific type of input to render */
-  type: FieldType;
+  type: string;
   /** The path to the field in the Zod schema */
   name?: Path<z.infer<Schema>>;
   /** Visual label for the input */
@@ -68,7 +29,10 @@ export type BaseFormItem<Schema extends FormSchema> = {
   /** Logic: Return false to hide the field */
   renderLogic?: (values: z.infer<Schema>) => boolean;
   /** Logic: Return partial props to dynamically override */
-  propsLogic?: (values: z.infer<Schema>) => Partial<BaseFormItem<Schema>>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  propsLogic?: (values: z.infer<Schema>) => Partial<any>;
   /** Disable the input */
   disabled?: boolean;
+  /** ID for testing or dom selection */
+  id?: string;
 };

@@ -1,9 +1,9 @@
 import { Box } from '@mui/material';
 import * as React from 'react';
+import DrawerContent from '../DrawerContent';
 import { AppContent } from './AppContent';
 import AppDrawer from './AppDrawer';
 import AppHeader from './AppHeader';
-import DrawerContent from './DrawerContent';
 import { LayoutContextProvider } from './LayoutContext';
 
 export default function BaseLayout({ children }: { children: React.ReactNode }) {

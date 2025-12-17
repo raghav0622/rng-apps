@@ -1,9 +1,11 @@
 // rng-form/hooks/useFormPersistence.ts
+import { logError } from '@/lib/logger';
 import { useEffect } from 'react';
 import { UseFormReturn } from 'react-hook-form';
 
 export function useFormPersistence(
   key: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   methods: UseFormReturn<any>,
   enabled: boolean = false,
 ) {
@@ -21,7 +23,7 @@ export function useFormPersistence(
         const merged = { ...getValues(), ...parsed };
         reset(merged);
       } catch (e) {
-        console.error('Failed to parse saved form data', e);
+        logError('Failed to parse saved form data');
       }
     }
   }, [enabled, key, reset, getValues]);

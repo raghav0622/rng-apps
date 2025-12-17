@@ -27,11 +27,6 @@ import {
 
 /**
  * A Type-Safe Builder Class to generate FormItems.
- * * Usage:
- * const ui = defineForm<MySchema>((f) => [
- * f.text('firstName', { label: 'First Name' }),
- * f.section('Address', [ ... ])
- * ]);
  */
 export class FormBuilderDSL<S extends FormSchema> {
   // ===========================================================================
@@ -94,7 +89,7 @@ export class FormBuilderDSL<S extends FormSchema> {
   }
 
   calculated(
-    name: Path<z.infer<S>>, // ✅ Name is now the first argument
+    name: Path<z.infer<S>>,
     calculate: (values: z.infer<S>) => string | number,
     props?: Omit<CalculatedItem<S>, 'type' | 'name' | 'calculate'>,
   ): CalculatedItem<S> {
@@ -195,6 +190,7 @@ export class FormBuilderDSL<S extends FormSchema> {
     return { type: 'array', name, items, ...props };
   }
 }
+
 /**
  * Helper function to define form schema with type safety.
  */

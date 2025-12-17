@@ -23,6 +23,16 @@ import {
   ToggleGroupItem,
   TransferListItem,
 } from './inputs';
+import {
+  AccordionItem,
+  ArrayItem,
+  DataGridItem,
+  ModalFormItem,
+  SectionItem,
+  StepperItem,
+  TabsItem,
+  WizardItem,
+} from './layouts';
 
 export * from './core';
 export * from './inputs';

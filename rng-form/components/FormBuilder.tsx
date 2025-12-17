@@ -46,7 +46,7 @@ export function FormBuilder<S extends FormSchema>({ uiSchema, pathPrefix }: Form
         }
 
         // 3. Registry Items
-        const Component = INPUT_REGISTRY[item.type];
+        const Component = INPUT_REGISTRY[item.type as keyof typeof INPUT_REGISTRY];
         if (Component) {
           return <Component key={key} item={scopedItem} />;
         }

@@ -1,6 +1,7 @@
 'use client';
 import { Box, Divider, Paper, Stack, Typography } from '@mui/material';
 import Grid from '@mui/material/Grid';
+import { JSXElementConstructor, Key, ReactElement, ReactNode, ReactPortal } from 'react';
 import { useFormContext } from 'react-hook-form';
 import { z } from 'zod'; // Added import
 import { FormItem, FormSchema } from '../types';
@@ -75,15 +76,43 @@ export function FormSummary<S extends FormSchema>({ uiSchema, pathPrefix }: Form
         if (item.type === 'wizard') {
           return (
             <Grid key={index} size={12}>
-              {item.steps.map((step, i) => (
-                <Box key={i} sx={{ mb: 3 }}>
-                  <Typography variant="subtitle1" fontWeight="bold">
-                    {step.label}
-                  </Typography>
-                  <Divider sx={{ mb: 1, borderStyle: 'dashed' }} />
-                  <FormSummary uiSchema={step.children} pathPrefix={pathPrefix} />
-                </Box>
-              ))}
+              {item.steps.map(
+                (
+                  step: {
+                    label:
+                      | string
+                      | number
+                      | bigint
+                      | boolean
+                      | ReactElement<unknown, string | JSXElementConstructor<any>>
+                      | Iterable<ReactNode>
+                      | ReactPortal
+                      | Promise<
+                          | string
+                          | number
+                          | bigint
+                          | boolean
+                          | ReactPortal
+                          | ReactElement<unknown, string | JSXElementConstructor<any>>
+                          | Iterable<ReactNode>
+                          | null
+                          | undefined
+                        >
+                      | null
+                      | undefined;
+                    children: any[];
+                  },
+                  i: Key | null | undefined,
+                ) => (
+                  <Box key={i} sx={{ mb: 3 }}>
+                    <Typography variant="subtitle1" fontWeight="bold">
+                      {step.label}
+                    </Typography>
+                    <Divider sx={{ mb: 1, borderStyle: 'dashed' }} />
+                    <FormSummary uiSchema={step.children} pathPrefix={pathPrefix} />
+                  </Box>
+                ),
+              )}
             </Grid>
           );
         }

@@ -168,7 +168,7 @@ export function RNGRating({ item }: { item: RatingItem<any> }) {
           </Typography>
           <Rating
             value={Number(field.value) || 0}
-            onChange={(_, val) => field.onChange(val)}
+            onChange={(_, val) => field.onChange(Number(val))}
             max={mergedItem.max}
             precision={mergedItem.precision}
           />

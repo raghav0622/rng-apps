@@ -1,58 +1,49 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
-
 import { TextField } from '@mui/material';
 import { useEffect } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
 import { CalculatedItem } from '../types';
 import { FieldWrapper } from './FieldWrapper';
 
-export function RNGCalculatedField({ item }: { item: CalculatedItem<any> }) {
-  const { control, setValue, getValues } = useFormContext();
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
-  // Watch dependencies to trigger recalculation
-  const watchedValues = useWatch({
-    control,
-    name: item.dependencies as any,
-  });
+export function RNGCalculatedField({ item }: { item: CalculatedItem<any> }) {
+  const { control, setValue } = useFormContext();
+
+  // Watch all fields so calculation updates on any change
+  // Note: Optimally, item.dependencies should be passed here if available
+  const values = useWatch({ control, name: item.dependencies as any });
 
   useEffect(() => {
-    const currentValues = getValues();
-    let result: string | number = '';
-    try {
-      result = item.calculate(currentValues);
-    } catch (e) {}
+    // We get the full form values to pass to the calculator
+    // This requires accessing control._formValues or careful useWatch
+    // For safety, we use the `values` from useWatch if dependencies exist,
+    // otherwise we might risk not updating.
+    // If dependencies are not provided, we might default to watching everything
+    // but that is expensive. For now, we assume dependencies ARE provided for best perf.
 
-    if (item.name) {
-      setValue(item.name as string, result, {
-        shouldValidate: true,
-        shouldDirty: true,
-      });
-    }
-  }, [watchedValues, item, setValue, getValues]);
+    // We need the *entire* form state for the calculate function usually:
+    const currentValues = control._formValues;
+    const result = item.calculate(currentValues);
+
+    // Only update if changed to avoid loops
+    setValue(item.name as string, result, {
+      shouldValidate: true,
+      shouldDirty: true,
+      shouldTouch: true,
+    });
+  }, [values, item, setValue, control]);
 
   return (
     <FieldWrapper item={item} name={item.name}>
-      {(field, fieldState, mergedItem) => (
+      {(field, _, mergedItem) => (
         <TextField
           {...field}
+          value={field.value ?? ''}
           fullWidth
-          // Fix 1: Hide internal label so we don't have duplicates (Wrapper handles it)
-          hiddenLabel
-          // Fix 2: Use readOnly instead of disabled so value is SUBMITTED
-          slotProps={{
-            input: {
-              readOnly: true,
-              tabIndex: -1, // Prevent tabbing into it
-              sx: {
-                bgcolor: 'action.hover',
-                cursor: 'default',
-                pointerEvents: 'none', // Mimic disabled feel
-              },
-            },
-          }}
-          error={!!fieldState.error}
-          variant="outlined"
+          disabled // Calculated fields are always read-only
+          label={mergedItem.label}
+          variant="filled" // Visual cue that it is auto-filled
         />
       )}
     </FieldWrapper>

@@ -1,109 +1,89 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
+import { logError } from '@/lib/logger';
 import { Autocomplete, CircularProgress, TextField } from '@mui/material';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
-import { z } from 'zod';
-import { AsyncAutocompleteItem, AutocompleteOption, FormSchema } from '../types';
+import { AsyncAutocompleteItem, AutocompleteOption } from '../types';
 import { FieldWrapper } from './FieldWrapper';
 
-function debounce<T extends (...args: any[]) => any>(func: T, wait: number) {
-  let timeout: NodeJS.Timeout;
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), wait);
-  };
-}
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
-export function RNGAsyncAutocomplete<S extends FormSchema>({
-  item,
-}: {
-  item: AsyncAutocompleteItem<S>;
-}) {
-  const { getValues, watch } = useFormContext();
+export function RNGAsyncAutocomplete({ item }: { item: AsyncAutocompleteItem<any> }) {
   const [open, setOpen] = useState(false);
   const [options, setOptions] = useState<readonly AutocompleteOption[]>([]);
   const [loading, setLoading] = useState(false);
+  const [inputValue, setInputValue] = useState('');
 
-  const dependencyValues = item.dependencies ? watch(item.dependencies) : [];
+  const { getValues } = useFormContext();
 
-  const getLabel = (option: AutocompleteOption) => {
-    if (!option) return '';
-    if (typeof option === 'string') return option;
-    if (item.getOptionLabel) return item.getOptionLabel(option);
-
-    return (option as any).label || JSON.stringify(option);
-  };
-
-  const fetchOptions = async (query: string) => {
-    setLoading(true);
-    try {
-      const currentValues = getValues() as z.infer<S>;
-      const fetched = await item.loadOptions(query, currentValues);
-      setOptions(fetched);
-    } catch (err) {
-      setOptions([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const debouncedFetch = useMemo(() => debounce(fetchOptions, 500), [item]);
-
+  // Debounce logic for fetching
   useEffect(() => {
     let active = true;
-    if (!open) return undefined;
 
-    (async () => {
+    if (!open) {
+      return undefined;
+    }
+
+    const fetchData = async () => {
       setLoading(true);
       try {
-        const currentValues = getValues() as z.infer<S>;
-        const fetched = await item.loadOptions('', currentValues);
-        if (active) setOptions(fetched);
+        const currentFormValues = getValues();
+        const results = await item.loadOptions(inputValue, currentFormValues);
+        if (active) {
+          setOptions(results);
+        }
+      } catch (err) {
+        logError('Async Fetch Error', { error: err });
       } finally {
         if (active) setLoading(false);
       }
-    })();
+    };
+
+    const timer = setTimeout(fetchData, 400); // 400ms debounce
 
     return () => {
       active = false;
+      clearTimeout(timer);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, ...dependencyValues]);
+  }, [inputValue, open, item, getValues]);
 
   return (
     <FieldWrapper item={item} name={item.name}>
-      {(field, fieldState, mergedItem) => (
+      {(field, _, mergedItem) => (
         <Autocomplete
           {...field}
           open={open}
           onOpen={() => setOpen(true)}
           onClose={() => setOpen(false)}
+          inputValue={inputValue}
+          onInputChange={(_, newInputValue) => setInputValue(newInputValue)}
           multiple={mergedItem.multiple}
-          isOptionEqualToValue={(option, value) => {
-            if (!value) return false;
-            return getLabel(option) === getLabel(value);
-          }}
-          getOptionLabel={getLabel}
           options={options}
           loading={loading}
-          onInputChange={(e, value, reason) => {
-            if (reason === 'input') debouncedFetch(value);
+          getOptionLabel={
+            mergedItem.getOptionLabel ||
+            ((opt) => (typeof opt === 'string' ? opt : (opt as any).label || ''))
+          }
+          isOptionEqualToValue={(opt, val) => {
+            const optVal = typeof opt === 'string' ? opt : (opt as any).value;
+            const fieldVal = typeof val === 'string' ? val : (val as any).value;
+            return optVal === fieldVal;
           }}
           onChange={(_, data) => field.onChange(data)}
           renderInput={(params) => (
             <TextField
               {...params}
-              error={!!fieldState.error}
-              hiddenLabel
-              InputProps={{
-                ...params.InputProps,
-                endAdornment: (
-                  <React.Fragment>
-                    {loading ? <CircularProgress color="inherit" size={20} /> : null}
-                    {params.InputProps.endAdornment}
-                  </React.Fragment>
-                ),
+              label={mergedItem.label} // Internal label behavior
+              slotProps={{
+                input: {
+                  ...params.InputProps,
+                  endAdornment: (
+                    <React.Fragment>
+                      {loading ? <CircularProgress color="inherit" size={20} /> : null}
+                      {params.InputProps.endAdornment}
+                    </React.Fragment>
+                  ),
+                },
               }}
             />
           )}

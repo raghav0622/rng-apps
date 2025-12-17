@@ -20,7 +20,7 @@ import { RNGArrayField } from './components/ArrayField';
 import { RNGAsyncAutocomplete } from './components/AsyncInputs';
 import { RNGCalculatedField } from './components/CalculatedField';
 import { RNGDataGrid } from './components/DataGrid';
-import { RNGModalForm, RNGStepperDisplay } from './components/Layouts';
+import { RNGModalLayout, RNGStepperLayout } from './components/layouts';
 import { RNGMaskedInput } from './components/MaskedInput';
 import { RNGColorInput, RNGNumberInput, RNGTextInput } from './components/PrimitiveInputs';
 import { RNGRichText } from './components/RichText';
@@ -37,30 +37,30 @@ export const INPUT_REGISTRY: Partial<Record<FieldType, React.ComponentType<any>>
   'masked-text': RNGMaskedInput,
   calculated: RNGCalculatedField,
   hidden: RNGTextInput,
-  color: RNGColorInput, // New
-  otp: RNGOtpInput, // New
+  color: RNGColorInput,
+  otp: RNGOtpInput,
 
   // Selection
   switch: RNGSwitch,
   radio: RNGRadioGroup,
   'checkbox-group': RNGCheckboxGroup,
-  'toggle-group': RNGToggleGroup, // New
+  'toggle-group': RNGToggleGroup,
   slider: RNGSlider,
   rating: RNGRating,
   autocomplete: RNGAutocomplete,
   'async-autocomplete': RNGAsyncAutocomplete,
-  'transfer-list': RNGTransferList, // New
+  'transfer-list': RNGTransferList,
 
   // Advanced / Complex
   file: RNGFileUpload,
   'rich-text': RNGRichText,
-  signature: RNGSignature, // New
-  location: RNGLocation, // New
-  'date-range': RNGDateRange, // New
+  signature: RNGSignature,
+  location: RNGLocation,
+  'date-range': RNGDateRange,
 
   // Arrays & Layouts
   array: RNGArrayField,
-  'data-grid': RNGDataGrid, // New
-  stepper: RNGStepperDisplay, // New
-  'modal-form': RNGModalForm, // New
+  'data-grid': RNGDataGrid,
+  stepper: RNGStepperLayout,
+  'modal-form': RNGModalLayout,
 };

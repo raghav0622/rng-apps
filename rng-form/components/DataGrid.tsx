@@ -1,5 +1,4 @@
 'use client';
-
 import { Add, Delete } from '@mui/icons-material';
 import {
   Box,
@@ -12,7 +11,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Typography,
 } from '@mui/material';
 import { useFieldArray, useFormContext } from 'react-hook-form';
 import { DataGridItem } from '../types';
@@ -23,88 +21,71 @@ import { FormBuilder } from './FormBuilder';
 
 export function RNGDataGrid({ item }: { item: DataGridItem<any> }) {
   const { control } = useFormContext();
-  const { fields, append, remove } = useFieldArray({
-    control,
-    name: item.name,
-  });
-
-  const handleAddRow = () => {
-    append(item.defaultValue || {});
-  };
 
   return (
     <FieldWrapper item={item} name={item.name}>
-      {() => (
-        <Box sx={{ width: '100%', mt: 1 }}>
-          <TableContainer component={Paper} variant="outlined">
-            <Table size="small">
-              <TableHead sx={{ bgcolor: 'action.hover' }}>
-                <TableRow>
-                  {item.columns.map((col, idx) => (
-                    <TableCell key={idx} width={col.width}>
-                      <Typography variant="subtitle2" fontWeight={600}>
-                        {col.header}
-                      </Typography>
-                    </TableCell>
-                  ))}
-                  <TableCell width={50} align="center">
-                    Action
-                  </TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {fields.map((field, rowIndex) => (
-                  <TableRow key={field.id}>
-                    {item.columns.map((col, colIndex) => {
-                      // Construct a pseudo-schema for the cell so FormBuilder can render it
-                      // We need to rewrite the name to be array-indexed: "myArray.0.fieldName"
-                      const cellItem = {
-                        ...col.field,
-                        name: `${item.name}.${rowIndex}.${col.field.name}`,
-                        // Remove label to fit in table cell cleanly
-                        label: undefined,
-                      };
-                      return (
-                        <TableCell key={colIndex} sx={{ verticalAlign: 'top', pt: 2 }}>
-                          <FormBuilder uiSchema={[cellItem as any]} />
-                        </TableCell>
-                      );
-                    })}
-                    <TableCell align="center" sx={{ verticalAlign: 'top', pt: 2 }}>
-                      <IconButton
-                        size="small"
-                        color="error"
-                        onClick={() => remove(rowIndex)}
-                        aria-label="Delete Row"
-                      >
-                        <Delete fontSize="small" />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {fields.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={item.columns.length + 1} align="center" sx={{ py: 3 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        No data available
-                      </Typography>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-          <Button
-            startIcon={<Add />}
-            onClick={handleAddRow}
-            sx={{ mt: 1 }}
-            variant="outlined"
-            size="small"
-          >
-            Add Row
-          </Button>
-        </Box>
-      )}
+      {() => <DataGridContent item={item} control={control} />}
     </FieldWrapper>
+  );
+}
+
+function DataGridContent({ item, control }: { item: DataGridItem<any>; control: any }) {
+  const { fields, append, remove } = useFieldArray({
+    control,
+    name: item.name as string,
+  });
+
+  return (
+    <Paper variant="outlined" sx={{ width: '100%', overflow: 'hidden', mb: 2 }}>
+      <TableContainer sx={{ maxHeight: 400 }}>
+        <Table stickyHeader size="small">
+          <TableHead>
+            <TableRow>
+              {item.columns.map((col, idx) => (
+                <TableCell key={idx} sx={{ width: col.width, fontWeight: 600 }}>
+                  {col.header}
+                </TableCell>
+              ))}
+              <TableCell align="right" sx={{ width: 50 }}>
+                Actions
+              </TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {fields.map((field, index) => (
+              <TableRow key={field.id} hover>
+                {item.columns.map((col, colIdx) => (
+                  <TableCell key={colIdx}>
+                    {/* Renders a single field cell without the heavy Grid layout 
+                      We trick FormBuilder by passing a single item array
+                    */}
+                    <Box sx={{ '& .MuiFormControl-root': { mb: 0 } }}>
+                      <FormBuilder uiSchema={[col.field]} pathPrefix={`${item.name}.${index}`} />
+                    </Box>
+                  </TableCell>
+                ))}
+                <TableCell align="right">
+                  <IconButton size="small" color="error" onClick={() => remove(index)}>
+                    <Delete fontSize="small" />
+                  </IconButton>
+                </TableCell>
+              </TableRow>
+            ))}
+            {fields.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={item.columns.length + 1} align="center" sx={{ py: 3 }}>
+                  No data. Click below to add.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+      <Box sx={{ p: 1, borderTop: 1, borderColor: 'divider' }}>
+        <Button startIcon={<Add />} onClick={() => append(item.defaultValue || {})} size="small">
+          Add Row
+        </Button>
+      </Box>
+    </Paper>
   );
 }

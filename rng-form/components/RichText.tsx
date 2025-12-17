@@ -1,41 +1,63 @@
 'use client';
-import { Box, Button, ButtonGroup, Paper } from '@mui/material';
+
+import {
+  FormatBold,
+  FormatItalic,
+  FormatListBulleted,
+  FormatListNumbered,
+} from '@mui/icons-material';
+import { Box, Paper, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useEffect } from 'react';
-import { FormSchema, RichTextItem } from '../types';
+import { RichTextItem } from '../types';
 import { FieldWrapper } from './FieldWrapper';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const MenuBar = ({ editor }: { editor: any }) => {
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
+function TiptapToolbar({ editor }: { editor: any }) {
   if (!editor) return null;
+
   return (
-    <Box sx={{ borderBottom: 1, borderColor: 'divider', p: 1, bgcolor: 'background.default' }}>
-      <ButtonGroup size="small" variant="text">
-        <Button
+    <Box sx={{ borderBottom: '1px solid #ddd', p: 1, display: 'flex', gap: 1 }}>
+      <ToggleButtonGroup size="small">
+        <ToggleButton
+          value="bold"
+          selected={editor.isActive('bold')}
           onClick={() => editor.chain().focus().toggleBold().run()}
-          variant={editor.isActive('bold') ? 'contained' : 'text'}
         >
-          <b>B</b>
-        </Button>
-        <Button
+          <FormatBold />
+        </ToggleButton>
+        <ToggleButton
+          value="italic"
+          selected={editor.isActive('italic')}
           onClick={() => editor.chain().focus().toggleItalic().run()}
-          variant={editor.isActive('italic') ? 'contained' : 'text'}
         >
-          <i>I</i>
-        </Button>
-        <Button
-          onClick={() => editor.chain().focus().toggleStrike().run()}
-          variant={editor.isActive('strike') ? 'contained' : 'text'}
+          <FormatItalic />
+        </ToggleButton>
+      </ToggleButtonGroup>
+
+      <ToggleButtonGroup size="small">
+        <ToggleButton
+          value="bulletList"
+          selected={editor.isActive('bulletList')}
+          onClick={() => editor.chain().focus().toggleBulletList().run()}
         >
-          <s>S</s>
-        </Button>
-      </ButtonGroup>
+          <FormatListBulleted />
+        </ToggleButton>
+        <ToggleButton
+          value="orderedList"
+          selected={editor.isActive('orderedList')}
+          onClick={() => editor.chain().focus().toggleOrderedList().run()}
+        >
+          <FormatListNumbered />
+        </ToggleButton>
+      </ToggleButtonGroup>
     </Box>
   );
-};
+}
 
-export function RNGRichText<S extends FormSchema>({ item }: { item: RichTextItem<S> }) {
+export function RNGRichText({ item }: { item: RichTextItem<any> }) {
   return (
     <FieldWrapper item={item} name={item.name}>
       {(field, fieldState, mergedItem) => {
@@ -43,32 +65,46 @@ export function RNGRichText<S extends FormSchema>({ item }: { item: RichTextItem
         const editor = useEditor({
           extensions: [StarterKit],
           content: field.value || '',
-          immediatelyRender: false,
-          onUpdate: ({ editor }) => field.onChange(editor.getHTML()),
+          onUpdate: ({ editor }) => {
+            // Save HTML
+            const html = editor.getHTML();
+            field.onChange(html === '<p></p>' ? '' : html); // Clear if empty
+          },
           editorProps: {
             attributes: {
-              style: `min-height: ${mergedItem.minHeight || 150}px; padding: 16px; outline: none;`,
+              class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-2xl mx-auto focus:outline-none',
+              style: `min-height: ${mergedItem.minHeight || 150}px; padding: 16px;`,
             },
           },
+          immediatelyRender: false, // Fixed: Renamed from immediateRender
         });
 
+        // Sync external value changes (e.g. reset)
         // eslint-disable-next-line react-hooks/rules-of-hooks
         useEffect(() => {
           if (editor && field.value !== editor.getHTML()) {
-            if (!editor.isFocused) editor.commands.setContent(field.value || '');
+            // Only update if content is actually different to avoid cursor jumps
+            if (field.value === '' && editor.getHTML() === '<p></p>') return;
+
+            if (!editor.isFocused) {
+              editor.commands.setContent(field.value || '');
+            }
           }
         }, [field.value, editor]);
 
         return (
-          <>
-            <Paper
-              variant="outlined"
-              sx={{ borderColor: fieldState.error ? 'error.main' : 'divider', overflow: 'hidden' }}
-            >
-              <MenuBar editor={editor} />
+          <Paper
+            variant="outlined"
+            sx={{
+              borderColor: fieldState.error ? 'error.main' : 'inherit',
+              overflow: 'hidden',
+            }}
+          >
+            <TiptapToolbar editor={editor} />
+            <Box sx={{ '& .ProseMirror': { outline: 'none' } }}>
               <EditorContent editor={editor} />
-            </Paper>
-          </>
+            </Box>
+          </Paper>
         );
       }}
     </FieldWrapper>

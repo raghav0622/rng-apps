@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
+import { useRNGForm } from '@/rng-form/FormContext';
 import { FormControl, FormHelperText, FormLabel, Grid } from '@mui/material';
 import {
   Controller,
@@ -29,8 +30,9 @@ export function FieldWrapper<S extends FormSchema, T extends BaseFormItem<S>>({
   children,
 }: FieldWrapperProps<S, T>) {
   const { control } = useFormContext();
+  const { readOnly: globalReadOnly } = useRNGForm();
 
-  // 1. WATCH Logic
+  // 1. WATCH Logic - Only watch if logic is defined to improve performance
   const shouldWatch = !!item.renderLogic || !!item.propsLogic;
   const dependencies = item.dependencies;
 
@@ -56,9 +58,21 @@ export function FieldWrapper<S extends FormSchema, T extends BaseFormItem<S>>({
 
   if (!isVisible) return null;
 
-  const mergedItem = { ...item, ...dynamicProps } as T;
+  // Merge global readOnly -> item.disabled -> dynamicProps.disabled
+  const mergedItem = {
+    ...item,
+    disabled: globalReadOnly || item.disabled,
+    ...dynamicProps,
+  } as T;
+
+  // Explicitly force disabled if globalReadOnly is true (overriding propsLogic if necessary)
+  if (globalReadOnly) {
+    mergedItem.disabled = true;
+  }
+
   const fieldId = `field-${name.replace(/\./g, '-')}`;
   const errorId = `${fieldId}-error`;
+  const labelId = `${fieldId}-label`;
 
   return (
     <Grid size={mergedItem.colProps?.size ?? 12} {...mergedItem.colProps}>
@@ -78,11 +92,7 @@ export function FieldWrapper<S extends FormSchema, T extends BaseFormItem<S>>({
               component="div"
             >
               {shouldRenderExternalLabel(mergedItem.type) && mergedItem.label && (
-                <FormLabel
-                  htmlFor={field.name}
-                  id={`${fieldId}-label`}
-                  sx={{ mb: 0.5, fontWeight: 500 }}
-                >
+                <FormLabel htmlFor={field.name} id={labelId} sx={{ mb: 0.5, fontWeight: 500 }}>
                   {mergedItem.label}
                 </FormLabel>
               )}
@@ -114,6 +124,7 @@ function shouldRenderExternalLabel(type: string) {
     'tabs',
     'accordion',
     'file',
+    'modal-form',
   ];
   return !internalLabelTypes.includes(type);
 }

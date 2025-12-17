@@ -5,19 +5,19 @@ import {
   Box,
   Button,
   CircularProgress,
+  Grid,
   Step,
   StepContent,
   StepLabel,
   Stepper,
   Typography,
 } from '@mui/material';
-import Grid from '@mui/material/Grid';
 import React, { useState } from 'react';
 import { useFormContext } from 'react-hook-form';
-import { FormSchema, WizardItem } from '../types';
-import { FormBuilder } from './FormBuilder';
+import { FormSchema, WizardItem } from '../../types';
+import { FormBuilder } from '../FormBuilder';
 
-export function RNGWizard<S extends FormSchema>({
+export function RNGWizardLayout<S extends FormSchema>({
   item,
   pathPrefix,
 }: {
@@ -34,11 +34,7 @@ export function RNGWizard<S extends FormSchema>({
   const isLastStep = activeStep === steps.length - 1;
 
   const handleNext = async () => {
-    // 1. Identify fields in the current step using shared utility
-    // This now correctly finds fields inside Sections/Tabs/Accordions within the step
     const currentStepFields = getFieldNames(steps[activeStep].children, pathPrefix);
-
-    // 2. Trigger validation ONLY for those fields
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const isValid = await trigger(currentStepFields as any);
 

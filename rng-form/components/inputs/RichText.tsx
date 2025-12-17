@@ -10,8 +10,8 @@ import { Box, Paper, ToggleButton, ToggleButtonGroup } from '@mui/material';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useEffect } from 'react';
-import { RichTextItem } from '../types';
-import { FieldWrapper } from './FieldWrapper';
+import { RichTextItem } from '../../types';
+import { FieldWrapper } from '../FieldWrapper';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -66,9 +66,8 @@ export function RNGRichText({ item }: { item: RichTextItem<any> }) {
           extensions: [StarterKit],
           content: field.value || '',
           onUpdate: ({ editor }) => {
-            // Save HTML
             const html = editor.getHTML();
-            field.onChange(html === '<p></p>' ? '' : html); // Clear if empty
+            field.onChange(html === '<p></p>' ? '' : html);
           },
           editorProps: {
             attributes: {
@@ -76,16 +75,14 @@ export function RNGRichText({ item }: { item: RichTextItem<any> }) {
               style: `min-height: ${mergedItem.minHeight || 150}px; padding: 16px;`,
             },
           },
-          immediatelyRender: false, // Fixed: Renamed from immediateRender
+          immediatelyRender: false,
         });
 
-        // Sync external value changes (e.g. reset)
+        // Sync external value changes
         // eslint-disable-next-line react-hooks/rules-of-hooks
         useEffect(() => {
           if (editor && field.value !== editor.getHTML()) {
-            // Only update if content is actually different to avoid cursor jumps
             if (field.value === '' && editor.getHTML() === '<p></p>') return;
-
             if (!editor.isFocused) {
               editor.commands.setContent(field.value || '');
             }

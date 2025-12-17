@@ -1,29 +1,23 @@
-import {
-  RNGAutocomplete,
-  RNGDateInput,
-  RNGDateRange,
-  RNGFileUpload,
-  RNGLocation,
-  RNGOtpInput,
-  RNGSignature,
-  RNGTransferList,
-} from './components/AdvancedInputs'; // Ensure these are moved/updated by user
 import { RNGArrayField } from './components/ArrayField';
-import { RNGAsyncAutocomplete } from './components/AsyncInputs';
-import { RNGCalculatedField } from './components/CalculatedField';
 import { RNGDataGrid } from './components/DataGrid';
+import { RNGAsyncAutocomplete, RNGAutocomplete } from './components/inputs/AutocompleteInputs';
+import { RNGCalculatedField } from './components/inputs/CalculatedField';
+import { RNGDateInput, RNGDateRange } from './components/inputs/DateInputs';
+import { RNGFileUpload } from './components/inputs/FileUpload';
+import { RNGLocation } from './components/inputs/Location';
 import { RNGColorInput, RNGNumberInput, RNGTextInput } from './components/inputs/PrimitiveInputs';
-import { RNGModalLayout, RNGStepperLayout } from './components/layouts';
-import { RNGMaskedInput } from './components/MaskedInput';
-import { RNGRichText } from './components/RichText';
+import { RNGRating, RNGSlider } from './components/inputs/RangeInputs';
+import { RNGRichText } from './components/inputs/RichText';
 import {
   RNGCheckboxGroup,
   RNGRadioGroup,
-  RNGRating,
-  RNGSlider,
   RNGSwitch,
   RNGToggleGroup,
-} from './components/SelectionInputs'; // Ensure these are moved/updated by user
+} from './components/inputs/SelectionInputs';
+import { RNGSignature } from './components/inputs/Signature';
+import { RNGMaskedInput, RNGOtpInput } from './components/inputs/TextExtendedInputs';
+import { RNGTransferList } from './components/inputs/TransferList';
+import { RNGModalLayout, RNGStepperLayout } from './components/layouts';
 import { FieldType } from './types';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

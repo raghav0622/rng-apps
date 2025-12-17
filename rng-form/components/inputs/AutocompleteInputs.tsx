@@ -3,11 +3,38 @@ import { logError } from '@/lib/logger';
 import { Autocomplete, CircularProgress, TextField } from '@mui/material';
 import React, { useEffect, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
-import { AsyncAutocompleteItem, AutocompleteOption } from '../types';
-import { FieldWrapper } from './FieldWrapper';
+import { AsyncAutocompleteItem, AutocompleteItem, AutocompleteOption } from '../../types';
+import { FieldWrapper } from '../FieldWrapper';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+// --- SYNC AUTOCOMPLETE ---
+export function RNGAutocomplete({ item }: { item: AutocompleteItem<any> }) {
+  return (
+    <FieldWrapper item={item} name={item.name}>
+      {(field, _, mergedItem) => (
+        <Autocomplete
+          {...field}
+          multiple={mergedItem.multiple}
+          options={mergedItem.options}
+          getOptionLabel={
+            mergedItem.getOptionLabel ||
+            ((opt) => (typeof opt === 'string' ? opt : (opt as any).label || ''))
+          }
+          isOptionEqualToValue={(opt, val) =>
+            typeof opt === 'string' ? opt === val : (opt as any).value === (val as any).value
+          }
+          onChange={(_, data) => field.onChange(data)}
+          renderInput={(params) => (
+            <TextField {...params} placeholder={mergedItem.label} variant="outlined" />
+          )}
+        />
+      )}
+    </FieldWrapper>
+  );
+}
+
+// --- ASYNC AUTOCOMPLETE ---
 export function RNGAsyncAutocomplete({ item }: { item: AsyncAutocompleteItem<any> }) {
   const [open, setOpen] = useState(false);
   const [options, setOptions] = useState<readonly AutocompleteOption[]>([]);
@@ -16,7 +43,6 @@ export function RNGAsyncAutocomplete({ item }: { item: AsyncAutocompleteItem<any
 
   const { getValues } = useFormContext();
 
-  // Debounce logic for fetching
   useEffect(() => {
     let active = true;
 
@@ -39,7 +65,7 @@ export function RNGAsyncAutocomplete({ item }: { item: AsyncAutocompleteItem<any
       }
     };
 
-    const timer = setTimeout(fetchData, 400); // 400ms debounce
+    const timer = setTimeout(fetchData, 400); // Debounce
 
     return () => {
       active = false;
@@ -73,7 +99,7 @@ export function RNGAsyncAutocomplete({ item }: { item: AsyncAutocompleteItem<any
           renderInput={(params) => (
             <TextField
               {...params}
-              label={mergedItem.label} // Internal label behavior
+              label={mergedItem.label}
               slotProps={{
                 input: {
                   ...params.InputProps,

@@ -20,7 +20,7 @@ export function FormBuilder<S extends FormSchema>({ uiSchema, pathPrefix }: Form
   return (
     <Grid container spacing={2}>
       {uiSchema.map((item, index) => {
-        // Handle name scoping for nested structures
+        // Handle name scoping for nested structures (Arrays, Objects)
         const scopedName = pathPrefix && item.name ? `${pathPrefix}.${item.name}` : item.name;
         const scopedItem = { ...item, name: scopedName };
         const key = scopedName || `${item.type}-${index}`;
@@ -40,7 +40,7 @@ export function FormBuilder<S extends FormSchema>({ uiSchema, pathPrefix }: Form
             return <RNGWizardLayout key={key} item={scopedItem as any} pathPrefix={pathPrefix} />;
         }
 
-        // 2. Hidden Fields - Efficient render (skip heavy wrapper)
+        // 2. Hidden Fields - Efficient render
         if (item.type === 'hidden') {
           return <input type="hidden" key={key} {...register(scopedName as any)} />;
         }

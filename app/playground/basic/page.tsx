@@ -10,8 +10,8 @@ const schema = z.object({
   firstName: z.string().min(2),
   lastName: z.string().min(2),
   phone: z.string().min(10),
-  price: z.number().min(0),
-  quantity: z.number().min(1),
+  price: z.coerce.number().min(0),
+  quantity: z.coerce.number().min(1),
   total: z.coerce.number().optional(),
 });
 

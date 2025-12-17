@@ -7,21 +7,26 @@ import {
   AutocompleteItem,
   CalculatedItem,
   CheckboxGroupItem,
+  ColorItem,
   DateFieldItem,
+  DateRangeItem,
   FileItem,
   FormItem,
   FormSchema,
   HiddenFieldItem,
+  LocationItem,
   MaskedTextItem,
   NumberFieldItem,
   RadioGroupItem,
   RatingItem,
   RichTextItem,
   SectionItem,
+  SignatureItem,
   SliderItem,
   SwitchFieldItem,
   TabsItem,
   TextFieldItem,
+  TransferListItem,
   WizardItem,
 } from './types';
 
@@ -69,11 +74,22 @@ export class FormBuilderDSL<S extends FormSchema> {
     return { type: 'date', name, ...props };
   }
 
+  dateRange(
+    name: Path<z.infer<S>>,
+    props?: Omit<DateRangeItem<S>, 'type' | 'name'>,
+  ): DateRangeItem<S> {
+    return { type: 'date-range', name, ...props };
+  }
+
   hidden(
     name: Path<z.infer<S>>,
     props?: Omit<HiddenFieldItem<S>, 'type' | 'name'>,
   ): HiddenFieldItem<S> {
     return { type: 'hidden', name, ...props };
+  }
+
+  color(name: Path<z.infer<S>>, props?: Omit<ColorItem<S>, 'type' | 'name'>): ColorItem<S> {
+    return { type: 'color', name, ...props };
   }
 
   // ===========================================================================
@@ -115,6 +131,20 @@ export class FormBuilderDSL<S extends FormSchema> {
     return { type: 'rating', name, ...props };
   }
 
+  signature(
+    name: Path<z.infer<S>>,
+    props?: Omit<SignatureItem<S>, 'type' | 'name'>,
+  ): SignatureItem<S> {
+    return { type: 'signature', name, ...props };
+  }
+
+  location(
+    name: Path<z.infer<S>>,
+    props?: Omit<LocationItem<S>, 'type' | 'name'>,
+  ): LocationItem<S> {
+    return { type: 'location', name, ...props };
+  }
+
   // ===========================================================================
   // SELECTION INPUTS
   // ===========================================================================
@@ -133,6 +163,14 @@ export class FormBuilderDSL<S extends FormSchema> {
     props?: Omit<CheckboxGroupItem<S>, 'type' | 'name' | 'options'>,
   ): CheckboxGroupItem<S> {
     return { type: 'checkbox-group', name, options, ...props };
+  }
+
+  transferList(
+    name: Path<z.infer<S>>,
+    options: TransferListItem<S>['options'],
+    props?: Omit<TransferListItem<S>, 'type' | 'name' | 'options'>,
+  ): TransferListItem<S> {
+    return { type: 'transfer-list', name, options, ...props };
   }
 
   autocomplete(

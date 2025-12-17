@@ -9,6 +9,7 @@ type ExtendedContextState<T extends FieldValues> = FormContextState<T> & {
   readOnly?: boolean;
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const Context = createContext<ExtendedContextState<any> | null>(null);
 
 export function useRNGForm() {

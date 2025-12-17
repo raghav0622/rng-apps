@@ -11,20 +11,8 @@ const links: Array<{
   icon?: React.ReactNode;
 }> = [
   {
-    title: 'Basic Forms',
+    title: 'RNG Form Playground',
     href: '/playground/basic',
-  },
-  {
-    title: 'Form Layouts',
-    href: '/playground/layout',
-  },
-  {
-    title: 'Loic Forms',
-    href: '/playground/logic',
-  },
-  {
-    title: 'Wizard Forms',
-    href: '/playground/wizard',
   },
 ];
 

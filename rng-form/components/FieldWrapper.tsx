@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 import { FIELD_CONFIG } from '@/rng-form/config';
 import { useRNGForm } from '@/rng-form/FormContext';
@@ -33,15 +32,14 @@ export function FieldWrapper<S extends FormSchema, T extends BaseFormItem<S>>({
   const { control } = useFormContext();
   const { readOnly: globalReadOnly } = useRNGForm();
 
-  // 1. WATCH Logic
+  // 1. WATCH Logic for Dependencies
   const shouldWatch = !!item.renderLogic || !!item.propsLogic;
   const dependencies = item.dependencies;
 
-  // Optimized watch: Only watch dependencies if specified.
-  // If no dependencies but logic exists, we must watch everything (undefined name).
   useWatch({
     control,
     disabled: !shouldWatch,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     name: dependencies as any,
   });
 
@@ -50,10 +48,7 @@ export function FieldWrapper<S extends FormSchema, T extends BaseFormItem<S>>({
   let dynamicProps: Partial<BaseFormItem<S>> = {};
 
   if (shouldWatch) {
-    // We access the current values from the form state directly for logic execution
-    // This is triggered by the useWatch subscription above.
     const currentFormValues = control._formValues;
-
     if (item.renderLogic) {
       isVisible = item.renderLogic(currentFormValues as z.infer<S>);
     }
@@ -64,7 +59,6 @@ export function FieldWrapper<S extends FormSchema, T extends BaseFormItem<S>>({
 
   if (!isVisible) return null;
 
-  // Merge global readOnly -> item.disabled -> dynamicProps.disabled
   const mergedItem = {
     ...item,
     disabled: globalReadOnly || item.disabled,
@@ -75,11 +69,11 @@ export function FieldWrapper<S extends FormSchema, T extends BaseFormItem<S>>({
     mergedItem.disabled = true;
   }
 
+  // 3. Accessibility & IDs
   const fieldId = `field-${name.replace(/\./g, '-')}`;
   const errorId = `${fieldId}-error`;
   const labelId = `${fieldId}-label`;
 
-  // Determine if we should render a standard top label
   const config = FIELD_CONFIG[mergedItem.type] || {};
   const showExternalLabel = !config.hasInternalLabel && !!mergedItem.label;
 
@@ -89,8 +83,14 @@ export function FieldWrapper<S extends FormSchema, T extends BaseFormItem<S>>({
         name={name}
         control={control}
         render={({ field, fieldState }) => {
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          const { ref, ...fieldRest } = field;
+          // Hook up accessibility props to the field
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const enrichedField: any = {
+            ...field,
+            id: fieldId, // Ensure input gets this ID
+            'aria-invalid': !!fieldState.error,
+            'aria-describedby': fieldState.error ? errorId : undefined,
+          };
 
           return (
             <FormControl
@@ -100,13 +100,12 @@ export function FieldWrapper<S extends FormSchema, T extends BaseFormItem<S>>({
               component="div"
             >
               {showExternalLabel && (
-                <FormLabel htmlFor={field.name} id={labelId} sx={{ mb: 0.5, fontWeight: 500 }}>
+                <FormLabel htmlFor={fieldId} id={labelId} sx={{ mb: 0.5, fontWeight: 500 }}>
                   {mergedItem.label}
                 </FormLabel>
               )}
 
-              {/* Render the actual input */}
-              {children(field as any, fieldState, mergedItem)}
+              {children(enrichedField, fieldState, mergedItem)}
 
               {(fieldState.error?.message || mergedItem.description) && (
                 <FormHelperText id={errorId}>

@@ -23,6 +23,7 @@ export default function PlaygroundLayout({ children }: { children: React.ReactNo
           <Tab label="Logic & Arrays" component={Link} href="/playground/logic" />
           <Tab label="Wizard Flow" component={Link} href="/playground/wizard" />
           <Tab label="Complex Layouts" component={Link} href="/playground/layout" />
+          <Tab label="Advanced" component={Link} href="/playground/advanced" />
         </Tabs>
       </Paper>
       <Box sx={{ minHeight: '60vh' }}>{children}</Box>

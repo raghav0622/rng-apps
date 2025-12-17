@@ -5,15 +5,16 @@ import { RNGCalculatedField } from './components/inputs/CalculatedField';
 import { RNGDateInput, RNGDateRange } from './components/inputs/DateInputs';
 import { RNGFileUpload } from './components/inputs/FileUpload';
 import { RNGLocation } from './components/inputs/Location';
-import { RNGColorInput, RNGNumberInput, RNGTextInput } from './components/inputs/PrimitiveInputs';
+import { RNGColorInput } from './components/inputs/primitives/RNGColorInput';
+import { RNGHiddenInput } from './components/inputs/primitives/RNGHiddenInput';
+import { RNGNumberInput } from './components/inputs/primitives/RNGNumberInput';
+import { RNGTextInput } from './components/inputs/primitives/RNGTextInput';
 import { RNGRating, RNGSlider } from './components/inputs/RangeInputs';
 import { RNGRichText } from './components/inputs/RichText';
-import {
-  RNGCheckboxGroup,
-  RNGRadioGroup,
-  RNGSwitch,
-  RNGToggleGroup,
-} from './components/inputs/SelectionInputs';
+import { RNGCheckboxGroup } from './components/inputs/selection/RNGCheckboxGroup';
+import { RNGRadioGroup } from './components/inputs/selection/RNGRadioGroup';
+import { RNGSwitch } from './components/inputs/selection/RNGSwitch';
+import { RNGToggleGroup } from './components/inputs/selection/RNGToggleGroup';
 import { RNGSignature } from './components/inputs/Signature';
 import { RNGMaskedInput, RNGOtpInput } from './components/inputs/TextExtendedInputs';
 import { RNGTransferList } from './components/inputs/TransferList';
@@ -30,7 +31,7 @@ export const INPUT_REGISTRY: Partial<Record<FieldType, React.ComponentType<any>>
   date: RNGDateInput,
   'masked-text': RNGMaskedInput,
   calculated: RNGCalculatedField,
-  hidden: RNGTextInput,
+  hidden: RNGHiddenInput,
   color: RNGColorInput,
   otp: RNGOtpInput,
 

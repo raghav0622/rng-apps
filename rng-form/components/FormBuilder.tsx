@@ -20,13 +20,13 @@ export function FormBuilder<S extends FormSchema>({ uiSchema, pathPrefix }: Form
   return (
     <Grid container spacing={2}>
       {uiSchema.map((item, index) => {
+        // Handle name scoping for nested structures
         const scopedName = pathPrefix && item.name ? `${pathPrefix}.${item.name}` : item.name;
-        // Clone item to inject scoped name without mutating original
         const scopedItem = { ...item, name: scopedName };
         const key = scopedName || `${item.type}-${index}`;
 
-        // 1. Layouts (Specific components that recursively call FormBuilder)
-        // These are handled explicitly here to prevent circular dependency issues in registry imports
+        // 1. Recursive Layouts
+        // Explicitly handled to avoid circular dependency loops in imports/registry
         switch (item.type) {
           case 'section':
             return <RNGSectionLayout key={key} item={scopedItem as any} pathPrefix={pathPrefix} />;
@@ -40,12 +40,12 @@ export function FormBuilder<S extends FormSchema>({ uiSchema, pathPrefix }: Form
             return <RNGWizardLayout key={key} item={scopedItem as any} pathPrefix={pathPrefix} />;
         }
 
-        // 2. Hidden Fields
+        // 2. Hidden Fields - Efficient render (skip heavy wrapper)
         if (item.type === 'hidden') {
           return <input type="hidden" key={key} {...register(scopedName as any)} />;
         }
 
-        // 3. Registry Items (Standard Inputs)
+        // 3. Registry Items
         const Component = INPUT_REGISTRY[item.type];
         if (Component) {
           return <Component key={key} item={scopedItem} />;

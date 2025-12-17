@@ -1,12 +1,4 @@
 import {
-  RNGCheckboxGroup,
-  RNGRadioGroup,
-  RNGRating,
-  RNGSlider,
-  RNGSwitch,
-  RNGToggleGroup,
-} from './components//SelectionInputs';
-import {
   RNGAutocomplete,
   RNGDateInput,
   RNGDateRange,
@@ -15,15 +7,23 @@ import {
   RNGOtpInput,
   RNGSignature,
   RNGTransferList,
-} from './components/AdvancedInputs';
+} from './components/AdvancedInputs'; // Ensure these are moved/updated by user
 import { RNGArrayField } from './components/ArrayField';
 import { RNGAsyncAutocomplete } from './components/AsyncInputs';
 import { RNGCalculatedField } from './components/CalculatedField';
 import { RNGDataGrid } from './components/DataGrid';
+import { RNGColorInput, RNGNumberInput, RNGTextInput } from './components/inputs/PrimitiveInputs';
 import { RNGModalLayout, RNGStepperLayout } from './components/layouts';
 import { RNGMaskedInput } from './components/MaskedInput';
-import { RNGColorInput, RNGNumberInput, RNGTextInput } from './components/PrimitiveInputs';
 import { RNGRichText } from './components/RichText';
+import {
+  RNGCheckboxGroup,
+  RNGRadioGroup,
+  RNGRating,
+  RNGSlider,
+  RNGSwitch,
+  RNGToggleGroup,
+} from './components/SelectionInputs'; // Ensure these are moved/updated by user
 import { FieldType } from './types';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

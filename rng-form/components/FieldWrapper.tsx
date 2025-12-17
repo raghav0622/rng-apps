@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
+import { FIELD_CONFIG } from '@/rng-form/config';
 import { useRNGForm } from '@/rng-form/FormContext';
 import { FormControl, FormHelperText, FormLabel, Grid } from '@mui/material';
 import {
@@ -32,14 +33,16 @@ export function FieldWrapper<S extends FormSchema, T extends BaseFormItem<S>>({
   const { control } = useFormContext();
   const { readOnly: globalReadOnly } = useRNGForm();
 
-  // 1. WATCH Logic - Only watch if logic is defined to improve performance
+  // 1. WATCH Logic
   const shouldWatch = !!item.renderLogic || !!item.propsLogic;
   const dependencies = item.dependencies;
 
-  // Always invoke useWatch to obey Rules of Hooks
+  // Optimized watch: Only watch dependencies if specified.
+  // If no dependencies but logic exists, we must watch everything (undefined name).
   useWatch({
     control,
-    name: dependencies ? (dependencies as any) : shouldWatch ? undefined : [],
+    disabled: !shouldWatch,
+    name: dependencies as any,
   });
 
   // 2. Logic Resolution
@@ -47,7 +50,10 @@ export function FieldWrapper<S extends FormSchema, T extends BaseFormItem<S>>({
   let dynamicProps: Partial<BaseFormItem<S>> = {};
 
   if (shouldWatch) {
+    // We access the current values from the form state directly for logic execution
+    // This is triggered by the useWatch subscription above.
     const currentFormValues = control._formValues;
+
     if (item.renderLogic) {
       isVisible = item.renderLogic(currentFormValues as z.infer<S>);
     }
@@ -65,7 +71,6 @@ export function FieldWrapper<S extends FormSchema, T extends BaseFormItem<S>>({
     ...dynamicProps,
   } as T;
 
-  // Explicitly force disabled if globalReadOnly is true (overriding propsLogic if necessary)
   if (globalReadOnly) {
     mergedItem.disabled = true;
   }
@@ -74,13 +79,16 @@ export function FieldWrapper<S extends FormSchema, T extends BaseFormItem<S>>({
   const errorId = `${fieldId}-error`;
   const labelId = `${fieldId}-label`;
 
+  // Determine if we should render a standard top label
+  const config = FIELD_CONFIG[mergedItem.type] || {};
+  const showExternalLabel = !config.hasInternalLabel && !!mergedItem.label;
+
   return (
     <Grid size={mergedItem.colProps?.size ?? 12} {...mergedItem.colProps}>
       <Controller
         name={name}
         control={control}
         render={({ field, fieldState }) => {
-          // A11y: Associate field with error message
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { ref, ...fieldRest } = field;
 
@@ -91,7 +99,7 @@ export function FieldWrapper<S extends FormSchema, T extends BaseFormItem<S>>({
               disabled={mergedItem.disabled}
               component="div"
             >
-              {shouldRenderExternalLabel(mergedItem.type) && mergedItem.label && (
+              {showExternalLabel && (
                 <FormLabel htmlFor={field.name} id={labelId} sx={{ mb: 0.5, fontWeight: 500 }}>
                   {mergedItem.label}
                 </FormLabel>
@@ -111,20 +119,4 @@ export function FieldWrapper<S extends FormSchema, T extends BaseFormItem<S>>({
       />
     </Grid>
   );
-}
-
-function shouldRenderExternalLabel(type: string) {
-  // Types that handle their own labels internally or don't need top labels
-  const internalLabelTypes = [
-    'switch',
-    'checkbox-group',
-    'radio',
-    'section',
-    'wizard',
-    'tabs',
-    'accordion',
-    'file',
-    'modal-form',
-  ];
-  return !internalLabelTypes.includes(type);
 }

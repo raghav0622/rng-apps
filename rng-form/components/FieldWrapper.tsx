@@ -1,6 +1,8 @@
 'use client';
+
 import { FIELD_CONFIG } from '@/rng-form/config';
-import { useRNGForm } from '@/rng-form/FormContext';
+import { useFieldLogic } from '@/rng-form/hooks/useFieldLogic';
+import { BaseFormItem, FormSchema } from '@/rng-form/types';
 import { FormControl, FormHelperText, FormLabel, Grid } from '@mui/material';
 import {
   Controller,
@@ -9,10 +11,8 @@ import {
   FieldValues,
   Path,
   useFormContext,
-  useWatch,
 } from 'react-hook-form';
 import { z } from 'zod';
-import { BaseFormItem, FormSchema } from '../types';
 
 interface FieldWrapperProps<S extends FormSchema, T extends BaseFormItem<S>> {
   item: T;
@@ -30,46 +30,13 @@ export function FieldWrapper<S extends FormSchema, T extends BaseFormItem<S>>({
   children,
 }: FieldWrapperProps<S, T>) {
   const { control } = useFormContext();
-  const { readOnly: globalReadOnly } = useRNGForm();
 
-  // 1. WATCH Logic for Dependencies
-  const shouldWatch = !!item.renderLogic || !!item.propsLogic;
-  const dependencies = item.dependencies;
-
-  useWatch({
-    control,
-    disabled: !shouldWatch,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    name: dependencies as any,
-  });
-
-  // 2. Logic Resolution
-  let isVisible = true;
-  let dynamicProps: Partial<BaseFormItem<S>> = {};
-
-  if (shouldWatch) {
-    const currentFormValues = control._formValues;
-    if (item.renderLogic) {
-      isVisible = item.renderLogic(currentFormValues as z.infer<S>);
-    }
-    if (item.propsLogic) {
-      dynamicProps = item.propsLogic(currentFormValues as z.infer<S>);
-    }
-  }
+  // Logic extracted to custom hook
+  const { isVisible, mergedItem } = useFieldLogic(item);
 
   if (!isVisible) return null;
 
-  const mergedItem = {
-    ...item,
-    disabled: globalReadOnly || item.disabled,
-    ...dynamicProps,
-  } as T;
-
-  if (globalReadOnly) {
-    mergedItem.disabled = true;
-  }
-
-  // 3. Accessibility & IDs
+  // Accessibility & ID Generation
   const fieldId = `field-${name.replace(/\./g, '-')}`;
   const errorId = `${fieldId}-error`;
   const labelId = `${fieldId}-label`;
@@ -83,11 +50,11 @@ export function FieldWrapper<S extends FormSchema, T extends BaseFormItem<S>>({
         name={name}
         control={control}
         render={({ field, fieldState }) => {
-          // Hook up accessibility props to the field
+          // Enrich field with accessibility attributes
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const enrichedField: any = {
             ...field,
-            id: fieldId, // Ensure input gets this ID
+            id: fieldId,
             'aria-invalid': !!fieldState.error,
             'aria-describedby': fieldState.error ? errorId : undefined,
           };
@@ -105,7 +72,8 @@ export function FieldWrapper<S extends FormSchema, T extends BaseFormItem<S>>({
                 </FormLabel>
               )}
 
-              {children(enrichedField, fieldState, mergedItem)}
+              {/* Render the actual input component */}
+              {children(enrichedField, fieldState, mergedItem as T)}
 
               {(fieldState.error?.message || mergedItem.description) && (
                 <FormHelperText id={errorId}>

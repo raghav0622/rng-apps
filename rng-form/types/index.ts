@@ -34,6 +34,7 @@ import {
   WizardItem,
 } from './layouts';
 
+export * from './component-props';
 export * from './core';
 export * from './inputs';
 export * from './layouts';

@@ -1,64 +1,77 @@
 import { Path } from 'react-hook-form';
 import { z } from 'zod';
-import { BaseFormItem, FormSchema } from './core';
+import { BaseFormItem, FieldType, FormSchema } from './core';
+
+/** Helper to reduce boilerplate for specific item definitions */
+type DefineItem<
+  S extends FormSchema,
+  T extends FieldType,
+  ExtraProps = unknown,
+> = BaseFormItem<S> & { type: T; name: Path<z.infer<S>> } & ExtraProps;
 
 // =============================================================================
 // PRIMITIVE FIELDS
 // =============================================================================
 
-export type TextFieldItem<S extends FormSchema> = BaseFormItem<S> & {
-  type: 'text' | 'password';
-  name: Path<z.infer<S>>;
-  placeholder?: string;
-  multiline?: boolean;
-  rows?: number;
-};
+export type TextFieldItem<S extends FormSchema> = DefineItem<
+  S,
+  'text' | 'password',
+  {
+    placeholder?: string;
+    multiline?: boolean;
+    rows?: number;
+  }
+>;
 
-export type NumberFieldItem<S extends FormSchema> = BaseFormItem<S> & {
-  type: 'number' | 'currency';
-  name: Path<z.infer<S>>;
-  min?: number;
-  max?: number;
-  placeholder?: string;
-};
+export type NumberFieldItem<S extends FormSchema> = DefineItem<
+  S,
+  'number' | 'currency',
+  {
+    min?: number;
+    max?: number;
+    placeholder?: string;
+  }
+>;
 
-export type DateFieldItem<S extends FormSchema> = BaseFormItem<S> & {
-  type: 'date';
-  name: Path<z.infer<S>>;
-  minDate?: Date;
-  maxDate?: Date;
-};
+export type DateFieldItem<S extends FormSchema> = DefineItem<
+  S,
+  'date',
+  {
+    minDate?: Date;
+    maxDate?: Date;
+  }
+>;
 
-export type HiddenFieldItem<S extends FormSchema> = BaseFormItem<S> & {
-  type: 'hidden';
-  name: Path<z.infer<S>>;
-};
+export type HiddenFieldItem<S extends FormSchema> = DefineItem<S, 'hidden'>;
 
-export type MaskedTextItem<S extends FormSchema> = BaseFormItem<S> & {
-  type: 'masked-text';
-  name: Path<z.infer<S>>;
-  mask: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  definitions?: Record<string, any>;
-  placeholder?: string;
-};
+export type MaskedTextItem<S extends FormSchema> = DefineItem<
+  S,
+  'masked-text',
+  {
+    mask: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    definitions?: Record<string, any>;
+    placeholder?: string;
+  }
+>;
 
-export type CalculatedItem<S extends FormSchema> = BaseFormItem<S> & {
-  type: 'calculated';
-  name: Path<z.infer<S>>;
-  calculate: (values: z.infer<S>) => string | number;
-};
+export type CalculatedItem<S extends FormSchema> = DefineItem<
+  S,
+  'calculated',
+  {
+    calculate: (values: z.infer<S>) => string | number;
+  }
+>;
 
-export type ColorItem<S extends FormSchema> = BaseFormItem<S> & {
-  type: 'color';
-  name: Path<z.infer<S>>;
-};
+export type ColorItem<S extends FormSchema> = DefineItem<S, 'color'>;
 
-export type OtpItem<S extends FormSchema> = BaseFormItem<S> & {
-  type: 'otp';
-  name: Path<z.infer<S>>;
-  length?: number;
-};
+export type OtpItem<S extends FormSchema> = DefineItem<
+  S,
+  'otp',
+  {
+    length?: number;
+  }
+>;
 
 // =============================================================================
 // SELECTION FIELDS
@@ -70,107 +83,130 @@ export type RadioOption = {
   icon?: React.ReactNode;
 };
 
-export type SwitchFieldItem<S extends FormSchema> = BaseFormItem<S> & {
-  type: 'switch';
-  name: Path<z.infer<S>>;
-};
-
-export type SliderItem<S extends FormSchema> = BaseFormItem<S> & {
-  type: 'slider';
-  name: Path<z.infer<S>>;
-  min?: number;
-  max?: number;
-  step?: number;
-};
-
-export type RatingItem<S extends FormSchema> = BaseFormItem<S> & {
-  type: 'rating';
-  name: Path<z.infer<S>>;
-  max?: number;
-  precision?: number;
-};
-
-export type RadioGroupItem<S extends FormSchema> = BaseFormItem<S> & {
-  type: 'radio';
-  name: Path<z.infer<S>>;
+type BaseSelectionProps = {
   options: RadioOption[];
-  row?: boolean;
 };
 
-export type CheckboxGroupItem<S extends FormSchema> = BaseFormItem<S> & {
-  type: 'checkbox-group';
-  name: Path<z.infer<S>>;
-  options: RadioOption[];
-  row?: boolean;
-};
+export type SwitchFieldItem<S extends FormSchema> = DefineItem<S, 'switch'>;
 
-export type ToggleGroupItem<S extends FormSchema> = BaseFormItem<S> & {
-  type: 'toggle-group';
-  name: Path<z.infer<S>>;
-  options: RadioOption[];
-  exclusive?: boolean;
-};
+export type SliderItem<S extends FormSchema> = DefineItem<
+  S,
+  'slider',
+  {
+    min?: number;
+    max?: number;
+    step?: number;
+  }
+>;
 
-export type TransferListItem<S extends FormSchema> = BaseFormItem<S> & {
-  type: 'transfer-list';
-  name: Path<z.infer<S>>;
-  options: RadioOption[];
-  titles?: [string, string];
-};
+export type RatingItem<S extends FormSchema> = DefineItem<
+  S,
+  'rating',
+  {
+    max?: number;
+    precision?: number;
+  }
+>;
+
+export type RadioGroupItem<S extends FormSchema> = DefineItem<
+  S,
+  'radio',
+  BaseSelectionProps & {
+    row?: boolean;
+  }
+>;
+
+export type CheckboxGroupItem<S extends FormSchema> = DefineItem<
+  S,
+  'checkbox-group',
+  BaseSelectionProps & {
+    row?: boolean;
+  }
+>;
+
+export type ToggleGroupItem<S extends FormSchema> = DefineItem<
+  S,
+  'toggle-group',
+  BaseSelectionProps & {
+    exclusive?: boolean;
+  }
+>;
+
+export type TransferListItem<S extends FormSchema> = DefineItem<
+  S,
+  'transfer-list',
+  BaseSelectionProps & {
+    titles?: [string, string];
+  }
+>;
 
 export type AutocompleteOption = string | Record<string, unknown>;
 
-export type AutocompleteItem<S extends FormSchema> = BaseFormItem<S> & {
-  type: 'autocomplete';
-  name: Path<z.infer<S>>;
-  options: readonly AutocompleteOption[];
-  getOptionLabel?: (option: AutocompleteOption) => string;
-  creatable?: boolean;
-  multiple?: boolean;
-};
+export type AutocompleteItem<S extends FormSchema> = DefineItem<
+  S,
+  'autocomplete',
+  {
+    options: readonly AutocompleteOption[];
+    getOptionLabel?: (option: AutocompleteOption) => string;
+    creatable?: boolean;
+    multiple?: boolean;
+  }
+>;
 
-export type AsyncAutocompleteItem<S extends FormSchema> = BaseFormItem<S> & {
-  type: 'async-autocomplete';
-  name: Path<z.infer<S>>;
-  loadOptions: (query: string, values: z.infer<S>) => Promise<AutocompleteOption[]>;
-  getOptionLabel?: (option: AutocompleteOption) => string;
-  multiple?: boolean;
-};
+export type AsyncAutocompleteItem<S extends FormSchema> = DefineItem<
+  S,
+  'async-autocomplete',
+  {
+    loadOptions: (query: string, values: z.infer<S>) => Promise<AutocompleteOption[]>;
+    getOptionLabel?: (option: AutocompleteOption) => string;
+    multiple?: boolean;
+  }
+>;
 
 // =============================================================================
 // ADVANCED FIELDS
 // =============================================================================
 
-export type FileItem<S extends FormSchema> = BaseFormItem<S> & {
-  type: 'file';
-  name: Path<z.infer<S>>;
-  accept?: string;
-  multiple?: boolean;
-};
+export type FileItem<S extends FormSchema> = DefineItem<
+  S,
+  'file',
+  {
+    accept?: string;
+    multiple?: boolean;
+  }
+>;
 
-export type RichTextItem<S extends FormSchema> = BaseFormItem<S> & {
-  type: 'rich-text';
-  name: Path<z.infer<S>>;
-  minHeight?: string | number;
-  placeholder?: string;
-};
+export type RichTextItem<S extends FormSchema> = DefineItem<
+  S,
+  'rich-text',
+  {
+    minHeight?: string | number;
+    placeholder?: string;
+  }
+>;
 
-export type SignatureItem<S extends FormSchema> = BaseFormItem<S> & {
-  type: 'signature';
-  name: Path<z.infer<S>>;
-  height?: number;
-};
+export type SignatureItem<S extends FormSchema> = DefineItem<
+  S,
+  'signature',
+  {
+    height?: number;
+  }
+>;
 
-export type LocationItem<S extends FormSchema> = BaseFormItem<S> & {
-  type: 'location';
-  name: Path<z.infer<S>>;
-  placeholder?: string;
-  provider?: 'google' | 'mapbox' | 'mock';
-};
+export type LocationItem<S extends FormSchema> = DefineItem<
+  S,
+  'location',
+  {
+    placeholder?: string;
+    provider?: 'google' | 'mapbox' | 'mock';
+  }
+>;
 
-export type DateRangeItem<S extends FormSchema> = BaseFormItem<S> & {
-  type: 'date-range';
-  name: Path<z.infer<S>>;
-  minDate?: Date;
-  maxDate?: Date;
-};
+export type DateRangeItem<S extends FormSchema> = DefineItem<
+  S,
+  'date-range',
+  {
+    minDate?: Date;
+    maxDate?: Date;
+  }
+>;

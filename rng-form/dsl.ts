@@ -1,95 +1,62 @@
 import { Path } from 'react-hook-form';
 import { z } from 'zod';
-import {
-  AccordionItem,
-  ArrayItem,
-  AsyncAutocompleteItem,
-  AutocompleteItem,
-  CalculatedItem,
-  CheckboxGroupItem,
-  ColorItem,
-  DateFieldItem,
-  DateRangeItem,
-  FileItem,
-  FormItem,
-  FormSchema,
-  HiddenFieldItem,
-  LocationItem,
-  MaskedTextItem,
-  NumberFieldItem,
-  RadioGroupItem,
-  RatingItem,
-  RichTextItem,
-  SectionItem,
-  SignatureItem,
-  SliderItem,
-  SwitchFieldItem,
-  TabsItem,
-  TextFieldItem,
-  TransferListItem,
-  WizardItem,
-} from './types';
+import * as T from './types';
 
 /**
  * A Type-Safe Builder Class to generate FormItems.
+ * Uses a generic factory method to enforce DRY principles.
  */
-export class FormBuilderDSL<S extends FormSchema> {
+export class FormBuilderDSL<S extends T.FormSchema> {
+  /**
+   * Internal factory to generate the field object.
+   * Keeps implementation DRY while public methods enforce strict typing.
+   */
+  private create<Item extends T.BaseFormItem<S>>(
+    type: Item['type'],
+    name?: Path<z.infer<S>>,
+    props?: Omit<Item, 'type' | 'name'>,
+  ): Item {
+    return { type, name, ...props } as Item;
+  }
+
   // ===========================================================================
   // BASIC INPUTS
   // ===========================================================================
 
-  text(name: Path<z.infer<S>>, props?: Omit<TextFieldItem<S>, 'type' | 'name'>): TextFieldItem<S> {
-    return { type: 'text', name, ...props };
+  text(name: Path<z.infer<S>>, props?: Omit<T.TextFieldItem<S>, 'type' | 'name'>) {
+    return this.create<T.TextFieldItem<S>>('text', name, props);
   }
 
-  password(
-    name: Path<z.infer<S>>,
-    props?: Omit<TextFieldItem<S>, 'type' | 'name'>,
-  ): TextFieldItem<S> {
-    return { type: 'password', name, ...props };
+  password(name: Path<z.infer<S>>, props?: Omit<T.TextFieldItem<S>, 'type' | 'name'>) {
+    return this.create<T.TextFieldItem<S>>('password', name, props);
   }
 
-  number(
-    name: Path<z.infer<S>>,
-    props?: Omit<NumberFieldItem<S>, 'type' | 'name'>,
-  ): NumberFieldItem<S> {
-    return { type: 'number', name, ...props };
+  number(name: Path<z.infer<S>>, props?: Omit<T.NumberFieldItem<S>, 'type' | 'name'>) {
+    return this.create<T.NumberFieldItem<S>>('number', name, props);
   }
 
-  currency(
-    name: Path<z.infer<S>>,
-    props?: Omit<NumberFieldItem<S>, 'type' | 'name'>,
-  ): NumberFieldItem<S> {
-    return { type: 'currency', name, ...props };
+  currency(name: Path<z.infer<S>>, props?: Omit<T.NumberFieldItem<S>, 'type' | 'name'>) {
+    return this.create<T.NumberFieldItem<S>>('currency', name, props);
   }
 
-  switch(
-    name: Path<z.infer<S>>,
-    props?: Omit<SwitchFieldItem<S>, 'type' | 'name'>,
-  ): SwitchFieldItem<S> {
-    return { type: 'switch', name, ...props };
+  hidden(name: Path<z.infer<S>>, props?: Omit<T.HiddenFieldItem<S>, 'type' | 'name'>) {
+    return this.create<T.HiddenFieldItem<S>>('hidden', name, props);
   }
 
-  date(name: Path<z.infer<S>>, props?: Omit<DateFieldItem<S>, 'type' | 'name'>): DateFieldItem<S> {
-    return { type: 'date', name, ...props };
+  color(name: Path<z.infer<S>>, props?: Omit<T.ColorItem<S>, 'type' | 'name'>) {
+    return this.create<T.ColorItem<S>>('color', name, props);
   }
 
-  dateRange(
-    name: Path<z.infer<S>>,
-    props?: Omit<DateRangeItem<S>, 'type' | 'name'>,
-  ): DateRangeItem<S> {
-    return { type: 'date-range', name, ...props };
+  switch(name: Path<z.infer<S>>, props?: Omit<T.SwitchFieldItem<S>, 'type' | 'name'>) {
+    return this.create<T.SwitchFieldItem<S>>('switch', name, props);
   }
 
-  hidden(
-    name: Path<z.infer<S>>,
-    props?: Omit<HiddenFieldItem<S>, 'type' | 'name'>,
-  ): HiddenFieldItem<S> {
-    return { type: 'hidden', name, ...props };
+  date(name: Path<z.infer<S>>, props?: Omit<T.DateFieldItem<S>, 'type' | 'name'>) {
+    return this.create<T.DateFieldItem<S>>('date', name, props);
   }
 
-  color(name: Path<z.infer<S>>, props?: Omit<ColorItem<S>, 'type' | 'name'>): ColorItem<S> {
-    return { type: 'color', name, ...props };
+  dateRange(name: Path<z.infer<S>>, props?: Omit<T.DateRangeItem<S>, 'type' | 'name'>) {
+    return this.create<T.DateRangeItem<S>>('date-range', name, props);
   }
 
   // ===========================================================================
@@ -99,50 +66,41 @@ export class FormBuilderDSL<S extends FormSchema> {
   masked(
     name: Path<z.infer<S>>,
     mask: string,
-    props?: Omit<MaskedTextItem<S>, 'type' | 'name' | 'mask'>,
-  ): MaskedTextItem<S> {
-    return { type: 'masked-text', name, mask, ...props };
+    props?: Omit<T.MaskedTextItem<S>, 'type' | 'name' | 'mask'>,
+  ) {
+    return this.create<T.MaskedTextItem<S>>('masked-text', name, { mask, ...props });
   }
 
   calculated(
     name: Path<z.infer<S>>,
     calculate: (values: z.infer<S>) => string | number,
-    props?: Omit<CalculatedItem<S>, 'type' | 'name' | 'calculate'>,
-  ): CalculatedItem<S> {
-    return { type: 'calculated', name, calculate, ...props };
+    props?: Omit<T.CalculatedItem<S>, 'type' | 'name' | 'calculate'>,
+  ) {
+    return this.create<T.CalculatedItem<S>>('calculated', name, { calculate, ...props });
   }
 
-  richText(
-    name: Path<z.infer<S>>,
-    props?: Omit<RichTextItem<S>, 'type' | 'name'>,
-  ): RichTextItem<S> {
-    return { type: 'rich-text', name, ...props };
+  richText(name: Path<z.infer<S>>, props?: Omit<T.RichTextItem<S>, 'type' | 'name'>) {
+    return this.create<T.RichTextItem<S>>('rich-text', name, props);
   }
 
-  file(name: Path<z.infer<S>>, props?: Omit<FileItem<S>, 'type' | 'name'>): FileItem<S> {
-    return { type: 'file', name, ...props };
+  file(name: Path<z.infer<S>>, props?: Omit<T.FileItem<S>, 'type' | 'name'>) {
+    return this.create<T.FileItem<S>>('file', name, props);
   }
 
-  slider(name: Path<z.infer<S>>, props?: Omit<SliderItem<S>, 'type' | 'name'>): SliderItem<S> {
-    return { type: 'slider', name, ...props };
+  slider(name: Path<z.infer<S>>, props?: Omit<T.SliderItem<S>, 'type' | 'name'>) {
+    return this.create<T.SliderItem<S>>('slider', name, props);
   }
 
-  rating(name: Path<z.infer<S>>, props?: Omit<RatingItem<S>, 'type' | 'name'>): RatingItem<S> {
-    return { type: 'rating', name, ...props };
+  rating(name: Path<z.infer<S>>, props?: Omit<T.RatingItem<S>, 'type' | 'name'>) {
+    return this.create<T.RatingItem<S>>('rating', name, props);
   }
 
-  signature(
-    name: Path<z.infer<S>>,
-    props?: Omit<SignatureItem<S>, 'type' | 'name'>,
-  ): SignatureItem<S> {
-    return { type: 'signature', name, ...props };
+  signature(name: Path<z.infer<S>>, props?: Omit<T.SignatureItem<S>, 'type' | 'name'>) {
+    return this.create<T.SignatureItem<S>>('signature', name, props);
   }
 
-  location(
-    name: Path<z.infer<S>>,
-    props?: Omit<LocationItem<S>, 'type' | 'name'>,
-  ): LocationItem<S> {
-    return { type: 'location', name, ...props };
+  location(name: Path<z.infer<S>>, props?: Omit<T.LocationItem<S>, 'type' | 'name'>) {
+    return this.create<T.LocationItem<S>>('location', name, props);
   }
 
   // ===========================================================================
@@ -151,42 +109,45 @@ export class FormBuilderDSL<S extends FormSchema> {
 
   radio(
     name: Path<z.infer<S>>,
-    options: RadioGroupItem<S>['options'],
-    props?: Omit<RadioGroupItem<S>, 'type' | 'name' | 'options'>,
-  ): RadioGroupItem<S> {
-    return { type: 'radio', name, options, ...props };
+    options: T.RadioGroupItem<S>['options'],
+    props?: Omit<T.RadioGroupItem<S>, 'type' | 'name' | 'options'>,
+  ) {
+    return this.create<T.RadioGroupItem<S>>('radio', name, { options, ...props });
   }
 
   checkbox(
     name: Path<z.infer<S>>,
-    options: CheckboxGroupItem<S>['options'],
-    props?: Omit<CheckboxGroupItem<S>, 'type' | 'name' | 'options'>,
-  ): CheckboxGroupItem<S> {
-    return { type: 'checkbox-group', name, options, ...props };
+    options: T.CheckboxGroupItem<S>['options'],
+    props?: Omit<T.CheckboxGroupItem<S>, 'type' | 'name' | 'options'>,
+  ) {
+    return this.create<T.CheckboxGroupItem<S>>('checkbox-group', name, { options, ...props });
   }
 
   transferList(
     name: Path<z.infer<S>>,
-    options: TransferListItem<S>['options'],
-    props?: Omit<TransferListItem<S>, 'type' | 'name' | 'options'>,
-  ): TransferListItem<S> {
-    return { type: 'transfer-list', name, options, ...props };
+    options: T.TransferListItem<S>['options'],
+    props?: Omit<T.TransferListItem<S>, 'type' | 'name' | 'options'>,
+  ) {
+    return this.create<T.TransferListItem<S>>('transfer-list', name, { options, ...props });
   }
 
   autocomplete(
     name: Path<z.infer<S>>,
-    options: AutocompleteItem<S>['options'],
-    props?: Omit<AutocompleteItem<S>, 'type' | 'name' | 'options'>,
-  ): AutocompleteItem<S> {
-    return { type: 'autocomplete', name, options, ...props };
+    options: T.AutocompleteItem<S>['options'],
+    props?: Omit<T.AutocompleteItem<S>, 'type' | 'name' | 'options'>,
+  ) {
+    return this.create<T.AutocompleteItem<S>>('autocomplete', name, { options, ...props });
   }
 
   asyncAutocomplete(
     name: Path<z.infer<S>>,
-    loadOptions: AsyncAutocompleteItem<S>['loadOptions'],
-    props?: Omit<AsyncAutocompleteItem<S>, 'type' | 'name' | 'loadOptions'>,
-  ): AsyncAutocompleteItem<S> {
-    return { type: 'async-autocomplete', name, loadOptions, ...props };
+    loadOptions: T.AsyncAutocompleteItem<S>['loadOptions'],
+    props?: Omit<T.AsyncAutocompleteItem<S>, 'type' | 'name' | 'loadOptions'>,
+  ) {
+    return this.create<T.AsyncAutocompleteItem<S>>('async-autocomplete', name, {
+      loadOptions,
+      ...props,
+    });
   }
 
   // ===========================================================================
@@ -195,46 +156,43 @@ export class FormBuilderDSL<S extends FormSchema> {
 
   section(
     title: string,
-    children: FormItem<S>[],
-    props?: Omit<SectionItem<S>, 'type' | 'title' | 'children'>,
-  ): SectionItem<S> {
-    return { type: 'section', title, children, ...props };
+    children: T.FormItem<S>[],
+    props?: Omit<T.SectionItem<S>, 'type' | 'title' | 'children'>,
+  ) {
+    return this.create<T.SectionItem<S>>('section', undefined, { title, children, ...props });
   }
 
-  tabs(tabs: TabsItem<S>['tabs'], props?: Omit<TabsItem<S>, 'type' | 'tabs'>): TabsItem<S> {
-    return { type: 'tabs', tabs, ...props };
+  tabs(tabs: T.TabsItem<S>['tabs'], props?: Omit<T.TabsItem<S>, 'type' | 'tabs'>) {
+    return this.create<T.TabsItem<S>>('tabs', undefined, { tabs, ...props });
   }
 
   accordion(
-    items: AccordionItem<S>['items'],
-    props?: Omit<AccordionItem<S>, 'type' | 'items'>,
-  ): AccordionItem<S> {
-    return { type: 'accordion', items, ...props };
+    items: T.AccordionItem<S>['items'],
+    props?: Omit<T.AccordionItem<S>, 'type' | 'items'>,
+  ) {
+    return this.create<T.AccordionItem<S>>('accordion', undefined, { items, ...props });
   }
 
-  wizard(
-    steps: WizardItem<S>['steps'],
-    props?: Omit<WizardItem<S>, 'type' | 'steps'>,
-  ): WizardItem<S> {
-    return { type: 'wizard', steps, ...props };
+  wizard(steps: T.WizardItem<S>['steps'], props?: Omit<T.WizardItem<S>, 'type' | 'steps'>) {
+    return this.create<T.WizardItem<S>>('wizard', undefined, { steps, ...props });
   }
 
   array(
     name: Path<z.infer<S>>,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    items: FormItem<any>[],
-    props?: Omit<ArrayItem<S>, 'type' | 'name' | 'items'>,
-  ): ArrayItem<S> {
-    return { type: 'array', name, items, ...props };
+    items: T.FormItem<any>[],
+    props?: Omit<T.ArrayItem<S>, 'type' | 'name' | 'items'>,
+  ) {
+    return this.create<T.ArrayItem<S>>('array', name, { items, ...props });
   }
 }
 
 /**
  * Helper function to define form schema with type safety.
  */
-export function defineForm<S extends FormSchema>(
-  builderFn: (f: FormBuilderDSL<S>) => FormItem<S>[],
-): FormItem<S>[] {
+export function defineForm<S extends T.FormSchema>(
+  builderFn: (f: FormBuilderDSL<S>) => T.FormItem<S>[],
+): T.FormItem<S>[] {
   const builder = new FormBuilderDSL<S>();
   return builderFn(builder);
 }

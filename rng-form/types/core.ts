@@ -3,7 +3,7 @@ import { FieldValues, Path, UseFormReturn } from 'react-hook-form';
 import { z } from 'zod';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type FormSchema = z.ZodType<FieldValues, any, any>;
+export type FormSchema = z.ZodType<any, any, any>;
 
 export type FormContextState<TFieldValues extends FieldValues = FieldValues> = {
   formId: string;
@@ -11,8 +11,7 @@ export type FormContextState<TFieldValues extends FieldValues = FieldValues> = {
   readOnly?: boolean;
 };
 
-export type FieldType =
-  // Primitives
+export type PrimitiveFieldType =
   | 'text'
   | 'password'
   | 'number'
@@ -22,7 +21,9 @@ export type FieldType =
   | 'masked-text'
   | 'color'
   | 'otp'
-  // Selection
+  | 'calculated';
+
+export type SelectionFieldType =
   | 'switch'
   | 'checkbox-group'
   | 'radio'
@@ -31,13 +32,11 @@ export type FieldType =
   | 'rating'
   | 'autocomplete'
   | 'async-autocomplete'
-  | 'transfer-list'
-  // Complex / Layout
-  | 'rich-text'
-  | 'file'
-  | 'signature'
-  | 'location'
-  | 'date-range'
+  | 'transfer-list';
+
+export type AdvancedFieldType = 'rich-text' | 'file' | 'signature' | 'location' | 'date-range';
+
+export type LayoutFieldType =
   | 'array'
   | 'data-grid'
   | 'section'
@@ -45,8 +44,13 @@ export type FieldType =
   | 'accordion'
   | 'wizard'
   | 'stepper'
-  | 'modal-form'
-  | 'calculated';
+  | 'modal-form';
+
+export type FieldType =
+  | PrimitiveFieldType
+  | SelectionFieldType
+  | AdvancedFieldType
+  | LayoutFieldType;
 
 export type BaseFormItem<Schema extends FormSchema> = {
   /** The specific type of input to render */

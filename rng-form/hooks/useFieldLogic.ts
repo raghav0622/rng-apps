@@ -1,6 +1,8 @@
 'use client';
 
 import { logError } from '@/lib/logger';
+import cloneDeep from 'lodash/cloneDeep';
+import set from 'lodash/set';
 import { useFormContext, useWatch } from 'react-hook-form';
 import { useRNGForm } from '../components/FormContext';
 import { BaseFormItem, FormSchema } from '../types';
@@ -45,11 +47,13 @@ export function useFieldLogic<S extends FormSchema, T extends BaseFormItem<S>>(
       // Logic exists but no deps: Watch local scope (moderate performance impact)
       watchConfig.name = [pathPrefix];
     }
-    // If no dependencies and no prefix, we do NOT set watchConfig.name,
-    // which triggers useWatch to watch everything. Ideally, devs should always list deps.
+    // If no dependencies and no prefix, name remains undefined -> Watches entire form (Slow but correct fallback)
   }
 
   // 2. Register Watcher
+  // This hook triggers re-renders when the watched fields change.
+  // - If name is undefined: triggers on ALL changes.
+  // - If name is array: triggers on those specific paths.
   const watchedValues = useWatch({
     control,
     disabled: watchConfig.disabled,
@@ -62,24 +66,33 @@ export function useFieldLogic<S extends FormSchema, T extends BaseFormItem<S>>(
   let dynamicProps: Partial<BaseFormItem<S>> = {};
 
   if (hasLogic) {
-    // PERFORMANCE FIX:
-    // Instead of deep cloning the whole form state, we construct a composite object.
-    // We get the current full state from getValues() (ref, fast).
-    // We overlay the watched values (which are reactive).
+    // CRITICAL FIX: Construct the correct 'root' state.
+    // getValues() returns 'committed' state (onBlur), which is STALE during typing.
+    // watchedValues returns 'fresh' state (onChange).
+    // We must merge them so the logic function sees the current reality.
 
-    const currentFormValues = getValues();
+    const committedValues = getValues();
+    let rootValues = committedValues;
 
-    // We create a shallow merge for the root to avoid mutating getValues() return
-    // Note: For deep nested mutations in logic, this might still be risky,
-    // but standard read logic is safe.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const rootValues: any = { ...currentFormValues };
+    if (!watchConfig.name) {
+      // Case A: Watching Everything.
+      // 'watchedValues' IS the full fresh state. Use it directly.
+      if (watchedValues) {
+        rootValues = watchedValues;
+      }
+    } else if (Array.isArray(watchConfig.name) && Array.isArray(watchedValues)) {
+      // Case B: Partial Watch.
+      // 'watchedValues' is an array of values corresponding to 'watchConfig.name'.
+      // We must merge these into the committed values to get a complete tree.
+      // We CLONE first to avoid mutating the internal React Hook Form state.
 
-    if (watchConfig.name && Array.isArray(watchConfig.name) && Array.isArray(watchedValues)) {
-      // We only patch the specific paths we are watching to ensure the logic runs
-      // against the absolute latest React-state version of those specific fields.
-      // (Implementation of deep set is omitted for brevity, but needed if strict correctness is required)
-      // For now, relying on getValues() is usually 99% correct except during the render cycle.
+      // Note: cloneDeep can be expensive for massive forms, but it is required for correctness
+      // when patching nested logic dependencies.
+      rootValues = cloneDeep(committedValues);
+
+      watchConfig.name.forEach((path, index) => {
+        set(rootValues, path, watchedValues[index]);
+      });
     }
 
     // Determine scope for the logic function

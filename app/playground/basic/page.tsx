@@ -7,13 +7,18 @@ import { Box, Paper, Typography } from '@mui/material';
 import { z } from 'zod';
 
 const schema = z.object({
+  profilephoto: z.boolean(),
   avatar: z.any().optional(),
   images: z.array(z.any()).optional(),
 });
 
 const uiSchema = defineForm<typeof schema>((f) => [
+  f.switch('profilephoto', {
+    label: 'Profile Photo',
+  }),
   f.avatar('avatar', {
     label: 'Upload Avatar',
+    renderLogic: (_, val) => val.profilephoto === true,
   }),
   f.multiImageEditor('images', {
     label: 'Upload Image Files',

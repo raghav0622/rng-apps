@@ -23,6 +23,7 @@
     "dayjs": "^1.11.19",
     "firebase": "^12.6.0",
     "firebase-admin": "^13.6.0",
+    "lodash": "^4.17.21",
     "next": "16.0.10",
     "next-safe-action": "^8.0.11",
     "nextjs-toploader": "^3.9.17",
@@ -36,6 +37,7 @@
     "zod": "^4.2.1"
   },
   "devDependencies": {
+    "@types/lodash": "^4.17.21",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

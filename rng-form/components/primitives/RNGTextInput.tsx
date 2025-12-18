@@ -15,13 +15,13 @@ export function RNGTextInput<S extends FormSchema>({ item }: RNGTextInputProps<S
         <TextField
           {...field}
           fullWidth
-          type={mergedItem.type === 'password' ? 'password' : 'text'}
           placeholder={mergedItem.placeholder}
           multiline={mergedItem.type === 'text' && mergedItem.multiline}
           rows={mergedItem.type === 'text' ? mergedItem.rows : undefined}
           error={!!fieldState.error}
           // Explicitly map value to avoid uncontrolled/controlled warnings
           value={field.value ?? ''}
+          {...mergedItem}
         />
       )}
     </FieldWrapper>

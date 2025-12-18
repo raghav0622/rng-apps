@@ -22,6 +22,10 @@ interface RNGFormProps<S extends FormSchema> {
   readOnly?: boolean;
   /** Hides the default submit button. Useful for Wizards or custom layouts. */
   hideSubmitButton?: boolean;
+  /** * If true, the submit button is disabled until the form is dirty (has changes).
+   * @default true
+   */
+  requireChanges?: boolean;
 }
 
 export function RNGForm<S extends FormSchema>({
@@ -33,6 +37,7 @@ export function RNGForm<S extends FormSchema>({
   submitLabel = 'Submit',
   readOnly = false,
   hideSubmitButton = false,
+  requireChanges = true, // Default to true as requested
   titleProps,
   description,
   descriptionProps,
@@ -48,10 +53,21 @@ export function RNGForm<S extends FormSchema>({
     mode: 'onBlur',
   });
 
+  const { isSubmitting, isDirty } = methods.formState;
+
   const handleFormSubmit: SubmitHandler<z.infer<S>> = async (data) => {
+    // Double-check: If requireChanges is strictly true and form is not dirty, abort.
+    // This prevents enter-key submission bypassing the disabled button.
+    if (requireChanges && !isDirty) {
+      return;
+    }
+
     setSubmissionError(null);
     try {
       await onSubmit(data);
+
+      // Optional: Reset dirty state after successful submission
+      // methods.reset(data); // Uncomment if you want the form to be "clean" after save
     } catch (error) {
       if (error instanceof FormError) {
         // Handle targeted field errors
@@ -70,6 +86,9 @@ export function RNGForm<S extends FormSchema>({
       }
     }
   };
+
+  // Logic: Disable if explicitly submitting, OR if (changes are required AND form is clean)
+  const isSubmitDisabled = isSubmitting || (requireChanges && !isDirty);
 
   return (
     <RNGFormProvider value={{ formId: 'rng-form', methods, readOnly }}>
@@ -98,9 +117,9 @@ export function RNGForm<S extends FormSchema>({
                   variant="contained"
                   color="primary"
                   size="large"
-                  disabled={methods.formState.isSubmitting}
+                  disabled={isSubmitDisabled}
                 >
-                  {methods.formState.isSubmitting ? 'Submitting...' : submitLabel}
+                  {isSubmitting ? 'Submitting...' : submitLabel}
                 </Button>
               </Box>
             )}

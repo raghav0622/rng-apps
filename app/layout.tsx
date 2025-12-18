@@ -1,23 +1,18 @@
-import { getCurrentUser } from '@/lib/auth/session';
-import RootProvider from '@/ui/layout/RootProvider';
+import { getCurrentUser } from '@/lib/auth/session'; // Import from step 1
+import { RootProvider } from '@/ui/layout/RootProvider';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'RNG Apps',
+  title: 'RNG App',
 };
 
-export default async function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  // Fetch user session server-side
-  const sessionUser = await getCurrentUser();
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const user = await getCurrentUser();
 
   return (
     <html lang="en">
       <body>
-        <RootProvider sessionUser={sessionUser}>{children}</RootProvider>
+        <RootProvider initialUser={user}>{children}</RootProvider>
       </body>
     </html>
   );

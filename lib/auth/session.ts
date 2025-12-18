@@ -1,49 +1,51 @@
-import { AUTH_SESSION_COOKIE_NAME, ORG_SESSION_COOKIE_NAME } from '@/lib/constants';
-import { UserRole } from '@/lib/enums';
-import { auth, firestore } from '@/lib/firebase/admin';
+import { authRepository } from '@/features/auth/auth.repository';
+import { AUTH_SESSION_COOKIE_NAME } from '@/lib/constants';
 import { cookies } from 'next/headers';
+import { cache } from 'react';
 import 'server-only';
 
-export type SessionUser = {
+export interface SessionUser {
   uid: string;
-  email: string;
-  emailVerified: boolean;
-  displayName: string;
+  email: string | null;
+  displayName: string | null;
   photoURL: string | null;
-  orgId?: string;
-  role?: UserRole;
-};
+}
 
-export async function getCurrentUser(): Promise<SessionUser | null> {
+/**
+ * Server-Side: Get current user.
+ * Strategy: Verify Cookie for Auth -> Fetch Firestore for Data.
+ * Cached per request to avoid multiple Firestore reads.
+ */
+export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get(AUTH_SESSION_COOKIE_NAME)?.value;
-  const orgId = cookieStore.get(ORG_SESSION_COOKIE_NAME)?.value;
 
-  if (!sessionCookie) {
-    return null;
-  }
+  if (!sessionCookie) return null;
 
   try {
-    // 1. Verify the session cookie
-    const decodedToken = await auth().verifySessionCookie(sessionCookie, true);
-    const uid = decodedToken.uid;
+    // 1. Verify Identity (Fast, Low Latency check)
+    const decodedClaims = await authRepository.verifySessionCookie(sessionCookie);
+    const uid = decodedClaims.uid;
 
-    // 2. FETCH: Get the latest profile from Firestore (The "Truth")
-    // This ensures we see the name even if the cookie is stale
-    const userDoc = await firestore().collection('users').doc(uid).get();
-    const userData = userDoc.data();
+    // 2. Fetch Fresh Data (Source of Truth)
+    // We do NOT use decodedClaims for profile data because:
+    // a) It might be stale (cached in cookie).
+    // b) Large Base64 avatars don't fit in cookies.
+    const userProfile = await authRepository.getUser(uid);
+
+    if (!userProfile) {
+      // Edge case: User deleted in Firestore but cookie still valid
+      return null;
+    }
 
     return {
-      uid: uid,
-      email: decodedToken.email || '',
-      emailVerified: decodedToken.email_verified || false,
-      // PREFER Firestore data, fallback to token claims
-      displayName: userData?.displayName || decodedToken.name || null,
-      photoURL: userData?.photoURL || decodedToken.picture || null,
-      orgId: orgId, // We will use this in the next step
+      uid: userProfile.uid,
+      email: userProfile.email,
+      displayName: userProfile.displayName,
+      photoURL: userProfile.photoURL,
     };
   } catch (error) {
-    // If cookie is invalid/expired
+    // Cookie is invalid or expired
     return null;
   }
-}
+});

@@ -8,36 +8,36 @@ interface FieldConfig {
 // Strictly typed against AnyFieldType to ensure no field is missed
 export const FIELD_CONFIG: Record<AnyFieldType, FieldConfig> = {
   // Primitives
-  text: {},
-  password: {},
-  number: {},
-  date: {},
-  hidden: { hasInternalLabel: true },
-  'masked-text': {},
-  color: {},
-  otp: {},
-  calculated: {},
+  text: { hasInternalLabel: true },
+  password: { hasInternalLabel: true },
+  number: { hasInternalLabel: true },
+  date: { hasInternalLabel: true },
+  hidden: { hasInternalLabel: false },
+  'masked-text': { hasInternalLabel: true },
+  color: { hasInternalLabel: true },
+  otp: { hasInternalLabel: true },
+  calculated: { hasInternalLabel: true },
 
   // Selection
-  switch: { hasInternalLabel: true },
-  'checkbox-group': { hasInternalLabel: true },
-  radio: { hasInternalLabel: true },
-  'toggle-group': {},
-  slider: {},
-  rating: {},
-  autocomplete: {},
-  'async-autocomplete': {},
-  'transfer-list': {},
+  switch: { hasInternalLabel: false },
+  'checkbox-group': { hasInternalLabel: false },
+  radio: { hasInternalLabel: false },
+  'toggle-group': { hasInternalLabel: false },
+  slider: { hasInternalLabel: false },
+  rating: { hasInternalLabel: false },
+  autocomplete: { hasInternalLabel: true },
+  'async-autocomplete': { hasInternalLabel: true },
+  'transfer-list': { hasInternalLabel: false },
 
   // Advanced
-  file: { hasInternalLabel: true },
-  'rich-text': {},
-  signature: {},
-  'date-range': {},
+  file: { hasInternalLabel: false },
+  'rich-text': { hasInternalLabel: false },
+  signature: { hasInternalLabel: false },
+  'date-range': { hasInternalLabel: true },
 
   // NEW FIELDS
   avatar: { hasInternalLabel: true }, // Avatar handles its own label/layout
-  'multi-image-editor': {}, // Use standard label from FieldWrapper
+  'multi-image-editor': { hasInternalLabel: false }, // Use standard label from FieldWrapper
 
   // Layouts
   section: { hasInternalLabel: true },

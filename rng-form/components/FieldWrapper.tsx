@@ -31,30 +31,27 @@ export function FieldWrapper<S extends FormSchema, T extends BaseFormItem<S>>({
   children,
 }: FieldWrapperProps<S, T>) {
   const { control } = useFormContext();
-
-  // Logic extracted to custom hook
-  // We pass the generic T through to preserve the specific 'type' literal
   const { isVisible, mergedItem } = useFieldLogic<S, T>(item);
 
   if (!isVisible) return null;
-
-  // Accessibility & ID Generation
 
   const fieldId = `field-${(name as string).replace(/\./g, '-')}`;
   const errorId = `${fieldId}-error`;
   const labelId = `${fieldId}-label`;
 
-  // Safe lookup: mergedItem.type is string, we cast to AnyFieldType for the config key
   const config = FIELD_CONFIG[mergedItem.type as AnyFieldType] || {};
   const showExternalLabel = !config.hasInternalLabel && !!mergedItem.label;
 
+  // Grid2 Logic:
+  // Ensure 'size' is passed if it exists in colProps, or default to 12.
+  // We assume mergedItem.colProps matches Grid2 props (using 'size' instead of 'xs', 'md').
+  // If legacy props exist, they should be migrated or mapped manually, but here we spread.
   return (
     <Grid size={mergedItem.colProps?.size ?? 12} {...mergedItem.colProps}>
       <Controller
         name={name}
         control={control}
         render={({ field, fieldState }) => {
-          // Enrich field with accessibility attributes
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const enrichedField: any = {
             ...field,
@@ -76,7 +73,6 @@ export function FieldWrapper<S extends FormSchema, T extends BaseFormItem<S>>({
                 </FormLabel>
               )}
 
-              {/* Render the actual input component */}
               {children(enrichedField, fieldState, mergedItem)}
 
               {(fieldState.error?.message || mergedItem.description) && (

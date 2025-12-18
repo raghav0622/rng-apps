@@ -12,6 +12,7 @@ export default function PlaygroundLayout({ children }: { children: React.ReactNo
     if (pathname.includes('/logic')) return 1;
     if (pathname.includes('/wizard')) return 2;
     if (pathname.includes('/layout')) return 3;
+    if (pathname.includes('/advanced')) return 4;
     return 0;
   };
 
@@ -26,7 +27,7 @@ export default function PlaygroundLayout({ children }: { children: React.ReactNo
           <Tab label="Advanced" component={Link} href="/playground/advanced" />
         </Tabs>
       </Paper>
-      <Box sx={{ minHeight: '60vh' }}>{children}</Box>
+      <Box>{children}</Box>
     </Container>
   );
 }

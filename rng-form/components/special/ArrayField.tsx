@@ -3,7 +3,7 @@ import { FieldWrapper } from '@/rng-form/components/FieldWrapper';
 import { FormBuilder } from '@/rng-form/components/FormBuilder';
 import { FormSchema, LayoutItem } from '@/rng-form/types';
 import { Add, Delete } from '@mui/icons-material';
-import { Box, Button, Grid, IconButton, Paper, Typography } from '@mui/material';
+import { Box, Button, IconButton, Paper, Typography } from '@mui/material';
 import { useFieldArray, useFormContext } from 'react-hook-form';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -48,12 +48,11 @@ function ArrayFieldContent({
             </IconButton>
           </Box>
 
-          <Grid container spacing={2}>
-            {/* pathPrefix construction is key here:
-              parentName.0.fieldName 
-            */}
-            <FormBuilder uiSchema={item.items} pathPrefix={`${item.name}.${index}`} />
-          </Grid>
+          {/* REFACTOR: Removed <Grid container spacing={2}> wrapper.
+            FormBuilder itself renders a Grid container. 
+            Nesting them causes double negative margins (-32px) and overflow.
+          */}
+          <FormBuilder uiSchema={item.items} pathPrefix={`${item.name}.${index}`} />
         </Paper>
       ))}
 

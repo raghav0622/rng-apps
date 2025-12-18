@@ -2,14 +2,7 @@
 import { FormBuilder } from '@/rng-form/components/FormBuilder';
 import { FormSchema, LayoutItem } from '@/rng-form/types';
 import { ExpandMore } from '@mui/icons-material';
-import {
-  Accordion,
-  AccordionDetails,
-  AccordionSummary,
-  Box,
-  Grid,
-  Typography,
-} from '@mui/material';
+import { Accordion, AccordionDetails, AccordionSummary, Box, Typography } from '@mui/material';
 
 interface RNGAccordionLayoutProps<S extends FormSchema> {
   item: LayoutItem<S> & { type: 'accordion' };
@@ -30,9 +23,8 @@ export function RNGAccordionLayout<S extends FormSchema>({
             </Typography>
           </AccordionSummary>
           <AccordionDetails>
-            <Grid container spacing={2}>
-              <FormBuilder uiSchema={accordionItem.children} pathPrefix={pathPrefix} />
-            </Grid>
+            {/* REFACTOR: Direct FormBuilder rendering to prevent layout overflow */}
+            <FormBuilder uiSchema={accordionItem.children} pathPrefix={pathPrefix} />
           </AccordionDetails>
         </Accordion>
       ))}

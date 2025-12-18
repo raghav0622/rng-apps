@@ -1,7 +1,7 @@
 'use client';
 import { createContext, useContext } from 'react';
 import { FieldValues } from 'react-hook-form';
-import { FormContextState } from './types';
+import { FormContextState } from '../types';
 
 // Update type to include global readOnly flag
 type ExtendedContextState<T extends FieldValues> = FormContextState<T> & {

@@ -13,19 +13,27 @@ interface RNGCalculatedFieldProps<S extends FormSchema> {
 }
 
 export function RNGCalculatedField<S extends FormSchema>({ item }: RNGCalculatedFieldProps<S>) {
-  const { control, setValue } = useFormContext();
+  const { control, setValue, getValues } = useFormContext();
 
-  const watchedValues = useWatch({
+  // Strategy:
+  // 1. We use useWatch to subscribe to changes.
+  //    - If dependencies are provided, we watch only those to optimize re-renders.
+  //    - If no dependencies, we watch everything (undefined name).
+  // 2. We use getValues() inside the effect to retrieve the full form structure.
+  //    This ensures the 'calculate' function receives the correct shape (z.infer<S>)
+  //    without us trying to reconstruct objects from the partial arrays useWatch returns.
+
+  const hasDependencies = item.dependencies && item.dependencies.length > 0;
+
+  const triggerValues = useWatch({
     control,
-    name: (item.dependencies as any) || [],
+    name: hasDependencies ? (item.dependencies as any) : undefined,
   });
 
   useEffect(() => {
-    if (!item.dependencies || item.dependencies.length === 0) return;
-
-    // Fix: Cast _formValues (FieldValues) to z.infer<S>
-    // We use 'unknown' first to escape strict overlap checks
-    const currentValues = (control as any)._formValues as unknown as z.infer<S>;
+    // Get fresh values matching the schema shape
+    // We cast generic _formValues hack is NO LONGER NEEDED with getValues()
+    const currentValues = getValues() as z.infer<S>;
 
     const result = item.calculate(currentValues);
 
@@ -34,7 +42,7 @@ export function RNGCalculatedField<S extends FormSchema>({ item }: RNGCalculated
       shouldDirty: true,
       shouldTouch: true,
     });
-  }, [watchedValues, item, setValue, control]);
+  }, [triggerValues, item, setValue, getValues]);
 
   return (
     <FieldWrapper item={item} name={item.name}>

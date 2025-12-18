@@ -1,6 +1,6 @@
 'use client';
 import { FieldWrapper } from '@/rng-form/components/FieldWrapper';
-import { FormBuilder } from '@/rng-form/components/FormBuilder';
+import { RenderItem } from '@/rng-form/components/RenderItem'; // Import the new atomic renderer
 import { FormSchema, LayoutItem } from '@/rng-form/types';
 import { Add, Delete } from '@mui/icons-material';
 import {
@@ -67,9 +67,11 @@ function DataGridContent({
               <TableRow key={field.id} hover>
                 {item.columns.map((col, colIdx) => (
                   <TableCell key={colIdx}>
-                    <Box sx={{ '& .MuiFormControl-root': { mb: 0 } }}>
-                      {/* Trick: Render a single item array for the cell */}
-                      <FormBuilder uiSchema={[col.field]} pathPrefix={`${item.name}.${index}`} />
+                    <Box sx={{ '& .MuiFormControl-root': { mb: 0 }, minWidth: 120 }}>
+                      {/* OPTIMIZATION: Use RenderItem directly.
+                          No <Grid container> overhead inside table cells.
+                      */}
+                      <RenderItem item={col.field} pathPrefix={`${item.name}.${index}`} />
                     </Box>
                   </TableCell>
                 ))}

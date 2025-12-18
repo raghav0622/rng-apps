@@ -32,7 +32,6 @@ const ui = defineForm<typeof schema>((f) => [
       label: 'Total Price',
       calculate: (values) => {
         const { price, quantity } = values;
-        console.log(price * quantity);
         return price * quantity;
       },
       colProps: { size: { xs: 12, md: 4 } },

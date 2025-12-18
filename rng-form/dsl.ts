@@ -21,10 +21,6 @@ export class FormBuilderDSL<S extends FormSchema> {
   // GENERIC FIELD BUILDER
   // ===========================================================================
 
-  /**
-   * Generic method to create any input field.
-   * Useful for dynamic generation or types not covered by specific methods.
-   */
   field<K extends keyof InputFieldRegistry<S>>(
     type: K,
     name: Path<z.infer<S>>,
@@ -117,22 +113,28 @@ export class FormBuilderDSL<S extends FormSchema> {
     return this.field('switch', name, props);
   }
 
-  radio(name: Path<z.infer<S>>, props: InputFieldRegistry<S>['radio'] & Partial<BaseFormItem<S>>) {
-    return this.field('radio', name, props);
+  radio(
+    name: Path<z.infer<S>>,
+    options: InputFieldRegistry<S>['radio']['options'],
+    props?: Omit<InputFieldRegistry<S>['radio'], 'options'> & Partial<BaseFormItem<S>>,
+  ) {
+    return this.field('radio', name, { options, ...props });
   }
 
   checkbox(
     name: Path<z.infer<S>>,
-    props: InputFieldRegistry<S>['checkbox-group'] & Partial<BaseFormItem<S>>,
+    options: InputFieldRegistry<S>['checkbox-group']['options'],
+    props?: Omit<InputFieldRegistry<S>['checkbox-group'], 'options'> & Partial<BaseFormItem<S>>,
   ) {
-    return this.field('checkbox-group', name, props);
+    return this.field('checkbox-group', name, { options, ...props });
   }
 
   toggleGroup(
     name: Path<z.infer<S>>,
-    props: InputFieldRegistry<S>['toggle-group'] & Partial<BaseFormItem<S>>,
+    options: InputFieldRegistry<S>['toggle-group']['options'],
+    props?: Omit<InputFieldRegistry<S>['toggle-group'], 'options'> & Partial<BaseFormItem<S>>,
   ) {
-    return this.field('toggle-group', name, props);
+    return this.field('toggle-group', name, { options, ...props });
   }
 
   slider(
@@ -151,16 +153,18 @@ export class FormBuilderDSL<S extends FormSchema> {
 
   transferList(
     name: Path<z.infer<S>>,
-    props: InputFieldRegistry<S>['transfer-list'] & Partial<BaseFormItem<S>>,
+    options: InputFieldRegistry<S>['transfer-list']['options'],
+    props?: Omit<InputFieldRegistry<S>['transfer-list'], 'options'> & Partial<BaseFormItem<S>>,
   ) {
-    return this.field('transfer-list', name, props);
+    return this.field('transfer-list', name, { options, ...props });
   }
 
   autocomplete(
     name: Path<z.infer<S>>,
-    props: InputFieldRegistry<S>['autocomplete'] & Partial<BaseFormItem<S>>,
+    options: InputFieldRegistry<S>['autocomplete']['options'],
+    props?: Omit<InputFieldRegistry<S>['autocomplete'], 'options'> & Partial<BaseFormItem<S>>,
   ) {
-    return this.field('autocomplete', name, props);
+    return this.field('autocomplete', name, { options, ...props });
   }
 
   asyncAutocomplete(

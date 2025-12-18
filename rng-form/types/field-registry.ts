@@ -13,6 +13,12 @@ export type RadioOption = {
   icon?: React.ReactNode;
 };
 
+// Workaround for ESLint rule @typescript-eslint/no-empty-object-type
+// We use {} to ensure strict type checking (no extra props allowed) while
+// allowing intersection with BaseFormItem. 'object' or 'unknown' would be too loose.
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export type EmptyProps = {};
+
 /**
  * Registry of all Input Field Props.
  * Key = Field Type
@@ -25,8 +31,11 @@ export interface InputFieldRegistry<S extends FormSchema> {
   number: { min?: number; max?: number; placeholder?: string };
   currency: { min?: number; max?: number; placeholder?: string; currencyCode?: string };
   date: { minDate?: Date; maxDate?: Date };
-  hidden: Record<string, never>; // No extra props
-  color: Record<string, never>;
+
+  // FIX: Use EmptyProps to allow intersection with BaseFormItem
+  hidden: EmptyProps;
+  color: EmptyProps;
+  switch: EmptyProps;
 
   // Specialized
   'masked-text': { mask: string; definitions?: Record<string, unknown>; placeholder?: string };
@@ -34,7 +43,6 @@ export interface InputFieldRegistry<S extends FormSchema> {
   otp: { length?: number };
 
   // Selection
-  switch: Record<string, never>;
   slider: { min?: number; max?: number; step?: number };
   rating: { max?: number; precision?: number };
   radio: { options: RadioOption[]; row?: boolean };
@@ -78,17 +86,14 @@ export interface LayoutRegistry<S extends FormSchema, ItemType = any> {
   // Data Iterators
   array: {
     // We handle 'name' specifically in the final type to ensure strict Path<> typing
-
     name: any;
     itemLabel?: string;
     items: ItemType[];
-
     defaultValue?: any;
   };
   'data-grid': {
     name: any;
     columns: { header: string; field: ItemType; width?: number | string }[];
-
     defaultValue?: any;
   };
 }

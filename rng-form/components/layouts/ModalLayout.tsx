@@ -14,7 +14,7 @@ export function RNGModalLayout<S extends FormSchema>({ item, pathPrefix }: RNGMo
   const [open, setOpen] = useState(false);
 
   return (
-    <>
+    <Grid size={item.colProps?.size ?? 12} {...item.colProps}>
       <Button variant="outlined" onClick={() => setOpen(true)}>
         {item.triggerLabel}
       </Button>
@@ -35,11 +35,9 @@ export function RNGModalLayout<S extends FormSchema>({ item, pathPrefix }: RNGMo
           </IconButton>
         </DialogTitle>
         <DialogContent dividers>
-          <Grid container spacing={2}>
-            <FormBuilder uiSchema={item.children} pathPrefix={pathPrefix} />
-          </Grid>
+          <FormBuilder uiSchema={item.children} pathPrefix={pathPrefix} />
         </DialogContent>
       </Dialog>
-    </>
+    </Grid>
   );
 }

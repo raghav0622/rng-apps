@@ -61,6 +61,12 @@ export default function LogicPage() {
         <RNGForm
           schema={schema}
           uiSchema={uiSchema}
+          defaultValues={{
+            adminCode: undefined,
+            emailFrequency: undefined,
+            notifications: undefined,
+            role: undefined,
+          }}
           onSubmit={(data) => logInfo('Logic Submit', data)}
         />
       </Paper>

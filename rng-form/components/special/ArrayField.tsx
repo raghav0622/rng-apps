@@ -3,7 +3,16 @@ import { FieldWrapper } from '@/rng-form/components/FieldWrapper';
 import { FormBuilder } from '@/rng-form/components/FormBuilder';
 import { FormSchema, LayoutItem } from '@/rng-form/types';
 import { Add, Delete } from '@mui/icons-material';
-import { Box, Button, IconButton, Paper, Typography } from '@mui/material';
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  IconButton,
+  Stack,
+  Typography,
+} from '@mui/material';
 import { useFieldArray, useFormContext } from 'react-hook-form';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -36,33 +45,45 @@ function ArrayFieldContent({
   });
 
   return (
-    <Box sx={{ width: '100%' }}>
+    <Stack spacing={2} sx={{ width: '100%' }}>
       {fields.map((field, index) => (
-        <Paper key={field.id} sx={{ p: 2, mb: 2, position: 'relative' }} variant="outlined">
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-            <Typography variant="subtitle2" color="text.secondary">
-              {item.itemLabel || 'Item'} #{index + 1}
-            </Typography>
-            <IconButton size="small" onClick={() => remove(index)} color="error">
-              <Delete />
-            </IconButton>
-          </Box>
-
-          {/* REFACTOR: Removed <Grid container spacing={2}> wrapper.
-            FormBuilder itself renders a Grid container. 
-            Nesting them causes double negative margins (-32px) and overflow.
-          */}
-          <FormBuilder uiSchema={item.items} pathPrefix={`${item.name}.${index}`} />
-        </Paper>
+        <Card key={field.id} variant="outlined">
+          <CardHeader
+            title={
+              <Typography variant="subtitle2" color="text.secondary">
+                {item.itemLabel || 'Item'} #{index + 1}
+              </Typography>
+            }
+            action={
+              <IconButton
+                size="small"
+                onClick={() => remove(index)}
+                color="error"
+                aria-label="remove item"
+              >
+                <Delete />
+              </IconButton>
+            }
+            sx={{ pb: 0 }}
+          />
+          <CardContent>
+            {/* Pass pathPrefix correctly. 
+                     FormBuilder creates its own Grid container, which sits nicely inside CardContent.
+                 */}
+            <FormBuilder uiSchema={item.items} pathPrefix={`${item.name}.${index}`} />
+          </CardContent>
+        </Card>
       ))}
 
-      <Button
-        variant="outlined"
-        startIcon={<Add />}
-        onClick={() => append(item.defaultValue || {})}
-      >
-        Add {item.itemLabel || 'Item'}
-      </Button>
-    </Box>
+      <Box>
+        <Button
+          variant="outlined"
+          startIcon={<Add />}
+          onClick={() => append(item.defaultValue || {})}
+        >
+          Add {item.itemLabel || 'Item'}
+        </Button>
+      </Box>
+    </Stack>
   );
 }

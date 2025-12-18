@@ -18,7 +18,8 @@ export function FormBuilder<S extends FormSchema>({
   if (!uiSchema || uiSchema.length === 0) return null;
 
   return (
-    <Grid container spacing={2} sx={{ width: '100%' }} {...gridProps}>
+    // FIX: Removed width: '100%' to prevent horizontal scrollbars caused by negative margins
+    <Grid container spacing={2} {...gridProps}>
       {uiSchema.map((item, index) => {
         // Create a stable key. Prefer name, fallback to type-index.
         const key = item.name

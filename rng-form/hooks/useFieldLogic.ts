@@ -1,8 +1,18 @@
 'use client';
 
+import { logError } from '@/lib/logger';
 import { useFormContext, useWatch } from 'react-hook-form';
 import { useRNGForm } from '../components/FormContext';
 import { BaseFormItem, FormSchema } from '../types';
+
+// Helper: Deep copy to avoid mutation of RHF internal state logic
+function deepClone<T>(obj: T): T {
+  if (obj === undefined || obj === null) return obj;
+  if (typeof structuredClone === 'function') {
+    return structuredClone(obj);
+  }
+  return JSON.parse(JSON.stringify(obj));
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getValueByPath(obj: any, path: string | undefined): any {
@@ -23,6 +33,7 @@ function setValueByPath(obj: any, path: string, value: any): void {
   let current = obj;
   for (let i = 0; i < parts.length - 1; i++) {
     const part = parts[i];
+    // Ensure we are working on a structure that exists
     if (current[part] === undefined || current[part] === null) {
       current[part] = {};
     }
@@ -45,27 +56,26 @@ export function useFieldLogic<S extends FormSchema, T extends BaseFormItem<S>>(
     disabled: !hasLogic,
   };
 
-  let dependencyPaths: string[] = [];
-
   if (hasLogic) {
     const dependencies = item.dependencies || [];
     if (dependencies.length > 0) {
-      dependencyPaths = dependencies.map((dep) => {
-        if (dep.startsWith('!')) return dep.slice(1);
-        return pathPrefix ? `${pathPrefix}.${dep}` : dep;
+      watchConfig.name = dependencies.map((dep) => {
+        if (dep.startsWith('!')) return dep.slice(1); // Global dependency
+        return pathPrefix ? `${pathPrefix}.${dep}` : dep; // Scoped dependency
       });
-      watchConfig.name = dependencyPaths;
     } else if (pathPrefix) {
+      // Logic exists but no deps listed: Watch the current scope (array item/section)
       watchConfig.name = [pathPrefix];
     } else {
-      watchConfig.name = undefined; // Watch all
+      // Logic exists at root with no deps: Watch everything (Performance warning)
+      watchConfig.name = undefined;
     }
   }
 
   // 2. Register Watcher
   const watchedValues = useWatch({
     control,
-    ...watchConfig,
+    disabled: watchConfig.disabled,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     name: watchConfig.name as any,
   });
@@ -75,9 +85,11 @@ export function useFieldLogic<S extends FormSchema, T extends BaseFormItem<S>>(
   let dynamicProps: Partial<BaseFormItem<S>> = {};
 
   if (hasLogic) {
-    // FIX: Clone globalValues to prevent mutation pollution
-    const globalValues = { ...(getValues() || {}) };
+    // CRITICAL FIX: Deep clone to prevent mutating the actual form state
+    // when we overlay watched values for logic calculation.
+    const globalValues = deepClone(getValues() || {});
 
+    // Overlay watched values onto the cloned state
     if (watchConfig.name === undefined) {
       if (watchedValues) {
         Object.assign(globalValues, watchedValues);
@@ -86,17 +98,9 @@ export function useFieldLogic<S extends FormSchema, T extends BaseFormItem<S>>(
       watchConfig.name.forEach((path, index) => {
         setValueByPath(globalValues, path, watchedValues[index]);
       });
-    } else if (
-      pathPrefix &&
-      watchConfig.name &&
-      watchConfig.name.length === 1 &&
-      watchConfig.name[0] === pathPrefix
-    ) {
-      if (Array.isArray(watchedValues)) {
-        setValueByPath(globalValues, pathPrefix, watchedValues[0]);
-      }
     }
 
+    // Determine scope for the logic function
     const scopedValues = getValueByPath(globalValues, pathPrefix);
 
     if (item.renderLogic) {
@@ -104,9 +108,7 @@ export function useFieldLogic<S extends FormSchema, T extends BaseFormItem<S>>(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         isVisible = item.renderLogic(scopedValues, globalValues as any);
       } catch (e) {
-        // Fail open if logic crashes? Or fail closed?
-        // Typically keeping it visible is safer for debugging, or hidden to prevent bad data.
-        // console.error("Logic Error", e);
+        logError(`Render logic failed for ${item.name}`);
       }
     }
 
@@ -114,7 +116,9 @@ export function useFieldLogic<S extends FormSchema, T extends BaseFormItem<S>>(
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         dynamicProps = item.propsLogic(scopedValues, globalValues as any);
-      } catch (e) {}
+      } catch (e) {
+        logError(`Props logic failed for ${item.name}`);
+      }
     }
   }
 

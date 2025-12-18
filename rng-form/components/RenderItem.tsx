@@ -17,10 +17,13 @@ export function RenderItem<S extends FormSchema>({ item, pathPrefix }: RenderIte
   // Calculate the correct "name" for React Hook Form registration
   const scopedName = pathPrefix && item.name ? `${pathPrefix}.${item.name}` : item.name;
 
-  // Create a scoped item, preserving ALL properties from the incoming 'item' (which is the mergedItem)
-  // This ensures 'disabled', 'label', or other props set via logic are kept.
+  // Create a scoped item.
+  // CRITICAL FIX: Destructure out logic props so they don't leak to the DOM/Component
+  // if the component spreads props indiscriminately.
+  const { renderLogic, propsLogic, dependencies, ...cleanItem } = item;
+
   const scopedItem = {
-    ...item,
+    ...cleanItem,
     name: scopedName,
   };
 
@@ -31,7 +34,6 @@ export function RenderItem<S extends FormSchema>({ item, pathPrefix }: RenderIte
   const Component = (LAYOUT_REGISTRY as any)[item.type] || (INPUT_REGISTRY as any)[item.type];
 
   if (Component) {
-    // Pass the scopedItem (with dynamic props) and pathPrefix to the component
     return <Component item={scopedItem as any} pathPrefix={pathPrefix} />;
   }
 

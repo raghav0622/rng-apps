@@ -28,6 +28,7 @@
     "nextjs-toploader": "^3.9.17",
     "notistack": "^3.0.2",
     "react": "19.2.1",
+    "react-advanced-cropper": "^0.20.1",
     "react-dom": "19.2.1",
     "react-hook-form": "^7.68.0",
     "react-imask": "^7.6.1",

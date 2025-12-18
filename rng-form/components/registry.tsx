@@ -22,6 +22,8 @@ import { RNGRichText } from './special/RichText';
 import { RNGSignature } from './special/Signature';
 import { RNGMaskedInput, RNGOtpInput } from './special/TextExtendedInputs';
 import { RNGTransferList } from './special/TransferList';
+// NEW
+import { RNGAvatarUpload } from './special/AvatarUpload';
 
 // =============================================================================
 // LAZY LOADING
@@ -40,6 +42,12 @@ const withSuspense = <P extends object>(Component: React.ComponentType<P>) => {
 const LazyAsyncAutocomplete = lazy(() =>
   import('./autocomplete/AsyncAutocomplete').then((m) => ({ default: m.RNGAsyncAutocomplete })),
 );
+
+// NEW
+const LazyMultiImageEditor = lazy(() =>
+  import('./special/MultiImageEditor').then((m) => ({ default: m.RNGMultiImageEditor })),
+);
+
 const LazySectionLayout = lazy(() =>
   import('./layouts/SectionLayout').then((m) => ({ default: m.RNGSectionLayout })),
 );
@@ -74,7 +82,7 @@ export const INPUT_REGISTRY: Partial<Record<InputType, React.ComponentType<any>>
   // Primitives
   text: RNGTextInput,
   password: RNGTextInput,
-  number: RNGNumberInput, // Handles unified number/currency/units
+  number: RNGNumberInput,
 
   'masked-text': RNGMaskedInput,
   calculated: RNGCalculatedField,
@@ -99,7 +107,10 @@ export const INPUT_REGISTRY: Partial<Record<InputType, React.ComponentType<any>>
   file: withSuspense(RNGFileUpload),
   'rich-text': withSuspense(RNGRichText),
   signature: withSuspense(RNGSignature),
-  // Removed Location
+
+  // New Mappings
+  avatar: RNGAvatarUpload,
+  'multi-image-editor': withSuspense(LazyMultiImageEditor),
 };
 
 export const LAYOUT_REGISTRY: Record<LayoutType, React.ComponentType<any>> = {

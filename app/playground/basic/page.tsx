@@ -7,35 +7,16 @@ import { Box, Paper, Typography } from '@mui/material';
 import { z } from 'zod';
 
 const schema = z.object({
-  price: z.number().default(0),
-  quantity: z.number().default(1),
-  totla: z.coerce.number().default(0),
+  avatar: z.any().optional(),
+  images: z.array(z.any()).optional(),
 });
 
 const uiSchema = defineForm<typeof schema>((f) => [
-  f.number('price', {
-    label: 'Price',
-    formatOptions: {
-      style: 'currency',
-      currency: 'INR',
-    },
+  f.avatar('avatar', {
+    label: 'Upload Avatar',
   }),
-  f.number('quantity', {
-    label: 'Quantity',
-    formatOptions: {
-      style: 'unit',
-      unit: 'sqft',
-    },
-  }),
-  f.calculated('totla', {
-    label: 'Total',
-    formatOptions: {
-      style: 'currency',
-      currency: 'INR',
-    },
-    calculate(values) {
-      return values.price * values.quantity;
-    },
+  f.multiImageEditor('images', {
+    label: 'Upload Image Files',
   }),
 ]);
 
@@ -50,9 +31,7 @@ export default function BasicPage() {
           schema={schema}
           uiSchema={uiSchema}
           defaultValues={{
-            price: 1000,
-            quantity: 200,
-            totla: 0,
+            avatar: [],
           }}
           onSubmit={(data) => logInfo('Basic Submit', data)}
           submitLabel="Submit"

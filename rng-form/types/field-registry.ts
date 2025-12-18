@@ -20,7 +20,6 @@ export type EmptyProps = {};
 
 /** List of standard units for Architecture, Civil, and General Construction */
 export type CommonUnit =
-  // Length
   | 'mm'
   | 'cm'
   | 'm'
@@ -29,7 +28,6 @@ export type CommonUnit =
   | 'ft'
   | 'yd'
   | 'mi'
-  // Area
   | 'sqmm'
   | 'sqcm'
   | 'sqm'
@@ -40,7 +38,6 @@ export type CommonUnit =
   | 'sqmi'
   | 'ac'
   | 'ha'
-  // Volume
   | 'ml'
   | 'l'
   | 'cum'
@@ -50,7 +47,6 @@ export type CommonUnit =
   | 'gal'
   | 'qt'
   | 'pt'
-  // Mass
   | 'mg'
   | 'g'
   | 'kg'
@@ -58,7 +54,6 @@ export type CommonUnit =
   | 'oz'
   | 'lb'
   | 'ton'
-  // Force / Pressure
   | 'n'
   | 'kn'
   | 'pa'
@@ -66,17 +61,14 @@ export type CommonUnit =
   | 'mpa'
   | 'bar'
   | 'psi'
-  // Temperature
   | 'c'
   | 'f'
   | 'deg'
-  // Digital
   | 'b'
   | 'kb'
   | 'mb'
   | 'gb'
   | 'tb'
-  // Allow any other string while preserving autocomplete
   | (string & {});
 
 export type CommonCurrency = 'INR' | (string & {});
@@ -153,8 +145,18 @@ export interface InputFieldRegistry<S extends FormSchema> {
   'rich-text': { minHeight?: string | number; placeholder?: string };
   signature: { height?: number };
 
-  // Removed Location Props as requested
-  // location: { ... };
+  // NEW: Image Uploaders
+  avatar: {
+    placeholder?: string;
+    alt?: string;
+    width?: number; // Visual width in px
+  };
+
+  'multi-image-editor': {
+    placeholder?: string;
+    maxFiles?: number;
+    aspectRatio?: number; // Force aspect ratio for cropping (e.g., 16/9)
+  };
 
   'date-range': { minDate?: Date; maxDate?: Date };
 }

@@ -35,6 +35,10 @@ export const FIELD_CONFIG: Record<AnyFieldType, FieldConfig> = {
   signature: {},
   'date-range': {},
 
+  // NEW FIELDS
+  avatar: { hasInternalLabel: true }, // Avatar handles its own label/layout
+  'multi-image-editor': {}, // Use standard label from FieldWrapper
+
   // Layouts
   section: { hasInternalLabel: true },
   tabs: { hasInternalLabel: true },

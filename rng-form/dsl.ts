@@ -168,11 +168,25 @@ export class FormBuilderDSL<S extends FormSchema> {
   }
 
   // ===========================================================================
-  // ADVANCED
+  // ADVANCED & MEDIA
   // ===========================================================================
 
   file(name: Path<z.infer<S>>, props?: InputFieldRegistry<S>['file'] & Partial<BaseFormItem<S>>) {
     return this.field('file', name, props);
+  }
+
+  avatar(
+    name: Path<z.infer<S>>,
+    props?: InputFieldRegistry<S>['avatar'] & Partial<BaseFormItem<S>>,
+  ) {
+    return this.field('avatar', name, props);
+  }
+
+  multiImageEditor(
+    name: Path<z.infer<S>>,
+    props?: InputFieldRegistry<S>['multi-image-editor'] & Partial<BaseFormItem<S>>,
+  ) {
+    return this.field('multi-image-editor', name, props);
   }
 
   signature(

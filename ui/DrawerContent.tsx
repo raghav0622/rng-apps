@@ -12,7 +12,7 @@ const links: Array<{
 }> = [
   {
     title: 'RNG Form Playground',
-    href: '/playground/basic',
+    href: '/playground',
   },
 ];
 

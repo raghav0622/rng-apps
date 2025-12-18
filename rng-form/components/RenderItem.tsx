@@ -13,7 +13,7 @@ interface RenderItemProps<S extends FormSchema> {
 
 /**
  * Atomic component that renders a SINGLE form item without any Grid wrappers.
- * Used by FormBuilder (wrapped in Grid) and DataGrid (inside Table Cell).
+ * Used by FormItemGrid (wrapped in Grid) and DataGrid (inside Table Cell).
  */
 export function RenderItem<S extends FormSchema>({ item, pathPrefix }: RenderItemProps<S>) {
   const { register } = useFormContext();

@@ -55,15 +55,18 @@ export interface InputFieldRegistry<S extends FormSchema> {
     getOptionLabel?: (option: AutocompleteOption) => string;
     creatable?: boolean;
     multiple?: boolean;
+    placeholder?: string;
   };
   'async-autocomplete': {
     loadOptions: (query: string, values: z.infer<S>) => Promise<AutocompleteOption[]>;
     getOptionLabel?: (option: AutocompleteOption) => string;
     multiple?: boolean;
+    placeholder?: string;
   };
 
   // Advanced
-  file: { accept?: string; multiple?: boolean };
+  // FIX: Added placeholder here to resolve the TypeScript error
+  file: { accept?: string; multiple?: boolean; placeholder?: string };
   'rich-text': { minHeight?: string | number; placeholder?: string };
   signature: { height?: number };
   location: { placeholder?: string; provider?: 'google' | 'mapbox' | 'mock' };

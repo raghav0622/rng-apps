@@ -1,6 +1,6 @@
 'use client';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Box, Button, Stack, Typography } from '@mui/material';
+import { Box, Button, Stack, Typography, TypographyProps } from '@mui/material';
 import { FormProvider, SubmitHandler, useForm, UseFormProps } from 'react-hook-form';
 import { z } from 'zod';
 import { FormItem, FormSchema } from '../types';
@@ -13,6 +13,9 @@ interface RNGFormProps<S extends FormSchema> {
   defaultValues?: UseFormProps<z.infer<S>>['defaultValues'];
   onSubmit: (data: z.infer<S>) => void;
   title?: string;
+  titleProps?: TypographyProps;
+  description?: string;
+  descriptionProps?: TypographyProps;
   submitLabel?: string;
   readOnly?: boolean;
   /** Hides the default submit button. Useful for Wizards or custom layouts. */
@@ -28,6 +31,9 @@ export function RNGForm<S extends FormSchema>({
   submitLabel = 'Submit',
   readOnly = false,
   hideSubmitButton = false,
+  titleProps,
+  description,
+  descriptionProps,
 }: RNGFormProps<S>) {
   const methods = useForm<z.infer<S>>({
     // We cast to any because hook-form resolver types are sometimes slightly mismatched
@@ -48,12 +54,11 @@ export function RNGForm<S extends FormSchema>({
         <form onSubmit={methods.handleSubmit(handleFormSubmit)} noValidate>
           <Stack spacing={3}>
             {title && (
-              <Box>
-                <Typography variant="h5" component="h2" gutterBottom>
-                  {title}
-                </Typography>
-              </Box>
+              <Typography variant="h5" gutterBottom {...titleProps}>
+                {title}
+              </Typography>
             )}
+            {description && <Typography {...descriptionProps}>{description}</Typography>}
 
             <FormBuilder uiSchema={uiSchema} />
 

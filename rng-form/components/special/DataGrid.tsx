@@ -1,6 +1,6 @@
 'use client';
 import { FieldWrapper } from '@/rng-form/components/FieldWrapper';
-import { RenderItem } from '@/rng-form/components/RenderItem'; // Import the new atomic renderer
+import { RenderItem } from '@/rng-form/components/RenderItem';
 import { FormSchema, LayoutItem } from '@/rng-form/types';
 import { Add, Delete } from '@mui/icons-material';
 import {
@@ -68,9 +68,7 @@ function DataGridContent({
                 {item.columns.map((col, colIdx) => (
                   <TableCell key={colIdx}>
                     <Box sx={{ '& .MuiFormControl-root': { mb: 0 }, minWidth: 120 }}>
-                      {/* OPTIMIZATION: Use RenderItem directly.
-                          No <Grid container> overhead inside table cells.
-                      */}
+                      {/* Atomic Rendering: No extra Grid wrappers here, just the Input Control */}
                       <RenderItem item={col.field} pathPrefix={`${item.name}.${index}`} />
                     </Box>
                   </TableCell>

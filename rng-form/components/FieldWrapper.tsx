@@ -4,7 +4,7 @@ import { FIELD_CONFIG } from '@/rng-form/config';
 import { useFieldLogic } from '@/rng-form/hooks/useFieldLogic';
 import { BaseFormItem, FormSchema } from '@/rng-form/types';
 import { AnyFieldType } from '@/rng-form/types/field-registry';
-import { FormControl, FormHelperText, FormLabel, Grid } from '@mui/material';
+import { FormControl, FormHelperText, FormLabel } from '@mui/material';
 import {
   Controller,
   ControllerFieldState,
@@ -31,6 +31,8 @@ export function FieldWrapper<S extends FormSchema, T extends BaseFormItem<S>>({
   children,
 }: FieldWrapperProps<S, T>) {
   const { control } = useFormContext();
+  // Note: Logic is also checked here to support dynamic props (like disabled)
+  // even when used without the Grid wrapper (e.g., inside DataGrid).
   const { isVisible, mergedItem } = useFieldLogic<S, T>(item);
 
   if (!isVisible) return null;
@@ -42,48 +44,42 @@ export function FieldWrapper<S extends FormSchema, T extends BaseFormItem<S>>({
   const config = FIELD_CONFIG[mergedItem.type as AnyFieldType] || {};
   const showExternalLabel = !config.hasInternalLabel && !!mergedItem.label;
 
-  // Grid2 Logic:
-  // Ensure 'size' is passed if it exists in colProps, or default to 12.
-  // We assume mergedItem.colProps matches Grid2 props (using 'size' instead of 'xs', 'md').
-  // If legacy props exist, they should be migrated or mapped manually, but here we spread.
   return (
-    <Grid size={mergedItem.colProps?.size ?? 12} {...mergedItem.colProps}>
-      <Controller
-        name={name}
-        control={control}
-        render={({ field, fieldState }) => {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const enrichedField: any = {
-            ...field,
-            id: fieldId,
-            'aria-invalid': !!fieldState.error,
-            'aria-describedby': fieldState.error ? errorId : undefined,
-          };
+    <Controller
+      name={name}
+      control={control}
+      render={({ field, fieldState }) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const enrichedField: any = {
+          ...field,
+          id: fieldId,
+          'aria-invalid': !!fieldState.error,
+          'aria-describedby': fieldState.error ? errorId : undefined,
+        };
 
-          return (
-            <FormControl
-              fullWidth
-              error={!!fieldState.error}
-              disabled={mergedItem.disabled}
-              component="div"
-            >
-              {showExternalLabel && (
-                <FormLabel htmlFor={fieldId} id={labelId} sx={{ mb: 0.5, fontWeight: 500 }}>
-                  {mergedItem.label}
-                </FormLabel>
-              )}
+        return (
+          <FormControl
+            fullWidth
+            error={!!fieldState.error}
+            disabled={mergedItem.disabled}
+            component="div"
+          >
+            {showExternalLabel && (
+              <FormLabel htmlFor={fieldId} id={labelId} sx={{ mb: 0.5, fontWeight: 500 }}>
+                {mergedItem.label}
+              </FormLabel>
+            )}
 
-              {children(enrichedField, fieldState, mergedItem)}
+            {children(enrichedField, fieldState, mergedItem)}
 
-              {(fieldState.error?.message || mergedItem.description) && (
-                <FormHelperText id={errorId}>
-                  {fieldState.error?.message || mergedItem.description}
-                </FormHelperText>
-              )}
-            </FormControl>
-          );
-        }}
-      />
-    </Grid>
+            {(fieldState.error?.message || mergedItem.description) && (
+              <FormHelperText id={errorId}>
+                {fieldState.error?.message || mergedItem.description}
+              </FormHelperText>
+            )}
+          </FormControl>
+        );
+      }}
+    />
   );
 }

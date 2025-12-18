@@ -2,7 +2,7 @@
 
 import { Grid, GridProps } from '@mui/material';
 import { FormItem, FormSchema } from '../types';
-import { RenderItem } from './RenderItem';
+import { FormItemGrid } from './FormItemGrid';
 
 interface FormBuilderProps<S extends FormSchema> {
   uiSchema: FormItem<S>[];
@@ -20,8 +20,14 @@ export function FormBuilder<S extends FormSchema>({
   return (
     <Grid container spacing={2} sx={{ width: '100%' }} {...gridProps}>
       {uiSchema.map((item, index) => {
-        const key = item.name ? `${item.name}-${index}` : `${item.type}-${index}`;
-        return <RenderItem key={key} item={item} pathPrefix={pathPrefix} />;
+        // Create a stable key. Prefer name, fallback to type-index.
+        const key = item.name
+          ? pathPrefix
+            ? `${pathPrefix}.${item.name}`
+            : item.name
+          : `${item.type}-${index}`;
+
+        return <FormItemGrid key={key} item={item} pathPrefix={pathPrefix} />;
       })}
     </Grid>
   );

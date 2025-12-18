@@ -13,24 +13,27 @@ export function useFieldLogic<S extends FormSchema, T extends BaseFormItem<S>>(i
   const { readOnly: globalReadOnly } = useRNGForm();
 
   // 1. Determine if this field needs to watch others
-  const shouldWatch = !!item.renderLogic || !!item.propsLogic;
+  const hasLogic = !!item.renderLogic || !!item.propsLogic;
+  const dependencies = item.dependencies || [];
 
-  // 2. Register watchers only if necessary
-  // This ensures the component re-renders when dependencies change
+  // 2. Register watchers
+  // We strictly watch the dependencies. If dependencies is empty but logic exists,
+  // we might miss updates unless dependencies are correctly defined in schema.
   useWatch({
     control,
-    disabled: !shouldWatch,
+    disabled: !hasLogic || dependencies.length === 0,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    name: (item.dependencies || []) as any,
+    name: dependencies as any,
   });
 
   // 3. Compute Logic
   let isVisible = true;
   let dynamicProps: Partial<BaseFormItem<S>> = {};
 
-  if (shouldWatch) {
-    // Safe Public API: Use getValues() instead of internal _formValues.
-    // Since useWatch triggered a re-render, getValues() will return the fresh state.
+  if (hasLogic) {
+    // We use getValues() to get the full form state.
+    // Because useWatch subscribed to the dependencies, this component WILL re-render
+    // whenever a dependency changes, ensuring getValues() returns the fresh state.
     const currentValues = getValues() as z.infer<S>;
 
     if (item.renderLogic) {

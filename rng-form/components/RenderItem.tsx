@@ -11,15 +11,18 @@ interface RenderItemProps<S extends FormSchema> {
   pathPrefix?: string;
 }
 
-/**
- * Atomic component that renders a SINGLE form item without any Grid wrappers.
- * Used by FormItemGrid (wrapped in Grid) and DataGrid (inside Table Cell).
- */
 export function RenderItem<S extends FormSchema>({ item, pathPrefix }: RenderItemProps<S>) {
   const { register } = useFormContext();
 
+  // Calculate the correct "name" for React Hook Form registration
   const scopedName = pathPrefix && item.name ? `${pathPrefix}.${item.name}` : item.name;
-  const scopedItem = { ...item, name: scopedName };
+
+  // Create a scoped item, preserving ALL properties from the incoming 'item' (which is the mergedItem)
+  // This ensures 'disabled', 'label', or other props set via logic are kept.
+  const scopedItem = {
+    ...item,
+    name: scopedName,
+  };
 
   if (item.type === 'hidden') {
     return <input type="hidden" {...register(scopedName as any)} />;
@@ -28,6 +31,7 @@ export function RenderItem<S extends FormSchema>({ item, pathPrefix }: RenderIte
   const Component = (LAYOUT_REGISTRY as any)[item.type] || (INPUT_REGISTRY as any)[item.type];
 
   if (Component) {
+    // Pass the scopedItem (with dynamic props) and pathPrefix to the component
     return <Component item={scopedItem as any} pathPrefix={pathPrefix} />;
   }
 

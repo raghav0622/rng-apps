@@ -24,13 +24,27 @@ export type BaseFormItem<Schema extends FormSchema> = {
   description?: string | React.ReactNode;
   /** Grid Layout props (MUI Grid 2 size, offset, etc) */
   colProps?: GridProps;
-  /** Fields that this field depends on for logic */
-  dependencies?: Path<z.infer<Schema>>[];
-  /** Logic: Return false to hide the field */
-  renderLogic?: (values: z.infer<Schema>) => boolean;
-  /** Logic: Return partial props to dynamically override */
+
+  /** * Fields that this field depends on.
+   * - Relative paths: "age" (looks inside current scope)
+   * - Global paths: "!settings.mode" (looks at root)
+   */
+  dependencies?: string[];
+
+  /** * Logic: Return false to hide the field
+   * @param scope - The values relative to the current nesting (e.g., current array item)
+   * @param root - The global form values
+   */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  propsLogic?: (values: z.infer<Schema>) => Partial<any>;
+  renderLogic?: (scope: any, root: z.infer<Schema>) => boolean;
+
+  /** * Logic: Return partial props to dynamically override
+   * @param scope - The values relative to the current nesting (e.g., current array item)
+   * @param root - The global form values
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  propsLogic?: (scope: any, root: z.infer<Schema>) => Partial<any>;
+
   /** Disable the input */
   disabled?: boolean;
   /** ID for testing or dom selection */

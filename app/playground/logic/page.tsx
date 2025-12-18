@@ -20,9 +20,9 @@ const uiSchema = defineForm<typeof schema>((f) => [
     f.password('adminCode', {
       label: 'Admin Access Code',
       dependencies: ['role'],
-      renderLogic: (v) => {
-        console.log(v.role);
-        return v.role === 'admin';
+      // Logic receives (scope, root). Use 'root' for global access.
+      renderLogic: (_scope, root) => {
+        return root.role === 'admin';
       },
     }),
   ]),
@@ -30,7 +30,6 @@ const uiSchema = defineForm<typeof schema>((f) => [
   f.section('Notifications', [
     f.switch('notifications', { label: 'Enable Notifications' }),
 
-    // PROPS LOGIC: Disable if notifications is false
     f.radio(
       'emailFrequency',
       [
@@ -40,7 +39,8 @@ const uiSchema = defineForm<typeof schema>((f) => [
       {
         label: 'Frequency',
         dependencies: ['notifications'],
-        propsLogic: (v) => ({ disabled: !v.notifications }),
+        // Logic receives (scope, root).
+        propsLogic: (_scope, root) => ({ disabled: !root.notifications }),
       },
     ),
   ]),

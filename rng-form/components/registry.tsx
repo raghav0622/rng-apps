@@ -1,16 +1,14 @@
 import React, { lazy, Suspense } from 'react';
 import { InputType, LayoutType } from '../types';
+
+// =============================================================================
+// PRIMITIVES (Direct Imports)
+// =============================================================================
+// We import primitives directly to ensure fast initial render for basic inputs.
+// They generally do not import FormBuilder, so no circular dependency.
 import { RNGAutocomplete } from './autocomplete/SyncAutocomplete';
 import { RNGDateInput } from './date/DateInput';
 import { RNGDateRange } from './date/DateRange';
-import {
-  RNGAccordionLayout,
-  RNGModalLayout,
-  RNGSectionLayout,
-  RNGStepperLayout,
-  RNGTabsLayout,
-  RNGWizardLayout,
-} from './layouts';
 import { RNGColorInput } from './primitives/RNGColorInput';
 import { RNGHiddenInput } from './primitives/RNGHiddenInput';
 import { RNGNumberInput } from './primitives/RNGNumberInput';
@@ -19,9 +17,7 @@ import { RNGCheckboxGroup } from './selection/RNGCheckboxGroup';
 import { RNGRadioGroup } from './selection/RNGRadioGroup';
 import { RNGSwitch } from './selection/RNGSwitch';
 import { RNGToggleGroup } from './selection/RNGToggleGroup';
-import { RNGArrayField } from './special/ArrayField';
 import { RNGCalculatedField } from './special/CalculatedField';
-import { RNGDataGrid } from './special/DataGrid';
 import { RNGFileUpload } from './special/FileUpload';
 import { RNGLocation } from './special/Location';
 import { RNGRating, RNGSlider } from './special/RangeInputs';
@@ -31,7 +27,7 @@ import { RNGMaskedInput, RNGOtpInput } from './special/TextExtendedInputs';
 import { RNGTransferList } from './special/TransferList';
 
 // =============================================================================
-// LAZY LOADING
+// LAZY LOADING HELPER
 // =============================================================================
 
 const withSuspense = <P extends object>(Component: React.ComponentType<P>) => {
@@ -44,11 +40,42 @@ const withSuspense = <P extends object>(Component: React.ComponentType<P>) => {
   return Wrapped;
 };
 
-// Lazy Imports
+// =============================================================================
+// ASYNC / LAZY IMPORTS
+// =============================================================================
+
 const LazyAsyncAutocomplete = lazy(() =>
   import('./autocomplete/AscyncAutocomplete').then((m) => ({
     default: m.RNGAsyncAutocomplete,
   })),
+);
+
+// Layouts import FormBuilder, which creates a circular dependency.
+// using lazy() breaks this cycle.
+
+const LazySectionLayout = lazy(() =>
+  import('./layouts/SectionLayout').then((m) => ({ default: m.RNGSectionLayout })),
+);
+const LazyTabsLayout = lazy(() =>
+  import('./layouts/TabsLayout').then((m) => ({ default: m.RNGTabsLayout })),
+);
+const LazyAccordionLayout = lazy(() =>
+  import('./layouts/AccordionLayout').then((m) => ({ default: m.RNGAccordionLayout })),
+);
+const LazyWizardLayout = lazy(() =>
+  import('./layouts/WizardLayout').then((m) => ({ default: m.RNGWizardLayout })),
+);
+const LazyStepperLayout = lazy(() =>
+  import('./layouts/StepperLayout').then((m) => ({ default: m.RNGStepperLayout })),
+);
+const LazyModalLayout = lazy(() =>
+  import('./layouts/ModalLayout').then((m) => ({ default: m.RNGModalLayout })),
+);
+const LazyArrayField = lazy(() =>
+  import('./special/ArrayField').then((m) => ({ default: m.RNGArrayField })),
+);
+const LazyDataGrid = lazy(() =>
+  import('./special/DataGrid').then((m) => ({ default: m.RNGDataGrid })),
 );
 
 // =============================================================================
@@ -78,7 +105,7 @@ export const INPUT_REGISTRY: Partial<Record<InputType, React.ComponentType<any>>
   autocomplete: RNGAutocomplete,
   'transfer-list': RNGTransferList,
 
-  // Lazy / Advanced
+  // Advanced (Some are already Suspended or Lazy in original, keeping consistency)
   date: withSuspense(RNGDateInput),
   'date-range': withSuspense(RNGDateRange),
   'async-autocomplete': withSuspense(LazyAsyncAutocomplete),
@@ -89,12 +116,12 @@ export const INPUT_REGISTRY: Partial<Record<InputType, React.ComponentType<any>>
 };
 
 export const LAYOUT_REGISTRY: Record<LayoutType, React.ComponentType<any>> = {
-  section: RNGSectionLayout,
-  tabs: RNGTabsLayout,
-  accordion: RNGAccordionLayout,
-  wizard: RNGWizardLayout,
-  stepper: RNGStepperLayout,
-  'modal-form': RNGModalLayout,
-  array: RNGArrayField,
-  'data-grid': RNGDataGrid,
+  section: withSuspense(LazySectionLayout),
+  tabs: withSuspense(LazyTabsLayout),
+  accordion: withSuspense(LazyAccordionLayout),
+  wizard: withSuspense(LazyWizardLayout),
+  stepper: withSuspense(LazyStepperLayout),
+  'modal-form': withSuspense(LazyModalLayout),
+  array: withSuspense(LazyArrayField),
+  'data-grid': withSuspense(LazyDataGrid),
 };

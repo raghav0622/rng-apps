@@ -15,33 +15,33 @@ interface RNGCalculatedFieldProps<S extends FormSchema> {
 export function RNGCalculatedField<S extends FormSchema>({ item }: RNGCalculatedFieldProps<S>) {
   const { control, setValue, getValues } = useFormContext();
 
-  // Strategy:
-  // 1. We use useWatch to subscribe to changes.
-  //    - If dependencies are provided, we watch only those to optimize re-renders.
-  //    - If no dependencies, we watch everything (undefined name).
-  // 2. We use getValues() inside the effect to retrieve the full form structure.
-  //    This ensures the 'calculate' function receives the correct shape (z.infer<S>)
-  //    without us trying to reconstruct objects from the partial arrays useWatch returns.
-
   const hasDependencies = item.dependencies && item.dependencies.length > 0;
 
+  // Watch dependencies
   const triggerValues = useWatch({
     control,
     name: hasDependencies ? (item.dependencies as any) : undefined,
   });
 
   useEffect(() => {
-    // Get fresh values matching the schema shape
-    // We cast generic _formValues hack is NO LONGER NEEDED with getValues()
     const currentValues = getValues() as z.infer<S>;
 
+    // Calculate new result
     const result = item.calculate(currentValues);
 
-    setValue(item.name as string, result, {
-      shouldValidate: true,
-      shouldDirty: true,
-      shouldTouch: true,
-    });
+    // Get current field value to compare
+    const currentFieldValue = getValues(item.name as any);
+
+    // OPTIMIZATION: Only update if value actually changed.
+    // We use loose equality (==) or simple strict (===).
+    // If result is an object, this might need deep comparison, but for calculated fields (usually primitives), this prevents loops.
+    if (result !== currentFieldValue) {
+      setValue(item.name as string, result, {
+        shouldValidate: true,
+        shouldDirty: true,
+        shouldTouch: true,
+      });
+    }
   }, [triggerValues, item, setValue, getValues]);
 
   return (
@@ -51,7 +51,11 @@ export function RNGCalculatedField<S extends FormSchema>({ item }: RNGCalculated
           {...field}
           value={field.value ?? ''}
           fullWidth
-          disabled // Calculated fields are always read-only
+          // Calculated fields are effectively read-only
+          // But passing disabled=true prevents submission in standard HTML forms (though RHF handles it manually).
+          // Visually we want it disabled or read-only.
+          inputProps={{ readOnly: true }}
+          disabled={mergedItem.disabled} // Allow explicit disable styling
           label={mergedItem.label}
           variant="filled"
         />

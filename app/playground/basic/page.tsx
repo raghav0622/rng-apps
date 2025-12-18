@@ -7,21 +7,20 @@ import { Box, Paper, Typography } from '@mui/material';
 import { z } from 'zod';
 
 const schema = z.object({
-  fullName: z.string().min(2, 'Name too short'),
-  email: z.string().email(),
-  age: z.number().min(18),
-  bio: z.string().optional(),
-  preferences: z.enum(['dark', 'light']),
-  subscribe: z.boolean(),
+  price: z.number().default(0),
+  quantity: z.number().default(1),
+  totla: z.coerce.number().default(0),
 });
 
 const uiSchema = defineForm<typeof schema>((f) => [
-  f.text('fullName', { label: 'Full Name', placeholder: 'John Doe', colProps: { size: 6 } }),
-  f.text('email', { label: 'Email Address', colProps: { size: 6 } }),
-  f.number('age', { label: 'Age' }),
-  f.autocomplete('preferences', ['dark', 'light'], { label: 'Theme Preference' }),
-  f.text('bio', { label: 'Bio', multiline: true, rows: 3 }),
-  f.switch('subscribe', { label: 'Subscribe to newsletter' }),
+  f.number('price', { label: 'Price' }),
+  f.number('quantity', { label: 'Quantity' }),
+  f.calculated('totla', {
+    label: 'Total',
+    calculate(values) {
+      return values.price * values.quantity;
+    },
+  }),
 ]);
 
 export default function BasicPage() {
@@ -34,8 +33,13 @@ export default function BasicPage() {
         <RNGForm
           schema={schema}
           uiSchema={uiSchema}
+          defaultValues={{
+            price: 1000,
+            quantity: 200,
+            totla: 0,
+          }}
           onSubmit={(data) => logInfo('Basic Submit', data)}
-          submitLabel="Create User"
+          submitLabel="Submit"
         />
       </Paper>
     </Box>

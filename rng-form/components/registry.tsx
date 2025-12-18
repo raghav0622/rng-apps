@@ -45,7 +45,7 @@ const withSuspense = <P extends object>(Component: React.ComponentType<P>) => {
 // =============================================================================
 
 const LazyAsyncAutocomplete = lazy(() =>
-  import('./autocomplete/AscyncAutocomplete').then((m) => ({
+  import('./autocomplete/AsyncAutocomplete').then((m) => ({
     default: m.RNGAsyncAutocomplete,
   })),
 );

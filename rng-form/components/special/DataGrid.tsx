@@ -1,7 +1,8 @@
 'use client';
 import { FieldWrapper } from '@/rng-form/components/FieldWrapper';
 import { RenderItem } from '@/rng-form/components/RenderItem';
-import { FormSchema, LayoutItem } from '@/rng-form/types';
+import { useFieldLogic } from '@/rng-form/hooks/useFieldLogic'; // Import the hook
+import { FormItem, FormSchema, LayoutItem } from '@/rng-form/types';
 import { Add, Delete } from '@mui/icons-material';
 import {
   Box,
@@ -31,6 +32,30 @@ export function RNGDataGrid<S extends FormSchema>({ item }: RNGDataGridProps<S>)
     <FieldWrapper item={item} name={item.name}>
       {() => <DataGridContent item={item} control={control} />}
     </FieldWrapper>
+  );
+}
+
+// Internal Wrapper to apply logic (propsLogic/renderLogic) to individual cells
+function DataGridCell<S extends FormSchema>({
+  item,
+  pathPrefix,
+}: {
+  item: FormItem<S>;
+  pathPrefix: string;
+}) {
+  // 1. Run Logic Hook
+  const { isVisible, mergedItem } = useFieldLogic(item, pathPrefix);
+
+  // 2. Handle Visibility (Optional: usually keep cells for layout stability, but render empty if hidden)
+  if (!isVisible) {
+    return <Box sx={{ minWidth: 120, height: 40, bgcolor: 'action.hover' }} />;
+  }
+
+  // 3. Render with Merged Props (enables disabled logic, dynamic labels, etc.)
+  return (
+    <Box sx={{ '& .MuiFormControl-root': { mb: 0 }, minWidth: 120 }}>
+      <RenderItem item={mergedItem} pathPrefix={pathPrefix} />
+    </Box>
   );
 }
 
@@ -67,10 +92,8 @@ function DataGridContent({
               <TableRow key={field.id} hover>
                 {item.columns.map((col, colIdx) => (
                   <TableCell key={colIdx}>
-                    <Box sx={{ '& .MuiFormControl-root': { mb: 0 }, minWidth: 120 }}>
-                      {/* Atomic Rendering: No extra Grid wrappers here, just the Input Control */}
-                      <RenderItem item={col.field} pathPrefix={`${item.name}.${index}`} />
-                    </Box>
+                    {/* USE THE WRAPPER HERE instead of direct RenderItem */}
+                    <DataGridCell item={col.field} pathPrefix={`${item.name}.${index}`} />
                   </TableCell>
                 ))}
                 <TableCell align="right">

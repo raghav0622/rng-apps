@@ -29,7 +29,7 @@ export function RNGWizardLayout<S extends FormSchema>({
   const [activeStep, setActiveStep] = useState(0);
   const {
     trigger,
-    formState: { isSubmitting },
+    formState: { isSubmitting, errors },
   } = useFormContext();
 
   const steps = item.steps;
@@ -38,10 +38,33 @@ export function RNGWizardLayout<S extends FormSchema>({
   const handleNext = async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const currentStepFields = getFieldNames(steps[activeStep].children, pathPrefix) as any;
+
+    // Trigger validation for current step only
     const isValid = await trigger(currentStepFields);
 
     if (isValid) {
       setActiveStep((prev) => prev + 1);
+    } else {
+      // UX IMPROVEMENT: Scroll to first error
+      // We wait a tick to ensure UI is updated (though errors object updates immediately)
+      setTimeout(() => {
+        const errorKeys = Object.keys(errors);
+        // Intersect current step fields with errors to find the first relevant one
+        const stepErrors = currentStepFields.filter((name: string) =>
+          // Handle nested errors (e.g. "user.name" matches "user.name")
+          // simple check:
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          name.split('.').reduce((acc: any, part: string) => acc && acc[part], errors),
+        );
+
+        if (stepErrors.length > 0) {
+          const element = document.getElementsByName(stepErrors[0])[0];
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            element.focus();
+          }
+        }
+      }, 100);
     }
   };
 
@@ -61,6 +84,7 @@ export function RNGWizardLayout<S extends FormSchema>({
     )
       return;
 
+    // Prevent submitting the whole form if we are just moving next
     if (!isLastStep) {
       e.preventDefault();
       e.stopPropagation();

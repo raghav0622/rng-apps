@@ -12,7 +12,7 @@ import { RNGFormProvider } from './FormContext';
 interface RNGFormProps<S extends FormSchema> {
   schema: S;
   uiSchema: FormItem<S>[];
-  defaultValues?: UseFormProps<z.infer<S>>['defaultValues'];
+  defaultValues: UseFormProps<z.infer<S>>['defaultValues'];
   onSubmit: (data: z.infer<S>) => void | Promise<void>;
   title?: string;
   titleProps?: TypographyProps;

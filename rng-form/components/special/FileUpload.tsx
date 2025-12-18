@@ -34,14 +34,34 @@ export function RNGFileUpload<S extends FormSchema>({ item }: RNGFileUploadProps
           }
         };
 
-        const renderChip = (file: File | any, index: number) => {
-          const label = file instanceof File ? file.name : file?.name || 'Unknown File';
+        const renderChip = (file: File | string | any, index: number) => {
+          // LOGIC FIX: Handle String URLs gracefully
+          let label = 'Unknown File';
+          let isUrl = false;
+
+          if (file instanceof File) {
+            label = file.name;
+          } else if (typeof file === 'string') {
+            // Extract filename from URL or show truncated URL
+            label = file.split('/').pop() || file;
+            if (label.length > 20) label = label.substring(0, 17) + '...';
+            isUrl = true;
+          } else if (file?.name) {
+            label = file.name;
+          }
+
           return (
             <Chip
               key={index}
               label={label}
+              // Optional: Make chip clickable if it's a URL
+              component={isUrl ? 'a' : 'div'}
+              href={isUrl ? (file as string) : undefined}
+              target={isUrl ? '_blank' : undefined}
+              clickable={isUrl}
               onDelete={!mergedItem.disabled ? () => handleDelete(index) : undefined}
               deleteIcon={<Delete />}
+              color={fieldState.error ? 'error' : 'default'}
             />
           );
         };
@@ -76,6 +96,10 @@ export function RNGFileUpload<S extends FormSchema>({ item }: RNGFileUploadProps
                 onChange={(e) => {
                   const files = e.target.files;
                   if (files && files.length > 0) {
+                    // Logic: Append if multiple, replace if single
+                    // Note: This replaces entirely. Merging with existing URLs requires more complex logic
+                    // (combining File[] and string[]), which usually requires a specialized 'UploadManager'.
+                    // For a simple Field, replacing is standard behavior unless custom logic is added.
                     const value = mergedItem.multiple ? Array.from(files) : files[0];
                     field.onChange(value);
                   }
@@ -95,6 +119,8 @@ export function RNGFileUpload<S extends FormSchema>({ item }: RNGFileUploadProps
                   : renderChip(field.value, 0)}
               </Box>
             )}
+
+            {/* Error Message is handled by FieldWrapper, but we can double check */}
           </Box>
         );
       }}

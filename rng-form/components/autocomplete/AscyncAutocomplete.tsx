@@ -8,7 +8,6 @@ import { useFormContext } from 'react-hook-form';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-// Helper to safe compare options
 const compareOptions = (opt: any, val: any) => {
   if (!val) return false;
   const optVal = typeof opt === 'string' ? opt : opt.value;
@@ -16,10 +15,9 @@ const compareOptions = (opt: any, val: any) => {
   return optVal === fieldVal;
 };
 
-// --- ASYNC AUTOCOMPLETE ---
 interface RNGAsyncAutocompleteProps<S extends FormSchema> {
   item: InputItem<S> & { type: 'async-autocomplete' };
-  pathPrefix?: string;
+  pathPrefix?: string; // <--- Added
 }
 
 export function RNGAsyncAutocomplete<S extends FormSchema>({
@@ -35,20 +33,14 @@ export function RNGAsyncAutocomplete<S extends FormSchema>({
 
   useEffect(() => {
     let active = true;
-
-    if (!open) {
-      return undefined;
-    }
+    if (!open) return undefined;
 
     const fetchData = async () => {
       setLoading(true);
       try {
         const currentFormValues = getValues();
-        // We know item.loadOptions exists because of strict type
         const results = await item.loadOptions(inputValue, currentFormValues as any);
-        if (active) {
-          setOptions(results);
-        }
+        if (active) setOptions(results);
       } catch (err) {
         logError('Async Fetch Error', { error: err });
       } finally {
@@ -56,8 +48,7 @@ export function RNGAsyncAutocomplete<S extends FormSchema>({
       }
     };
 
-    const timer = setTimeout(fetchData, 400); // Debounce
-
+    const timer = setTimeout(fetchData, 400);
     return () => {
       active = false;
       clearTimeout(timer);
@@ -67,7 +58,7 @@ export function RNGAsyncAutocomplete<S extends FormSchema>({
   return (
     <FieldWrapper item={item} name={item.name} pathPrefix={pathPrefix}>
       {(field, _, mergedItem) => {
-        // Fix: Ensure value is never undefined to prevent MUI "uncontrolled to controlled" error
+        // Fix: Default to null/[] if undefined to prevent controlled/uncontrolled error
         const value = field.value === undefined ? (mergedItem.multiple ? [] : null) : field.value;
 
         return (

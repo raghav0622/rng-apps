@@ -18,8 +18,7 @@ import { z } from 'zod';
 interface FieldWrapperProps<S extends FormSchema, T extends BaseFormItem<S>> {
   item: T;
   name: Path<z.infer<S>>;
-  /** Crucial for scoping logic in nested structures like Arrays */
-  pathPrefix?: string;
+  pathPrefix?: string; // <--- Added this prop
   children: (
     field: ControllerRenderProps<FieldValues, string>,
     fieldState: ControllerFieldState,
@@ -34,8 +33,7 @@ export function FieldWrapper<S extends FormSchema, T extends BaseFormItem<S>>({
   children,
 }: FieldWrapperProps<S, T>) {
   const { control } = useFormContext();
-
-  // Fix: Pass pathPrefix to support relative dependencies (e.g., sibling fields)
+  // Pass pathPrefix here so logic knows where to look
   const { isVisible, mergedItem } = useFieldLogic<S, T>(item, pathPrefix);
 
   if (!isVisible) return null;

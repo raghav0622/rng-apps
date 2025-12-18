@@ -5,7 +5,6 @@ import { Autocomplete, TextField } from '@mui/material';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-// Helper to safe compare options
 const compareOptions = (opt: any, val: any) => {
   if (!val) return false;
   const optVal = typeof opt === 'string' ? opt : opt.value;
@@ -13,10 +12,9 @@ const compareOptions = (opt: any, val: any) => {
   return optVal === fieldVal;
 };
 
-// --- SYNC AUTOCOMPLETE ---
 interface RNGAutocompleteProps<S extends FormSchema> {
   item: InputItem<S> & { type: 'autocomplete' };
-  pathPrefix?: string;
+  pathPrefix?: string; // <--- Added
 }
 
 export function RNGAutocomplete<S extends FormSchema>({
@@ -26,7 +24,7 @@ export function RNGAutocomplete<S extends FormSchema>({
   return (
     <FieldWrapper item={item} name={item.name} pathPrefix={pathPrefix}>
       {(field, _, mergedItem) => {
-        // Fix: Ensure value is never undefined to prevent MUI "uncontrolled to controlled" error
+        // Fix: Default to null/[] if undefined to prevent controlled/uncontrolled error
         const value = field.value === undefined ? (mergedItem.multiple ? [] : null) : field.value;
 
         return (

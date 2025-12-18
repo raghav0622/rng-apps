@@ -3,8 +3,9 @@
 import { ResetPasswordInput, ResetPasswordSchema } from '@/features/auth/auth.model';
 import { clientAuth } from '@/lib/firebase/client';
 import { RNGForm } from '@/rng-form/components/RNGForm';
-import { Alert, Box, CircularProgress, Typography } from '@mui/material';
+import { Alert, Box, Button, CircularProgress, Typography } from '@mui/material';
 import { confirmPasswordReset, verifyPasswordResetCode } from 'firebase/auth';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSnackbar } from 'notistack';
 import { Suspense, useEffect, useState } from 'react';
@@ -14,22 +15,21 @@ function ResetPasswordContent() {
   const searchParams = useSearchParams();
   const { enqueueSnackbar } = useSnackbar();
 
-  // Get the code from the URL (Firebase appends ?oobCode=...)
   const oobCode = searchParams.get('oobCode');
 
   const [email, setEmail] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(true);
-  const [isInvalid, setIsInvalid] = useState(false);
+  const [linkStatus, setLinkStatus] = useState<'valid' | 'invalid' | 'used'>('valid');
 
   useEffect(() => {
     if (!oobCode) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setIsInvalid(true);
+      setLinkStatus('invalid');
       setIsVerifying(false);
       return;
     }
 
-    // 1. Verify the code is valid AND get the email address associated with it
+    // Verify the code
     verifyPasswordResetCode(clientAuth, oobCode)
       .then((emailAddress) => {
         setEmail(emailAddress);
@@ -37,7 +37,8 @@ function ResetPasswordContent() {
       })
       .catch((error) => {
         console.error('Link verification failed:', error);
-        setIsInvalid(true);
+        // If the code is invalid, it might be expired OR already used (on the Firebase page)
+        setLinkStatus('used');
         setIsVerifying(false);
       });
   }, [oobCode]);
@@ -62,22 +63,28 @@ function ResetPasswordContent() {
     );
   }
 
-  if (isInvalid) {
+  // Handle the case where the link is invalid/used
+  if (linkStatus !== 'valid') {
     return (
-      <Box sx={{ textAlign: 'center' }}>
-        <Typography variant="h6" color="error" gutterBottom>
-          Invalid or Expired Link
-        </Typography>
+      <Box sx={{ textAlign: 'center', p: 3 }}>
+        <Alert severity="warning" sx={{ mb: 3, justifyContent: 'center' }}>
+          Link Expired or Already Used
+        </Alert>
         <Typography paragraph color="text.secondary">
-          This password reset link is invalid or has already been used. Please request a new one.
+          This usually happens if you already reset your password on the previous screen.
         </Typography>
+        <Typography paragraph>
+          If you successfully reset your password just now, you can log in.
+        </Typography>
+        <Button variant="contained" component={Link} href="/login">
+          Go to Login
+        </Button>
       </Box>
     );
   }
 
   return (
     <>
-      {/* Display the email address we verified */}
       {email && (
         <Alert severity="info" sx={{ mb: 3 }}>
           Resetting password for <strong>{email}</strong>

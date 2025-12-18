@@ -1,3 +1,6 @@
+import { LOGIN_ROUTE } from '@/lib/routes';
+import { redirect } from 'next/navigation';
+
 export default function Page() {
-  return <div>Welcome to RNG Apps!</div>;
+  redirect(LOGIN_ROUTE);
 }

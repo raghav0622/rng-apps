@@ -26,20 +26,20 @@ export interface BaseEntity {
   deletedAt: Timestamp | null;
 }
 
-export interface OrgScopedBaseEntity {
-  id: string;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-  deletedAt: Timestamp | null;
+export interface OrgScopedBaseEntity extends BaseEntity {
+  orgId: string;
 }
+
+// Standardized Server Action Response
+export type ActionResponse<T> = { success: true; data: T } | { success: false; error: AppError };
 
 export type AuthContext = {
   userId: string;
+  email?: string;
 };
 
-export type OrgContext = {
+export type OrgContext = AuthContext & {
   orgId: string;
-  userId: string;
   role: string;
 };
 

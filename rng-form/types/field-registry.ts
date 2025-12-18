@@ -100,6 +100,11 @@ export interface InputFieldRegistry<S extends FormSchema> {
     max?: number;
     placeholder?: string;
     formatOptions?: NumberFormatOptions;
+    /**
+     * If true, allows entering math expressions (e.g., "100 + 50 * 2")
+     * which are evaluated on blur.
+     */
+    enableMath?: boolean;
   };
 
   date: { minDate?: Date; maxDate?: Date };

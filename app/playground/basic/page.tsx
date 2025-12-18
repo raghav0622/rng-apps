@@ -7,12 +7,17 @@ import { Box, Paper, Typography } from '@mui/material';
 import { z } from 'zod';
 
 const schema = z.object({
+  testMath: z.coerce.number(),
   profilephoto: z.boolean(),
   avatar: z.any().optional(),
   images: z.array(z.any()).optional(),
 });
 
 const uiSchema = defineForm<typeof schema>((f) => [
+  f.number('testMath', {
+    label: 'Test Math',
+    enableMath: true,
+  }),
   f.switch('profilephoto', {
     label: 'Profile Photo',
   }),

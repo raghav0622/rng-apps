@@ -31,7 +31,14 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material';
-import React, { useEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { Cropper, CropperRef, ImageRestriction } from 'react-advanced-cropper';
 import 'react-advanced-cropper/dist/style.css';
 
@@ -68,9 +75,105 @@ const ASPECT_RATIOS = [
 ];
 
 /**
- * MEMOIZED CROPPER STAGE
- * This component is heavy. We memoize it so it DOES NOT re-render when slider values change.
- * Visual updates are handled via CSS Variables injected into the container ref.
+ * OPTIMIZATION 1: Independent Filter Control
+ * This component manages its OWN state. Dragging the slider only re-renders THIS component.
+ * It communicates to the outside world via direct callback and ref updates.
+ */
+interface FilterControlRef {
+  reset: (val: number) => void;
+}
+
+const IndependentFilterControl = React.forwardRef(
+  (
+    {
+      label,
+      icon,
+      field,
+      initialValue,
+      onChange,
+      min = 0,
+      max = 200,
+    }: {
+      label: string;
+      icon: React.ReactNode;
+      field: keyof EditorFilters;
+      initialValue: number;
+      onChange: (field: keyof EditorFilters, val: number) => void;
+      min?: number;
+      max?: number;
+    },
+    ref: React.Ref<FilterControlRef>,
+  ) => {
+    const [value, setValue] = useState(initialValue);
+
+    // Allow parent to reset this component's local state
+    useImperativeHandle(ref, () => ({
+      reset: (val: number) => setValue(val),
+    }));
+
+    const handleChange = (newVal: number) => {
+      setValue(newVal);
+      onChange(field, newVal);
+    };
+
+    return (
+      <Box>
+        <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.5}>
+          <Box display="flex" alignItems="center" gap={1} color="text.secondary">
+            {icon}
+            <Typography variant="body2" fontWeight={500}>
+              {label}
+            </Typography>
+          </Box>
+          <Typography variant="caption" color="text.secondary" fontWeight="mono">
+            {value}%
+          </Typography>
+        </Box>
+
+        <Grid container spacing={2} alignItems="center">
+          <Grid size={{ xs: 8, sm: 9 }}>
+            <Slider
+              size="small"
+              value={value}
+              min={min}
+              max={max}
+              onChange={(_, v) => handleChange(v as number)}
+              aria-label={label}
+            />
+          </Grid>
+          <Grid size={{ xs: 4, sm: 3 }}>
+            <TextField
+              variant="outlined"
+              size="small"
+              value={value}
+              onChange={(e) => {
+                const num = parseFloat(e.target.value);
+                if (!isNaN(num)) handleChange(num);
+              }}
+              slotProps={{
+                htmlInput: {
+                  min,
+                  max,
+                  step: 1,
+                  style: {
+                    textAlign: 'center',
+                    padding: '4px 2px',
+                    fontSize: '0.85rem',
+                  },
+                },
+              }}
+            />
+          </Grid>
+        </Grid>
+      </Box>
+    );
+  },
+);
+IndependentFilterControl.displayName = 'IndependentFilterControl';
+
+/**
+ * OPTIMIZATION 2: Memoized Cropper Stage
+ * Strictly memoized to ensure NO re-renders happen when sliders move.
  */
 const MemoizedCropperStage = React.memo(
   React.forwardRef(
@@ -78,22 +181,23 @@ const MemoizedCropperStage = React.memo(
       {
         loading,
         optimizedSrc,
-        aspect,
-        cropShape,
+        stencilProps, // Passing complex object? Must be memoized in parent!
         onCropperInit,
+        cropShape,
       }: {
         loading: boolean;
         optimizedSrc: string | null;
-        aspect?: number;
-        cropShape: 'rect' | 'round';
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        stencilProps: any;
         onCropperInit: (ref: CropperRef) => void;
+        cropShape: 'rect' | 'round';
       },
       forwardedRef: React.ForwardedRef<HTMLDivElement>,
     ) => {
       return (
         <Grid
           size={{ xs: 12, md: 9 }}
-          ref={forwardedRef}
+          ref={forwardedRef} // This ref receives the CSS Variable injections
           className="rng-editor-stage"
           sx={{
             position: 'relative',
@@ -120,16 +224,15 @@ const MemoizedCropperStage = React.memo(
                 ref={onCropperInit}
                 src={optimizedSrc}
                 className="rng-cropper"
-                stencilProps={{
-                  aspectRatio: aspect,
-                  grid: true,
-                  previewClassName: cropShape === 'round' ? 'circle-preview' : undefined,
-                }}
+                stencilProps={stencilProps}
                 style={{ height: '100%', width: '100%', outline: 'none' }}
                 imageRestriction={ImageRestriction.stencil}
               />
 
-              {/* Robust CSS Injection for Filters */}
+              {/* CSS INJECTION FOR FILTERS
+                  This applies the variables set on the parent Grid to the internal image.
+                  "will-change" hints the browser to promote this to a GPU layer.
+              */}
               <style
                 dangerouslySetInnerHTML={{
                   __html: `
@@ -138,7 +241,8 @@ const MemoizedCropperStage = React.memo(
                      filter: brightness(var(--brightness, 100%)) 
                              contrast(var(--contrast, 100%)) 
                              saturate(var(--saturation, 100%));
-                     will-change: filter;
+                     will-change: filter; 
+                     transition: none; /* Instant updates for sliders */
                   }
                   ${
                     cropShape === 'round'
@@ -161,7 +265,6 @@ const MemoizedCropperStage = React.memo(
     },
   ),
 );
-
 MemoizedCropperStage.displayName = 'MemoizedCropperStage';
 
 export function ImageEditorModal({
@@ -176,38 +279,45 @@ export function ImageEditorModal({
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down('md'));
 
+  // Refs
   const cropperRef = useRef<CropperRef>(null);
   const editorContainerRef = useRef<HTMLDivElement>(null);
 
-  // --- State ---
-  // UI State for sliders (re-renders controls, but NOT cropper due to memo)
-  const [filters, setFilters] = useState<EditorFilters>(DEFAULT_FILTERS);
+  // References to child components to reset them without re-rendering parent
+  const brightnessRef = useRef<FilterControlRef>(null);
+  const contrastRef = useRef<FilterControlRef>(null);
+  const saturationRef = useRef<FilterControlRef>(null);
 
-  // Committed state for Saving (Debounced)
-  const committedFiltersRef = useRef<EditorFilters>(DEFAULT_FILTERS);
-
-  const [saving, setSaving] = useState(false);
+  // State (Only structural state causes re-renders)
   const [aspect, setAspect] = useState<number | undefined>(initialAspectRatio);
   const [flipState, setFlipState] = useState({ h: false, v: false });
-
-  // Optimization State
+  const [saving, setSaving] = useState(false);
   const [optimizedSrc, setOptimizedSrc] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // --- 1. Optimization Phase ---
+  // Mutable State for Logic (Does not trigger renders)
+  const currentFilters = useRef<EditorFilters>({ ...DEFAULT_FILTERS });
+
+  // --- Optimization Logic ---
   useEffect(() => {
     let active = true;
 
     if (open && src) {
       setLoading(true);
-      // Reset
-      setFilters(DEFAULT_FILTERS);
-      committedFiltersRef.current = DEFAULT_FILTERS;
+
+      // Reset logic state
+      currentFilters.current = { ...DEFAULT_FILTERS };
       setAspect(initialAspectRatio);
       setFlipState({ h: false, v: false });
-      updateCSSVariables(DEFAULT_FILTERS);
 
-      resizeImageForEditor(src, 2048)
+      // Reset Visuals
+      updateCSSVariables(DEFAULT_FILTERS);
+      brightnessRef.current?.reset(100);
+      contrastRef.current?.reset(100);
+      saturationRef.current?.reset(100);
+
+      // Resize logic
+      resizeImageForEditor(src, 1600) // Lowered to 1600 for safer mobile performance
         .then((url) => {
           if (active) {
             setOptimizedSrc(url);
@@ -215,7 +325,7 @@ export function ImageEditorModal({
           }
         })
         .catch((err) => {
-          console.error('Image optimization failed, falling back to original', err);
+          console.error('Optimization failed', err);
           if (active) {
             setOptimizedSrc(src);
             setLoading(false);
@@ -233,27 +343,28 @@ export function ImageEditorModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, src]);
 
-  // --- Helper: CSS Updates ---
+  // --- Helpers ---
+
   const updateCSSVariables = (vals: EditorFilters) => {
     if (editorContainerRef.current) {
       const el = editorContainerRef.current;
+      // Direct DOM update - Zero React overhead
       el.style.setProperty('--brightness', `${vals.brightness}%`);
       el.style.setProperty('--contrast', `${vals.contrast}%`);
       el.style.setProperty('--saturation', `${vals.saturation}%`);
     }
   };
 
-  // --- Handlers ---
+  // Callback passed to independent children
+  const handleFilterUpdate = useCallback((field: keyof EditorFilters, val: number) => {
+    // 1. Update the mutable ref (source of truth for Save)
+    currentFilters.current[field] = val;
 
-  const handleFilterChange = (field: keyof EditorFilters, value: number) => {
-    const newFilters = { ...filters, [field]: value };
-    // 1. Update UI (Sliders)
-    setFilters(newFilters);
-    // 2. Update Visuals (Instant CSS)
-    updateCSSVariables(newFilters);
-    // 3. Update Ref for Save (No Debounce needed for ref, it's cheap)
-    committedFiltersRef.current = newFilters;
-  };
+    // 2. Update the visual preview immediately
+    if (editorContainerRef.current) {
+      editorContainerRef.current.style.setProperty(`--${field}`, `${val}%`);
+    }
+  }, []); // Empty dependency array = never re-creates
 
   const handleSave = async () => {
     if (!cropperRef.current || !optimizedSrc) return;
@@ -263,10 +374,10 @@ export function ImageEditorModal({
       const canvas = cropperRef.current.getCanvas();
       if (!canvas) throw new Error('Could not create canvas');
 
-      // Use the ref to get the most recent values
+      // Use the ref values
       const file = await applyFiltersAndSave(
         canvas,
-        committedFiltersRef.current,
+        currentFilters.current,
         `edited_${Date.now()}.jpg`,
       );
 
@@ -281,9 +392,7 @@ export function ImageEditorModal({
     }
   };
 
-  const rotateImage = (angle: number) => {
-    cropperRef.current?.rotateImage(angle);
-  };
+  const rotateImage = (angle: number) => cropperRef.current?.rotateImage(angle);
 
   const flipImage = (type: 'h' | 'v') => {
     if (!cropperRef.current) return;
@@ -294,83 +403,28 @@ export function ImageEditorModal({
   };
 
   const handleReset = () => {
-    setFilters(DEFAULT_FILTERS);
-    committedFiltersRef.current = DEFAULT_FILTERS;
+    currentFilters.current = { ...DEFAULT_FILTERS };
     updateCSSVariables(DEFAULT_FILTERS);
+
+    // Reset independent components
+    brightnessRef.current?.reset(100);
+    contrastRef.current?.reset(100);
+    saturationRef.current?.reset(100);
+
     setAspect(initialAspectRatio);
     setFlipState({ h: false, v: false });
     cropperRef.current?.reset();
   };
 
-  // --- UI Sub-components ---
-
-  const FilterControl = ({
-    label,
-    icon,
-    value,
-    field,
-    min = 0,
-    max = 200,
-  }: {
-    label: string;
-    icon: React.ReactNode;
-    value: number;
-    field: keyof EditorFilters;
-    min?: number;
-    max?: number;
-  }) => {
-    return (
-      <Box>
-        <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.5}>
-          <Box display="flex" alignItems="center" gap={1} color="text.secondary">
-            {icon}
-            <Typography variant="body2" fontWeight={500}>
-              {label}
-            </Typography>
-          </Box>
-          <Typography variant="caption" color="text.secondary" fontWeight="mono">
-            {value}%
-          </Typography>
-        </Box>
-
-        <Grid container spacing={2} alignItems="center">
-          <Grid size={{ xs: 8, sm: 9 }}>
-            <Slider
-              size="small"
-              value={value}
-              min={min}
-              max={max}
-              onChange={(_, v) => handleFilterChange(field, v as number)}
-              aria-label={label}
-            />
-          </Grid>
-          <Grid size={{ xs: 4, sm: 3 }}>
-            <TextField
-              variant="outlined"
-              size="small"
-              value={value}
-              onChange={(e) => {
-                const num = parseFloat(e.target.value);
-                if (!isNaN(num)) handleFilterChange(field, num);
-              }}
-              slotProps={{
-                htmlInput: {
-                  min,
-                  max,
-                  step: 1,
-                  style: {
-                    textAlign: 'center',
-                    padding: '4px 2px',
-                    fontSize: '0.85rem',
-                  },
-                },
-              }}
-            />
-          </Grid>
-        </Grid>
-      </Box>
-    );
-  };
+  // OPTIMIZATION 3: Memoize stencil props to prevent Cropper re-renders
+  const stencilProps = useMemo(
+    () => ({
+      aspectRatio: aspect,
+      grid: true,
+      previewClassName: cropShape === 'round' ? 'circle-preview' : undefined,
+    }),
+    [aspect, cropShape],
+  );
 
   return (
     <Dialog
@@ -424,14 +478,12 @@ export function ImageEditorModal({
 
       <DialogContent sx={{ p: 0, display: 'flex', flexDirection: 'column', height: '100%' }}>
         <Grid container sx={{ flex: 1, height: '100%' }}>
-          {/* --- LEFT: CANVAS AREA --- 
-            Isolated in memoized component to prevent re-renders on slider move 
-          */}
+          {/* --- LEFT: CANVAS AREA --- */}
           <MemoizedCropperStage
             ref={editorContainerRef}
             loading={loading}
             optimizedSrc={optimizedSrc}
-            aspect={aspect}
+            stencilProps={stencilProps}
             cropShape={cropShape}
             onCropperInit={(ref) => {
               cropperRef.current = ref;
@@ -452,7 +504,7 @@ export function ImageEditorModal({
             }}
           >
             <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {/* 1. Transform Section */}
+              {/* Transform Section */}
               <Box>
                 <Typography
                   variant="overline"
@@ -533,7 +585,7 @@ export function ImageEditorModal({
 
               <Box sx={{ borderBottom: 1, borderColor: 'rgba(255,255,255,0.1)' }} />
 
-              {/* 2. Adjustments Section */}
+              {/* Adjustments Section - Completely Isolated */}
               <Box>
                 <Box display="flex" alignItems="center" gap={1} mb={2}>
                   <Tune fontSize="small" color="primary" />
@@ -543,23 +595,29 @@ export function ImageEditorModal({
                 </Box>
 
                 <Stack spacing={3}>
-                  <FilterControl
+                  <IndependentFilterControl
+                    ref={brightnessRef}
                     label="Brightness"
                     field="brightness"
-                    value={filters.brightness}
+                    initialValue={100}
                     icon={<Brightness6 fontSize="small" />}
+                    onChange={handleFilterUpdate}
                   />
-                  <FilterControl
+                  <IndependentFilterControl
+                    ref={contrastRef}
                     label="Contrast"
                     field="contrast"
-                    value={filters.contrast}
+                    initialValue={100}
                     icon={<Contrast fontSize="small" />}
+                    onChange={handleFilterUpdate}
                   />
-                  <FilterControl
+                  <IndependentFilterControl
+                    ref={saturationRef}
                     label="Saturation"
                     field="saturation"
-                    value={filters.saturation}
+                    initialValue={100}
                     icon={<InvertColors fontSize="small" />}
+                    onChange={handleFilterUpdate}
                   />
                 </Stack>
               </Box>

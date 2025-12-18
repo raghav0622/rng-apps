@@ -1,6 +1,6 @@
 'use client';
 
-import { applyFiltersAndSave } from '@/rng-form/utils/image-processing';
+import { applyFiltersAndSave, resizeImageForEditor } from '@/rng-form/utils/image-processing';
 import {
   Brightness6,
   Close,
@@ -18,6 +18,7 @@ import {
   Box,
   Button,
   Chip,
+  CircularProgress,
   Dialog,
   DialogContent,
   Grid,
@@ -31,10 +32,16 @@ import {
   useTheme,
 } from '@mui/material';
 import React, { useEffect, useRef, useState } from 'react';
-import { Cropper, ImageRestriction } from 'react-advanced-cropper';
+import { Cropper, CropperRef, ImageRestriction } from 'react-advanced-cropper';
 import 'react-advanced-cropper/dist/style.css';
 
 // --- Types ---
+
+export interface EditorFilters {
+  brightness: number;
+  contrast: number;
+  saturation: number;
+}
 
 interface ImageEditorModalProps {
   open: boolean;
@@ -46,13 +53,7 @@ interface ImageEditorModalProps {
   cropShape?: 'rect' | 'round';
 }
 
-interface FilterState {
-  brightness: number;
-  contrast: number;
-  saturation: number;
-}
-
-const DEFAULT_FILTERS: FilterState = {
+const DEFAULT_FILTERS: EditorFilters = {
   brightness: 100,
   contrast: 100,
   saturation: 100,
@@ -78,29 +79,62 @@ export function ImageEditorModal({
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down('md'));
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const cropperRef = useRef<any>(null);
+  const cropperRef = useRef<CropperRef>(null);
 
-  // Ref for the container to apply CSS variables directly (Performance Fix)
+  // Ref to the container to inject CSS variables for high-performance updates
   const editorContainerRef = useRef<HTMLDivElement>(null);
 
   // --- State ---
-  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
+  const [filters, setFilters] = useState<EditorFilters>(DEFAULT_FILTERS);
   const [saving, setSaving] = useState(false);
   const [aspect, setAspect] = useState<number | undefined>(initialAspectRatio);
   const [flipState, setFlipState] = useState({ h: false, v: false });
 
-  // Reset on open
+  // Optimization State
+  const [optimizedSrc, setOptimizedSrc] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  // --- 1. Optimization Phase ---
+  // Resizes high-res images to prevent browser lag during editing
   useEffect(() => {
-    if (open) {
+    let active = true;
+
+    if (open && src) {
+      setLoading(true);
       setFilters(DEFAULT_FILTERS);
       setAspect(initialAspectRatio);
       setFlipState({ h: false, v: false });
-    }
-  }, [open, src, initialAspectRatio]);
 
-  // --- PERFORMANCE: Update CSS Variables Directly ---
-  // This avoids re-rendering the heavy Cropper component when sliders move.
+      // Resize to max 2048px (high quality for web, but fast for filters)
+      resizeImageForEditor(src, 2048)
+        .then((url) => {
+          if (active) {
+            setOptimizedSrc(url);
+            setLoading(false);
+          }
+        })
+        .catch((err) => {
+          console.error('Image optimization failed, falling back to original', err);
+          if (active) {
+            setOptimizedSrc(src);
+            setLoading(false);
+          }
+        });
+    }
+
+    return () => {
+      active = false;
+      // Cleanup Blob URL to prevent memory leaks
+      if (optimizedSrc && optimizedSrc !== src && optimizedSrc.startsWith('blob:')) {
+        URL.revokeObjectURL(optimizedSrc);
+      }
+      setOptimizedSrc(null);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, src]);
+
+  // --- 2. Filter Application (CSS Variables) ---
+  // We use CSS variables on the container to avoid re-rendering the React component on slider moves.
   useEffect(() => {
     if (editorContainerRef.current) {
       const el = editorContainerRef.current;
@@ -113,15 +147,15 @@ export function ImageEditorModal({
   // --- Handlers ---
 
   const handleSave = async () => {
-    if (!cropperRef.current || !src) return;
+    if (!cropperRef.current || !optimizedSrc) return;
 
     setSaving(true);
     try {
-      // 1. Get Geometry-Corrected Canvas
+      // 1. Get Canvas (geometry applied)
       const canvas = cropperRef.current.getCanvas();
       if (!canvas) throw new Error('Could not create canvas');
 
-      // 2. Apply Filters (Brightness/Contrast) and Save
+      // 2. Apply Filters (burn them into the pixel data)
       const file = await applyFiltersAndSave(canvas, filters, `edited_${Date.now()}.jpg`);
 
       if (file) {
@@ -154,7 +188,7 @@ export function ImageEditorModal({
     cropperRef.current?.reset();
   };
 
-  // --- UI Components ---
+  // --- UI Sub-components ---
 
   const FilterControl = ({
     label,
@@ -167,7 +201,7 @@ export function ImageEditorModal({
     label: string;
     icon: React.ReactNode;
     value: number;
-    field: keyof FilterState;
+    field: keyof EditorFilters;
     min?: number;
     max?: number;
   }) => {
@@ -242,7 +276,7 @@ export function ImageEditorModal({
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
-          bgcolor: '#121212', // Force dark background for editor
+          bgcolor: '#121212',
           color: '#ffffff',
         },
       }}
@@ -269,7 +303,7 @@ export function ImageEditorModal({
             color="primary"
             variant="contained"
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || loading}
             startIcon={<Save />}
             sx={{ fontWeight: 'bold' }}
           >
@@ -283,7 +317,8 @@ export function ImageEditorModal({
           {/* --- LEFT: CANVAS AREA --- */}
           <Grid
             size={{ xs: 12, md: 9 }}
-            ref={editorContainerRef}
+            ref={editorContainerRef} // Ref attached here to inject variables
+            className="rng-editor-stage" // Class for CSS targeting
             sx={{
               position: 'relative',
               bgcolor: '#000000',
@@ -294,58 +329,62 @@ export function ImageEditorModal({
               alignItems: 'center',
               justifyContent: 'center',
               overflow: 'hidden',
-              // The CSS Variables are injected here by the useEffect above
             }}
           >
-            {src && (
-              <Box
-                sx={{
-                  width: '100%',
-                  height: '100%',
-                  // Target the internal image of react-advanced-cropper
-                  // Use variables for zero-latency updates
-                  '& .rac-image': {
-                    filter: `
-                      brightness(var(--brightness, 100%)) 
-                      contrast(var(--contrast, 100%)) 
-                      saturate(var(--saturation, 100%))
-                    `,
-                    transition: 'filter 0.1s linear',
-                    willChange: 'filter',
-                  },
-                }}
-              >
-                {}
+            {loading ? (
+              <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
+                <CircularProgress color="primary" />
+                <Typography variant="caption" color="text.secondary">
+                  Optimizing image...
+                </Typography>
+              </Box>
+            ) : optimizedSrc ? (
+              <Box sx={{ width: '100%', height: '100%' }}>
                 <Cropper
                   ref={cropperRef}
-                  src={src}
-                  className={'cropper'}
+                  src={optimizedSrc}
+                  className="rng-cropper" // Unique class for targeting
                   stencilProps={{
                     aspectRatio: aspect,
                     grid: true,
-                    // Fix: Ensure we don't pass undefined class if round is not active
                     previewClassName: cropShape === 'round' ? 'circle-preview' : undefined,
                   }}
                   style={{ height: '100%', width: '100%', outline: 'none' }}
                   imageRestriction={ImageRestriction.stencil}
                 />
 
-                {/* Circular Mask Styles */}
-                {cropShape === 'round' && (
-                  <style
-                    dangerouslySetInnerHTML={{
-                      __html: `
+                {/* Robust CSS Injection:
+                  1. Targets .rng-cropper img (Deep selector) to hit the internal image 
+                  2. Uses CSS variables set on the container for instant updates 
+                */}
+                <style
+                  dangerouslySetInnerHTML={{
+                    __html: `
+                    /* Apply filters to the internal image */
+                    .rng-editor-stage .rng-cropper img,
+                    .rng-editor-stage .rng-cropper .rac-image {
+                       filter: brightness(var(--brightness, 100%)) 
+                               contrast(var(--contrast, 100%)) 
+                               saturate(var(--saturation, 100%));
+                       will-change: filter;
+                    }
+
+                    ${
+                      cropShape === 'round'
+                        ? `
                     .circle-preview {
                       border-radius: 50%;
                       cursor: move;
                       box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.85);
                     }
+                    `
+                        : ''
+                    }
                   `,
-                    }}
-                  />
-                )}
+                  }}
+                />
               </Box>
-            )}
+            ) : null}
           </Grid>
 
           {/* --- RIGHT: CONTROLS SIDEBAR --- */}
@@ -354,9 +393,12 @@ export function ImageEditorModal({
             sx={{
               height: { xs: '50%', md: '100%' },
               overflowY: 'auto',
-              bgcolor: '#1e1e1e', // Dark Sidebar
+              bgcolor: '#1e1e1e',
               borderTop: { xs: 1, md: 0 },
               borderColor: 'rgba(255,255,255,0.1)',
+              // Disable controls while optimizing
+              pointerEvents: loading ? 'none' : 'auto',
+              opacity: loading ? 0.5 : 1,
             }}
           >
             <Box sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 4 }}>

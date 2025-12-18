@@ -40,6 +40,8 @@ function MultiImageEditorInner({
   useEffect(() => {
     const files = Array.isArray(field.value) ? field.value : [];
     const newUrls: string[] = [];
+
+    // Create new URLs
     const calculatedPreviews = files.map((file: File | string) => {
       if (file instanceof File) {
         const url = URL.createObjectURL(file);
@@ -48,8 +50,11 @@ function MultiImageEditorInner({
       }
       return file as string;
     });
+
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setObjectUrls(calculatedPreviews);
+
+    // Cleanup function to revoke old URLs
     return () => {
       newUrls.forEach((url) => URL.revokeObjectURL(url));
     };
@@ -60,6 +65,9 @@ function MultiImageEditorInner({
       const newFiles = Array.from(e.target.files);
       const currentFiles = Array.isArray(field.value) ? field.value : [];
       field.onChange([...currentFiles, ...newFiles]);
+
+      // Reset input value to allow re-selection of same file if needed
+      e.target.value = '';
     }
   };
 
@@ -81,6 +89,7 @@ function MultiImageEditorInner({
     const currentFiles = [...(Array.isArray(field.value) ? field.value : [])];
     currentFiles[editingIndex] = newFile;
     field.onChange(currentFiles);
+    // Note: The useEffect will trigger and regenerate the preview URL
   };
 
   return (
@@ -151,7 +160,12 @@ function MultiImageEditorInner({
                 justifyContent: 'center',
                 cursor: 'pointer',
                 color: 'text.secondary',
-                '&:hover': { borderColor: 'primary.main', bgcolor: 'action.hover' },
+                transition: 'all 0.2s',
+                '&:hover': {
+                  borderColor: 'primary.main',
+                  bgcolor: 'action.hover',
+                  color: 'primary.main',
+                },
               }}
             >
               <VisuallyHiddenInput
@@ -167,9 +181,19 @@ function MultiImageEditorInner({
         )}
       </Grid>
 
+      {/* Ensure error message is displayed if validation fails */}
+      {fieldState.error && (
+        <Typography variant="caption" color="error" sx={{ mt: 1, display: 'block' }}>
+          {fieldState.error.message}
+        </Typography>
+      )}
+
       <ImageEditorModal
         open={editingIndex !== null}
-        onClose={() => setEditingIndex(null)}
+        onClose={() => {
+          setEditingIndex(null);
+          setEditSrc(null);
+        }}
         src={editSrc}
         onSave={handleEditSave}
         aspectRatio={mergedItem.aspectRatio}

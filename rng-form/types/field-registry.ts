@@ -13,33 +13,117 @@ export type RadioOption = {
   icon?: React.ReactNode;
 };
 
-// Workaround for ESLint rule @typescript-eslint/no-empty-object-type
-// We use {} to ensure strict type checking (no extra props allowed) while
-// allowing intersection with BaseFormItem. 'object' or 'unknown' would be too loose.
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type EmptyProps = {};
 
+// --- AUTOCOMPLETE TYPES ---
+
+/** List of standard units for Architecture, Civil, and General Construction */
+export type CommonUnit =
+  // Length
+  | 'mm'
+  | 'cm'
+  | 'm'
+  | 'km'
+  | 'in'
+  | 'ft'
+  | 'yd'
+  | 'mi'
+  // Area
+  | 'sqmm'
+  | 'sqcm'
+  | 'sqm'
+  | 'sqkm'
+  | 'sqin'
+  | 'sqft'
+  | 'sqyd'
+  | 'sqmi'
+  | 'ac'
+  | 'ha'
+  // Volume
+  | 'ml'
+  | 'l'
+  | 'cum'
+  | 'cuft'
+  | 'cuyd'
+  | 'cuin'
+  | 'gal'
+  | 'qt'
+  | 'pt'
+  // Mass
+  | 'mg'
+  | 'g'
+  | 'kg'
+  | 't'
+  | 'oz'
+  | 'lb'
+  | 'ton'
+  // Force / Pressure
+  | 'n'
+  | 'kn'
+  | 'pa'
+  | 'kpa'
+  | 'mpa'
+  | 'bar'
+  | 'psi'
+  // Temperature
+  | 'c'
+  | 'f'
+  | 'deg'
+  // Digital
+  | 'b'
+  | 'kb'
+  | 'mb'
+  | 'gb'
+  | 'tb'
+  // Allow any other string while preserving autocomplete
+  | (string & {});
+
+export type CommonCurrency = 'INR' | (string & {});
+
+/**
+ * Configuration for Number Formatting
+ */
+export interface NumberFormatOptions {
+  style?: 'decimal' | 'currency' | 'unit' | 'percent';
+  /** Currency code (e.g. USD, INR) */
+  currency?: CommonCurrency;
+  /** Unit of measurement (e.g. kg, ft, sqft) */
+  unit?: CommonUnit;
+  minimumFractionDigits?: number;
+  maximumFractionDigits?: number;
+}
+
 /**
  * Registry of all Input Field Props.
- * Key = Field Type
- * Value = Specific Props for that field
  */
 export interface InputFieldRegistry<S extends FormSchema> {
   // Primitives
   text: { placeholder?: string; multiline?: boolean; rows?: number };
   password: { placeholder?: string };
-  number: { min?: number; max?: number; placeholder?: string };
-  currency: { min?: number; max?: number; placeholder?: string; currencyCode?: string };
-  date: { minDate?: Date; maxDate?: Date };
 
-  // FIX: Use EmptyProps to allow intersection with BaseFormItem
+  // Unified Number
+  number: {
+    min?: number;
+    max?: number;
+    placeholder?: string;
+    formatOptions?: NumberFormatOptions;
+  };
+
+  date: { minDate?: Date; maxDate?: Date };
   hidden: EmptyProps;
   color: EmptyProps;
   switch: EmptyProps;
 
   // Specialized
   'masked-text': { mask: string; definitions?: Record<string, unknown>; placeholder?: string };
-  calculated: { calculate: (values: z.infer<S>) => string | number };
+
+  // Calculated now supports formatting
+  calculated: {
+    calculate: (values: z.infer<S>) => string | number;
+    formatOptions?: NumberFormatOptions;
+  };
+
   otp: { length?: number };
 
   // Selection
@@ -65,19 +149,17 @@ export interface InputFieldRegistry<S extends FormSchema> {
   };
 
   // Advanced
-  // FIX: Added placeholder here to resolve the TypeScript error
   file: { accept?: string; multiple?: boolean; placeholder?: string };
   'rich-text': { minHeight?: string | number; placeholder?: string };
   signature: { height?: number };
-  location: { placeholder?: string; provider?: 'google' | 'mapbox' | 'mock' };
+
+  // Removed Location Props as requested
+  // location: { ... };
+
   'date-range': { minDate?: Date; maxDate?: Date };
 }
 
-/**
- * Registry of Layout/Container Props.
- * We use `ItemType` generic to avoid circular dependency on FormItem.
- */
-
+// Layout Registry (Standard)
 export interface LayoutRegistry<S extends FormSchema, ItemType = any> {
   section: { title?: string; children: ItemType[] };
   tabs: { tabs: { label: string; children: ItemType[] }[] };
@@ -85,15 +167,7 @@ export interface LayoutRegistry<S extends FormSchema, ItemType = any> {
   wizard: { steps: { label: string; description?: string; children: ItemType[] }[] };
   stepper: { activeStepIndex?: number; steps: { label: string; description?: string }[] };
   'modal-form': { triggerLabel: string; dialogTitle?: string; children: ItemType[] };
-
-  // Data Iterators
-  array: {
-    // We handle 'name' specifically in the final type to ensure strict Path<> typing
-    name: any;
-    itemLabel?: string;
-    items: ItemType[];
-    defaultValue?: any;
-  };
+  array: { name: any; itemLabel?: string; items: ItemType[]; defaultValue?: any };
   'data-grid': {
     name: any;
     columns: { header: string; field: ItemType; width?: number | string }[];

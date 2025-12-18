@@ -11,7 +11,6 @@ export const FIELD_CONFIG: Record<AnyFieldType, FieldConfig> = {
   text: {},
   password: {},
   number: {},
-  currency: {},
   date: {},
   hidden: { hasInternalLabel: true },
   'masked-text': {},
@@ -34,7 +33,6 @@ export const FIELD_CONFIG: Record<AnyFieldType, FieldConfig> = {
   file: { hasInternalLabel: true },
   'rich-text': {},
   signature: {},
-  location: {},
   'date-range': {},
 
   // Layouts

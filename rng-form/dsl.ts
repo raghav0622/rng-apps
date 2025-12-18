@@ -51,13 +51,6 @@ export class FormBuilderDSL<S extends FormSchema> {
     return this.field('number', name, props);
   }
 
-  currency(
-    name: Path<z.infer<S>>,
-    props?: InputFieldRegistry<S>['currency'] & Partial<BaseFormItem<S>>,
-  ) {
-    return this.field('currency', name, props);
-  }
-
   hidden(
     name: Path<z.infer<S>>,
     props?: InputFieldRegistry<S>['hidden'] & Partial<BaseFormItem<S>>,
@@ -187,13 +180,6 @@ export class FormBuilderDSL<S extends FormSchema> {
     props?: InputFieldRegistry<S>['signature'] & Partial<BaseFormItem<S>>,
   ) {
     return this.field('signature', name, props);
-  }
-
-  location(
-    name: Path<z.infer<S>>,
-    props?: InputFieldRegistry<S>['location'] & Partial<BaseFormItem<S>>,
-  ) {
-    return this.field('location', name, props);
   }
 
   dateRange(

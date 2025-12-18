@@ -13,10 +13,26 @@ const schema = z.object({
 });
 
 const uiSchema = defineForm<typeof schema>((f) => [
-  f.number('price', { label: 'Price' }),
-  f.number('quantity', { label: 'Quantity' }),
+  f.number('price', {
+    label: 'Price',
+    formatOptions: {
+      style: 'currency',
+      currency: 'INR',
+    },
+  }),
+  f.number('quantity', {
+    label: 'Quantity',
+    formatOptions: {
+      style: 'unit',
+      unit: 'sqft',
+    },
+  }),
   f.calculated('totla', {
     label: 'Total',
+    formatOptions: {
+      style: 'currency',
+      currency: 'INR',
+    },
     calculate(values) {
       return values.price * values.quantity;
     },

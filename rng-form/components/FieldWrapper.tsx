@@ -13,6 +13,7 @@ import {
   useFormContext,
 } from 'react-hook-form';
 import { z } from 'zod';
+import { useRNGForm } from './FormContext'; // Import to access formId
 
 interface FieldWrapperProps<S extends FormSchema, T extends BaseFormItem<S>> {
   item: T;
@@ -31,10 +32,10 @@ export function FieldWrapper<S extends FormSchema, T extends BaseFormItem<S>>({
   children,
 }: FieldWrapperProps<S, T>) {
   const { control } = useFormContext();
+  const { formId } = useRNGForm(); // Get unique form ID
 
-  // NOTE: Logic is handled in FormItemGrid. 'item' here is already the merged/processed item.
-
-  const fieldId = `field-${(name as string).replace(/\./g, '-')}`;
+  // FIX: Unique ID generation to prevent clashes between multiple forms
+  const fieldId = `${formId}-field-${(name as string).replace(/\./g, '-')}`;
   const errorId = `${fieldId}-error`;
   const labelId = `${fieldId}-label`;
 
@@ -58,7 +59,7 @@ export function FieldWrapper<S extends FormSchema, T extends BaseFormItem<S>>({
           <FormControl
             fullWidth
             error={!!fieldState.error}
-            disabled={item.disabled} // Use the disabled state from the merged item
+            disabled={item.disabled}
             component="div"
           >
             {showExternalLabel && (

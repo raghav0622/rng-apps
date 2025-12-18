@@ -4,8 +4,6 @@ import { InputType, LayoutType } from '../types';
 // =============================================================================
 // PRIMITIVES (Direct Imports)
 // =============================================================================
-// We import primitives directly to ensure fast initial render for basic inputs.
-// They generally do not import FormBuilder, so no circular dependency.
 import { RNGAutocomplete } from './autocomplete/SyncAutocomplete';
 import { RNGDateInput } from './date/DateInput';
 import { RNGDateRange } from './date/DateRange';
@@ -19,7 +17,6 @@ import { RNGSwitch } from './selection/RNGSwitch';
 import { RNGToggleGroup } from './selection/RNGToggleGroup';
 import { RNGCalculatedField } from './special/CalculatedField';
 import { RNGFileUpload } from './special/FileUpload';
-import { RNGLocation } from './special/Location';
 import { RNGRating, RNGSlider } from './special/RangeInputs';
 import { RNGRichText } from './special/RichText';
 import { RNGSignature } from './special/Signature';
@@ -27,7 +24,7 @@ import { RNGMaskedInput, RNGOtpInput } from './special/TextExtendedInputs';
 import { RNGTransferList } from './special/TransferList';
 
 // =============================================================================
-// LAZY LOADING HELPER
+// LAZY LOADING
 // =============================================================================
 
 const withSuspense = <P extends object>(Component: React.ComponentType<P>) => {
@@ -40,19 +37,9 @@ const withSuspense = <P extends object>(Component: React.ComponentType<P>) => {
   return Wrapped;
 };
 
-// =============================================================================
-// ASYNC / LAZY IMPORTS
-// =============================================================================
-
 const LazyAsyncAutocomplete = lazy(() =>
-  import('./autocomplete/AsyncAutocomplete').then((m) => ({
-    default: m.RNGAsyncAutocomplete,
-  })),
+  import('./autocomplete/AsyncAutocomplete').then((m) => ({ default: m.RNGAsyncAutocomplete })),
 );
-
-// Layouts import FormBuilder, which creates a circular dependency.
-// using lazy() breaks this cycle.
-
 const LazySectionLayout = lazy(() =>
   import('./layouts/SectionLayout').then((m) => ({ default: m.RNGSectionLayout })),
 );
@@ -87,8 +74,8 @@ export const INPUT_REGISTRY: Partial<Record<InputType, React.ComponentType<any>>
   // Primitives
   text: RNGTextInput,
   password: RNGTextInput,
-  number: RNGNumberInput,
-  currency: RNGNumberInput,
+  number: RNGNumberInput, // Handles unified number/currency/units
+
   'masked-text': RNGMaskedInput,
   calculated: RNGCalculatedField,
   hidden: RNGHiddenInput,
@@ -105,14 +92,14 @@ export const INPUT_REGISTRY: Partial<Record<InputType, React.ComponentType<any>>
   autocomplete: RNGAutocomplete,
   'transfer-list': RNGTransferList,
 
-  // Advanced (Some are already Suspended or Lazy in original, keeping consistency)
+  // Advanced
   date: withSuspense(RNGDateInput),
   'date-range': withSuspense(RNGDateRange),
   'async-autocomplete': withSuspense(LazyAsyncAutocomplete),
   file: withSuspense(RNGFileUpload),
   'rich-text': withSuspense(RNGRichText),
   signature: withSuspense(RNGSignature),
-  location: withSuspense(RNGLocation),
+  // Removed Location
 };
 
 export const LAYOUT_REGISTRY: Record<LayoutType, React.ComponentType<any>> = {

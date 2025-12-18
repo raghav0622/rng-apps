@@ -1,6 +1,7 @@
 'use client';
 import { FieldWrapper } from '@/rng-form/components/FieldWrapper';
 import { FormSchema, InputItem } from '@/rng-form/types';
+import { formatNumber } from '@/rng-form/utils';
 import { TextField } from '@mui/material';
 import { useEffect } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
@@ -14,10 +15,8 @@ interface RNGCalculatedFieldProps<S extends FormSchema> {
 
 export function RNGCalculatedField<S extends FormSchema>({ item }: RNGCalculatedFieldProps<S>) {
   const { control, setValue, getValues } = useFormContext();
-
   const hasDependencies = item.dependencies && item.dependencies.length > 0;
 
-  // Watch dependencies
   const triggerValues = useWatch({
     control,
     name: hasDependencies ? (item.dependencies as any) : undefined,
@@ -25,20 +24,19 @@ export function RNGCalculatedField<S extends FormSchema>({ item }: RNGCalculated
 
   useEffect(() => {
     const currentValues = getValues() as z.infer<S>;
+    let result: string | number = '';
 
-    // Calculate new result
-    const result = item.calculate(currentValues);
+    try {
+      result = item.calculate(currentValues);
+    } catch (e) {
+      // ignore calc errors
+    }
 
-    // Get current field value to compare
     const currentFieldValue = getValues(item.name as any);
-
-    // OPTIMIZATION: Only update if value actually changed.
-    // We use loose equality (==) or simple strict (===).
-    // If result is an object, this might need deep comparison, but for calculated fields (usually primitives), this prevents loops.
-    if (result !== currentFieldValue) {
+    if (result != currentFieldValue) {
       setValue(item.name as string, result, {
         shouldValidate: true,
-        shouldDirty: true,
+        shouldDirty: false,
         shouldTouch: true,
       });
     }
@@ -46,20 +44,28 @@ export function RNGCalculatedField<S extends FormSchema>({ item }: RNGCalculated
 
   return (
     <FieldWrapper item={item} name={item.name}>
-      {(field, _, mergedItem) => (
-        <TextField
-          {...field}
-          value={field.value ?? ''}
-          fullWidth
-          // Calculated fields are effectively read-only
-          // But passing disabled=true prevents submission in standard HTML forms (though RHF handles it manually).
-          // Visually we want it disabled or read-only.
-          inputProps={{ readOnly: true }}
-          disabled={mergedItem.disabled} // Allow explicit disable styling
-          label={mergedItem.label}
-          variant="filled"
-        />
-      )}
+      {(field, _, mergedItem) => {
+        // Format the display value (e.g., "500 sqft")
+        const displayValue = mergedItem.formatOptions
+          ? formatNumber(field.value, mergedItem.formatOptions)
+          : (field.value ?? '');
+
+        return (
+          <TextField
+            {...field}
+            value={displayValue}
+            fullWidth
+            inputProps={{ readOnly: true }}
+            disabled={mergedItem.disabled}
+            label={mergedItem.label}
+            variant="filled"
+            sx={{
+              backgroundColor: 'action.hover',
+              '& .MuiInputBase-input': { cursor: 'default' },
+            }}
+          />
+        );
+      }}
     </FieldWrapper>
   );
 }

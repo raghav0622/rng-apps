@@ -19,9 +19,13 @@ const compareOptions = (opt: any, val: any) => {
 // --- ASYNC AUTOCOMPLETE ---
 interface RNGAsyncAutocompleteProps<S extends FormSchema> {
   item: InputItem<S> & { type: 'async-autocomplete' };
+  pathPrefix?: string;
 }
 
-export function RNGAsyncAutocomplete<S extends FormSchema>({ item }: RNGAsyncAutocompleteProps<S>) {
+export function RNGAsyncAutocomplete<S extends FormSchema>({
+  item,
+  pathPrefix,
+}: RNGAsyncAutocompleteProps<S>) {
   const [open, setOpen] = useState(false);
   const [options, setOptions] = useState<readonly AutocompleteOption[]>([]);
   const [loading, setLoading] = useState(false);
@@ -61,44 +65,50 @@ export function RNGAsyncAutocomplete<S extends FormSchema>({ item }: RNGAsyncAut
   }, [inputValue, open, item, getValues]);
 
   return (
-    <FieldWrapper item={item} name={item.name}>
-      {(field, _, mergedItem) => (
-        <Autocomplete
-          {...field}
-          open={open}
-          onOpen={() => setOpen(true)}
-          onClose={() => setOpen(false)}
-          inputValue={inputValue}
-          onInputChange={(_, newInputValue) => setInputValue(newInputValue)}
-          multiple={mergedItem.multiple}
-          options={options}
-          loading={loading}
-          disabled={mergedItem.disabled}
-          getOptionLabel={
-            mergedItem.getOptionLabel ||
-            ((opt) => (typeof opt === 'string' ? opt : (opt as any).label || ''))
-          }
-          isOptionEqualToValue={compareOptions}
-          onChange={(_, data) => field.onChange(data)}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label={mergedItem.label}
-              slotProps={{
-                input: {
-                  ...params.InputProps,
-                  endAdornment: (
-                    <React.Fragment>
-                      {loading ? <CircularProgress color="inherit" size={20} /> : null}
-                      {params.InputProps.endAdornment}
-                    </React.Fragment>
-                  ),
-                },
-              }}
-            />
-          )}
-        />
-      )}
+    <FieldWrapper item={item} name={item.name} pathPrefix={pathPrefix}>
+      {(field, _, mergedItem) => {
+        // Fix: Ensure value is never undefined to prevent MUI "uncontrolled to controlled" error
+        const value = field.value === undefined ? (mergedItem.multiple ? [] : null) : field.value;
+
+        return (
+          <Autocomplete
+            {...field}
+            value={value}
+            open={open}
+            onOpen={() => setOpen(true)}
+            onClose={() => setOpen(false)}
+            inputValue={inputValue}
+            onInputChange={(_, newInputValue) => setInputValue(newInputValue)}
+            multiple={mergedItem.multiple}
+            options={options}
+            loading={loading}
+            disabled={mergedItem.disabled}
+            getOptionLabel={
+              mergedItem.getOptionLabel ||
+              ((opt) => (typeof opt === 'string' ? opt : (opt as any).label || ''))
+            }
+            isOptionEqualToValue={compareOptions}
+            onChange={(_, data) => field.onChange(data)}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label={mergedItem.label}
+                slotProps={{
+                  input: {
+                    ...params.InputProps,
+                    endAdornment: (
+                      <React.Fragment>
+                        {loading ? <CircularProgress color="inherit" size={20} /> : null}
+                        {params.InputProps.endAdornment}
+                      </React.Fragment>
+                    ),
+                  },
+                }}
+              />
+            )}
+          />
+        );
+      }}
     </FieldWrapper>
   );
 }

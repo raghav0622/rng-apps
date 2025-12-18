@@ -17,11 +17,13 @@ const uiSchema = defineForm<typeof schema>((f) => [
   f.section('User Permissions', [
     f.autocomplete('role', ['user', 'admin', 'guest'], { label: 'Select Role' }),
 
-    // VISIBILITY LOGIC: Only show if role is admin
     f.password('adminCode', {
       label: 'Admin Access Code',
       dependencies: ['role'],
-      renderLogic: (v) => v.role === 'admin',
+      renderLogic: (v) => {
+        console.log(v.role);
+        return v.role === 'admin';
+      },
     }),
   ]),
 

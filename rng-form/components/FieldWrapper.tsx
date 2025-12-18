@@ -18,6 +18,8 @@ import { z } from 'zod';
 interface FieldWrapperProps<S extends FormSchema, T extends BaseFormItem<S>> {
   item: T;
   name: Path<z.infer<S>>;
+  /** Crucial for scoping logic in nested structures like Arrays */
+  pathPrefix?: string;
   children: (
     field: ControllerRenderProps<FieldValues, string>,
     fieldState: ControllerFieldState,
@@ -28,12 +30,13 @@ interface FieldWrapperProps<S extends FormSchema, T extends BaseFormItem<S>> {
 export function FieldWrapper<S extends FormSchema, T extends BaseFormItem<S>>({
   item,
   name,
+  pathPrefix,
   children,
 }: FieldWrapperProps<S, T>) {
   const { control } = useFormContext();
-  // Note: Logic is also checked here to support dynamic props (like disabled)
-  // even when used without the Grid wrapper (e.g., inside DataGrid).
-  const { isVisible, mergedItem } = useFieldLogic<S, T>(item);
+
+  // Fix: Pass pathPrefix to support relative dependencies (e.g., sibling fields)
+  const { isVisible, mergedItem } = useFieldLogic<S, T>(item, pathPrefix);
 
   if (!isVisible) return null;
 

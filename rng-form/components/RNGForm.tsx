@@ -1,9 +1,11 @@
 'use client';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Box, Button, Stack, Typography, TypographyProps } from '@mui/material';
+import { Alert, Box, Button, Stack, Typography, TypographyProps } from '@mui/material';
+import { useState } from 'react';
 import { FormProvider, SubmitHandler, useForm, UseFormProps } from 'react-hook-form';
 import { z } from 'zod';
 import { FormItem, FormSchema } from '../types';
+import { FormError } from '../utils';
 import { FormBuilder } from './FormBuilder';
 import { RNGFormProvider } from './FormContext';
 
@@ -11,7 +13,7 @@ interface RNGFormProps<S extends FormSchema> {
   schema: S;
   uiSchema: FormItem<S>[];
   defaultValues?: UseFormProps<z.infer<S>>['defaultValues'];
-  onSubmit: (data: z.infer<S>) => void;
+  onSubmit: (data: z.infer<S>) => void | Promise<void>;
   title?: string;
   titleProps?: TypographyProps;
   description?: string;
@@ -35,6 +37,8 @@ export function RNGForm<S extends FormSchema>({
   description,
   descriptionProps,
 }: RNGFormProps<S>) {
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
+
   const methods = useForm<z.infer<S>>({
     // We cast to any because hook-form resolver types are sometimes slightly mismatched
     // with strict Zod inference, though it works at runtime.
@@ -44,8 +48,27 @@ export function RNGForm<S extends FormSchema>({
     mode: 'onBlur',
   });
 
-  const handleFormSubmit: SubmitHandler<z.infer<S>> = (data) => {
-    onSubmit(data);
+  const handleFormSubmit: SubmitHandler<z.infer<S>> = async (data) => {
+    setSubmissionError(null);
+    try {
+      await onSubmit(data);
+    } catch (error) {
+      if (error instanceof FormError) {
+        // Handle targeted field errors
+        if (error.path) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          methods.setError(error.path as any, { message: error.message });
+        } else {
+          // Handle general form errors
+          setSubmissionError(error.message);
+        }
+      } else if (error instanceof Error) {
+        // Handle generic JS errors
+        setSubmissionError(error.message);
+      } else {
+        setSubmissionError('An unexpected error occurred. Please try again.');
+      }
+    }
   };
 
   return (
@@ -59,6 +82,12 @@ export function RNGForm<S extends FormSchema>({
               </Typography>
             )}
             {description && <Typography {...descriptionProps}>{description}</Typography>}
+
+            {submissionError && (
+              <Alert severity="error" onClose={() => setSubmissionError(null)}>
+                {submissionError}
+              </Alert>
+            )}
 
             <FormBuilder uiSchema={uiSchema} />
 

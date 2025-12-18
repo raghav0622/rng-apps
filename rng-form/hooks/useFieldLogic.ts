@@ -12,7 +12,7 @@ import { BaseFormItem, FormSchema } from '../types';
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getValueByPath(obj: any, path: string | undefined): any {
-  if (!path || !obj) return obj;
+  if (!path || obj === undefined || obj === null) return obj;
   const parts = path.split('.');
   let current = obj;
   for (const part of parts) {
@@ -33,23 +33,39 @@ export function useFieldLogic<S extends FormSchema, T extends BaseFormItem<S>>(
   const { control, getValues } = useFormContext();
   const { readOnly: globalReadOnly } = useRNGForm();
 
-  // 1. Determine if this field needs to watch others
+  // 1. Determine Watch Strategy
   const hasLogic = !!item.renderLogic || !!item.propsLogic;
 
-  // Scoping: If we are deep in the tree (users.0.name), and depend on 'role',
-  // we assume 'role' refers to a sibling in the same scope 'users.0.role'.
-  // If no pathPrefix, it stays global.
-  const dependencies = (item.dependencies || []).map((dep) =>
-    pathPrefix ? `${pathPrefix}.${dep}` : dep,
-  );
+  // Default: Don't watch anything if no logic
+  const watchConfig: { name?: string[]; disabled: boolean } = {
+    disabled: !hasLogic,
+  };
 
-  // 2. Register watchers
-  // This triggers a re-render of this hook when the scoped dependencies change.
+  if (hasLogic) {
+    const dependencies = item.dependencies || [];
+
+    if (dependencies.length > 0) {
+      // Strategy A: Explicit Dependencies
+      // Map 'field' to 'prefix.field'
+      watchConfig.name = dependencies.map((dep) => (pathPrefix ? `${pathPrefix}.${dep}` : dep));
+    } else if (pathPrefix) {
+      // Strategy B: No dependencies, but inside a scope (Array Item)
+      // Watch the entire scope object.
+      watchConfig.name = [pathPrefix];
+    } else {
+      // Strategy C: Root level with logic but no deps.
+      // Watch everything (leaving name undefined triggers on all changes).
+      watchConfig.name = undefined;
+    }
+  }
+
+  // 2. Register Watcher
+  // We use the return value implicitly to force re-render
   useWatch({
     control,
-    disabled: !hasLogic || dependencies.length === 0,
+    ...watchConfig,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    name: dependencies as any,
+    name: watchConfig.name as any,
   });
 
   // 3. Compute Logic
@@ -64,7 +80,8 @@ export function useFieldLogic<S extends FormSchema, T extends BaseFormItem<S>>(
     // so the logic function receives the data structure it expects.
     const scopedValues = getValueByPath(globalValues, pathPrefix) as z.infer<S>;
 
-    if (scopedValues) {
+    // Only run logic if we have values (avoids initial undefined crashes)
+    if (scopedValues !== undefined) {
       if (item.renderLogic) {
         isVisible = item.renderLogic(scopedValues);
       }

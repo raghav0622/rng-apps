@@ -16,33 +16,43 @@ const compareOptions = (opt: any, val: any) => {
 // --- SYNC AUTOCOMPLETE ---
 interface RNGAutocompleteProps<S extends FormSchema> {
   item: InputItem<S> & { type: 'autocomplete' };
+  pathPrefix?: string;
 }
 
-export function RNGAutocomplete<S extends FormSchema>({ item }: RNGAutocompleteProps<S>) {
+export function RNGAutocomplete<S extends FormSchema>({
+  item,
+  pathPrefix,
+}: RNGAutocompleteProps<S>) {
   return (
-    <FieldWrapper item={item} name={item.name}>
-      {(field, _, mergedItem) => (
-        <Autocomplete
-          {...field}
-          multiple={mergedItem.multiple}
-          options={mergedItem.options as readonly any[]}
-          getOptionLabel={
-            mergedItem.getOptionLabel ||
-            ((opt) => (typeof opt === 'string' ? opt : (opt as any).label || ''))
-          }
-          isOptionEqualToValue={compareOptions}
-          onChange={(_, data) => field.onChange(data)}
-          disabled={mergedItem.disabled}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              placeholder={mergedItem.label}
-              variant="outlined"
-              error={!!_?.error}
-            />
-          )}
-        />
-      )}
+    <FieldWrapper item={item} name={item.name} pathPrefix={pathPrefix}>
+      {(field, _, mergedItem) => {
+        // Fix: Ensure value is never undefined to prevent MUI "uncontrolled to controlled" error
+        const value = field.value === undefined ? (mergedItem.multiple ? [] : null) : field.value;
+
+        return (
+          <Autocomplete
+            {...field}
+            value={value}
+            multiple={mergedItem.multiple}
+            options={mergedItem.options as readonly any[]}
+            getOptionLabel={
+              mergedItem.getOptionLabel ||
+              ((opt) => (typeof opt === 'string' ? opt : (opt as any).label || ''))
+            }
+            isOptionEqualToValue={compareOptions}
+            onChange={(_, data) => field.onChange(data)}
+            disabled={mergedItem.disabled}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                placeholder={mergedItem.label}
+                variant="outlined"
+                error={!!_?.error}
+              />
+            )}
+          />
+        );
+      }}
     </FieldWrapper>
   );
 }

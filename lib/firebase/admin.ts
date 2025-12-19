@@ -1,9 +1,9 @@
-// lib/firebase/admin.ts
 import * as admin from 'firebase-admin';
 import 'server-only';
 import { logInfo } from '../logger';
 
 function initializeAdmin() {
+  // Prevent re-initialization if app already exists
   if (admin.apps.length > 0) {
     return;
   }
@@ -11,6 +11,13 @@ function initializeAdmin() {
   const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
   const privateKey = process.env.FIREBASE_PRIVATE_KEY;
+
+  // 1. DETERMINE STORAGE BUCKET
+  // Priority: Server Env Var -> Client Env Var -> Default Fallback
+  const storageBucket =
+    process.env.FIREBASE_STORAGE_BUCKET ||
+    process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
+    (projectId ? `${projectId}.firebasestorage.app` : undefined);
 
   if (!projectId || !clientEmail || !privateKey) {
     const missing = [];
@@ -24,7 +31,6 @@ function initializeAdmin() {
     );
   }
 
-  // Handle various formats of newlines in private keys
   const formattedPrivateKey = privateKey.replace(/\\n/g, '\n');
 
   admin.initializeApp({
@@ -33,7 +39,8 @@ function initializeAdmin() {
       clientEmail,
       privateKey: formattedPrivateKey,
     }),
-    storageBucket: `${projectId}.firebasestorage.app`, // Infer bucket or use env var if needed
+    // 2. INJECT STORAGE BUCKET CONFIGURATION
+    storageBucket: storageBucket,
   });
 
   admin.firestore().settings({
@@ -41,6 +48,11 @@ function initializeAdmin() {
   });
 
   logInfo(`✅ Firebase Admin initialized for project: ${projectId}`);
+  if (storageBucket) {
+    logInfo(`wm Storage Bucket configured: ${storageBucket}`);
+  } else {
+    console.warn('⚠️ No Storage Bucket configured. File uploads may fail.');
+  }
 }
 
 // Initialize immediately

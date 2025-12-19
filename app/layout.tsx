@@ -1,4 +1,4 @@
-import { getCurrentUser } from '@/lib/auth/session'; // Import from step 1
+import { getCurrentUser } from '@/features/auth/session'; // Import from step 1
 import { RootProvider } from '@/ui/layout/RootProvider';
 import type { Metadata } from 'next';
 

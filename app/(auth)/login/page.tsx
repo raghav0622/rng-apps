@@ -3,9 +3,9 @@
 import { createSessionAction } from '@/features/auth/auth.actions';
 import { LoginInput, LoginSchema } from '@/features/auth/auth.model';
 import { clientAuth } from '@/lib/firebase/client';
-import { DEFAULT_LOGIN_REDIRECT } from '@/lib/routes';
 import { FormError } from '@/rng-form';
 import { RNGForm } from '@/rng-form/components/RNGForm';
+import { DEFAULT_LOGIN_REDIRECT } from '@/routes';
 import { Box, Link as MuiLink, Typography } from '@mui/material';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useAction } from 'next-safe-action/hooks';

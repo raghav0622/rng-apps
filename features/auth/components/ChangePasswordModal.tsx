@@ -1,6 +1,5 @@
 'use client';
 
-import { useAuth } from '@/lib/auth/AuthContext';
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';
 import { Close } from '@mui/icons-material'; // Added Import
@@ -9,6 +8,7 @@ import { getApp, getApps, initializeApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword, updatePassword } from 'firebase/auth';
 import { useSnackbar } from 'notistack';
 import { z } from 'zod';
+import { useAuth } from './AuthContext';
 
 // Ensure Firebase is initialized
 const firebaseConfig = {
@@ -92,6 +92,7 @@ export function ChangePasswordModal({ open, onClose }: ChangePasswordModalProps)
               onClose();
             } catch (error) {
               const msg =
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (error as any).code === 'auth/invalid-credential'
                   ? 'Incorrect current password'
                   : error.message;

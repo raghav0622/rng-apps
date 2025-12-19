@@ -1,4 +1,4 @@
-import { LOGIN_ROUTE } from '@/lib/routes';
+import { LOGIN_ROUTE } from '@/routes';
 import { redirect } from 'next/navigation';
 
 export default function Page() {

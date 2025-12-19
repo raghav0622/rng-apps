@@ -1,7 +1,7 @@
 'use client';
 
 import { logoutAction } from '@/features/auth/auth.actions';
-import { useUserProfile } from '@/lib/auth/UserProfileContext'; // [CHANGED]
+import { useUserProfile } from '@/features/auth/components/UserProfileContext'; // [CHANGED]
 import { Logout, Person, Settings } from '@mui/icons-material';
 import { Avatar, Divider, IconButton, ListItemIcon, Menu, MenuItem, Skeleton } from '@mui/material';
 import Link from 'next/link';

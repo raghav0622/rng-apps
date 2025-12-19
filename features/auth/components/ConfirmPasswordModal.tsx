@@ -1,6 +1,5 @@
 'use client';
 
-import { useAuth } from '@/lib/auth/AuthContext';
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';
 import { Close } from '@mui/icons-material'; // Added Import
@@ -9,6 +8,7 @@ import { getApp, getApps, initializeApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 import { useSnackbar } from 'notistack';
 import { z } from 'zod';
+import { useAuth } from './AuthContext';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,

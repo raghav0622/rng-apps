@@ -2,11 +2,11 @@
 
 import { deleteAccountAction, updateProfileAction } from '@/features/auth/auth.actions';
 // [CHANGED] Use new profile context
-import { useUserProfile } from '@/lib/auth/UserProfileContext';
+import { ChangePasswordModal } from '@/features/auth/components/ChangePasswordModal';
+import { ConfirmPasswordModal } from '@/features/auth/components/ConfirmPasswordModal';
+import { useUserProfile } from '@/features/auth/components/UserProfileContext';
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';
-import { ChangePasswordModal } from '@/ui/modals/ChangePasswordModal';
-import { ConfirmPasswordModal } from '@/ui/modals/ConfirmPasswordModal';
 import { Alert, Box, Button, Card, CardContent, CardHeader, Stack } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import { useState } from 'react';

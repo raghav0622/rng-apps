@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { AUTH_SESSION_COOKIE_NAME } from './lib/constants';
-import { DEFAULT_LOGIN_REDIRECT, LOGIN_ROUTE, isAuthRoute, isProtectedRoute } from './lib/routes';
+import { DEFAULT_LOGIN_REDIRECT, LOGIN_ROUTE, isAuthRoute, isProtectedRoute } from './routes';
 
 export function middleware(request: NextRequest) {
   const { nextUrl } = request;

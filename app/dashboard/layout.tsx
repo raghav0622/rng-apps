@@ -1,6 +1,6 @@
 'use client';
-import BaseLayout from '@/ui/layout/BaseLayout';
+import DashboardLayoutP from '@/ui/layout/DashboardLayout';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  return <BaseLayout>{children}</BaseLayout>;
+  return <DashboardLayoutP>{children}</DashboardLayoutP>;
 }

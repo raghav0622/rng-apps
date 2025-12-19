@@ -3,7 +3,7 @@
 import { clientAuth as auth } from '@/lib/firebase/client';
 import { onIdTokenChanged } from 'firebase/auth';
 import { createContext, useContext, useEffect, useState } from 'react';
-import { SessionUser } from './session';
+import { SessionUser } from '../session';
 
 interface AuthContextType {
   user: SessionUser | null;

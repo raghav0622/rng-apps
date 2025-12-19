@@ -8,8 +8,18 @@ const MAX_SIZE = 5 * 1024 * 1024;
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
 export const StorageService = {
-  async uploadAvatar(userId: string, formData: FormData): Promise<string> {
-    const file = formData.get('file') as File;
+  /**
+   * Uploads an avatar for the given user.
+   * Accepts FormData (from raw actions) or File (from safe-actions).
+   */
+  async uploadAvatar(userId: string, input: FormData | File): Promise<string> {
+    let file: File | null = null;
+
+    if (input instanceof FormData) {
+      file = input.get('file') as File;
+    } else {
+      file = input;
+    }
 
     if (!file) {
       throw new CustomError(AppErrorCode.INVALID_INPUT, 'No file provided');

@@ -1,14 +1,22 @@
 import { createSessionAction, updateProfileAction } from '@/features/auth/auth.actions';
 import { act, renderHook } from '@testing-library/react';
 import { updateProfile } from 'firebase/auth';
-import { useSnackbar } from 'notistack';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useProfileManager } from './useProfileManager';
 
 // --- MOCKS ---
 
-// 1. Mock Notistack (Auto-mocking the module structure)
-vi.mock('notistack');
+// 1. Safe Mock Hoisting for Snackbar
+// We define the spies here so they are available to the factory below
+const mocks = vi.hoisted(() => ({
+  enqueueSnackbar: vi.fn(),
+  closeSnackbar: vi.fn(),
+}));
+
+// Mock the module using the hoisted spies
+vi.mock('notistack', () => ({
+  useSnackbar: () => mocks,
+}));
 
 // 2. Mock Auth Context
 const mockUpdateUser = vi.fn();
@@ -46,18 +54,8 @@ vi.mock('@/features/storage/storage.actions', () => ({
 }));
 
 describe('useProfileManager', () => {
-  // Define our spy for the test
-  const mockEnqueueSnackbar = vi.fn();
-
   beforeEach(() => {
     vi.clearAllMocks();
-
-    // IMPORTANT: Explicitly tell the mocked module what to return for THIS test run.
-    // This connects the 'useSnackbar' call inside the hook to our 'mockEnqueueSnackbar' spy.
-    vi.mocked(useSnackbar).mockReturnValue({
-      enqueueSnackbar: mockEnqueueSnackbar,
-      closeSnackbar: vi.fn(),
-    });
   });
 
   it('should update profile successfully and refresh session', async () => {
@@ -75,7 +73,7 @@ describe('useProfileManager', () => {
       });
     });
 
-    expect(mockEnqueueSnackbar).toHaveBeenCalledWith(
+    expect(mocks.enqueueSnackbar).toHaveBeenCalledWith(
       expect.stringContaining('success'),
       expect.objectContaining({ variant: 'success' }),
     );
@@ -98,8 +96,8 @@ describe('useProfileManager', () => {
       }),
     ).rejects.toThrow('Database crashed');
 
-    // 2. Verify error snackbar was shown
-    expect(mockEnqueueSnackbar).toHaveBeenCalledWith(
+    // 2. Verify error snackbar was shown using the hoisted spy
+    expect(mocks.enqueueSnackbar).toHaveBeenCalledWith(
       'Database crashed',
       expect.objectContaining({ variant: 'error' }),
     );

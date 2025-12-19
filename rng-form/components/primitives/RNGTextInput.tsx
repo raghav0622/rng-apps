@@ -15,6 +15,7 @@ export function RNGTextInput<S extends FormSchema>({ item }: RNGTextInputProps<S
         <TextField
           {...field}
           fullWidth
+          autoFocus={mergedItem.autoFocus}
           placeholder={mergedItem.placeholder}
           multiline={mergedItem.type === 'text' && mergedItem.multiline}
           rows={mergedItem.type === 'text' ? mergedItem.rows : undefined}

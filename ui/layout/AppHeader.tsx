@@ -19,12 +19,10 @@ export default function AppHeader() {
   return (
     <AppBar
       position="fixed"
-      color="inherit" // Better for dark/light mode switching than 'primary'
       elevation={0}
       sx={{
         borderBottom: 1,
         borderColor: 'divider',
-        bgcolor: 'background.paper', // Ensures it respects theme background
         zIndex: (theme) => theme.zIndex.drawer + 1,
       }}
     >

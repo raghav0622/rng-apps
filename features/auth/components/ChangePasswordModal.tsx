@@ -37,7 +37,7 @@ const ChangePasswordSchema = z
   });
 
 const changePasswordForm = defineForm<typeof ChangePasswordSchema>((f) => [
-  f.password('currentPassword', { label: 'Current Password' }),
+  f.password('currentPassword', { label: 'Current Password', autoFocus: true }),
   f.password('newPassword', { label: 'New Password' }),
   f.password('confirmPassword', { label: 'Confirm New Password' }),
 ]);
@@ -90,7 +90,6 @@ export function ChangePasswordModal({ open, onClose }: ChangePasswordModalProps)
 
               enqueueSnackbar('Password updated successfully', { variant: 'success' });
               onClose();
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } catch (error: any) {
               const msg =
                 error.code === 'auth/invalid-credential'

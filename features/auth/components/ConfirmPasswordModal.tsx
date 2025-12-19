@@ -29,7 +29,7 @@ const ConfirmPasswordSchema = z.object({
 });
 
 const confirmPasswordForm = defineForm<typeof ConfirmPasswordSchema>((f) => [
-  f.password('password', { label: 'Current Password' }),
+  f.password('password', { label: 'Current Password', autoFocus: true }),
 ]);
 
 interface ConfirmPasswordModalProps {
@@ -55,8 +55,6 @@ export function ConfirmPasswordModal({
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
       <DialogTitle sx={{ m: 0, p: 2, pr: 6 }}>
-        {' '}
-        {/* Added right padding to avoid overlap with text */}
         {title}
         <IconButton
           aria-label="close"

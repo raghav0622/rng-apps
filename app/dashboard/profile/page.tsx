@@ -7,6 +7,7 @@ import { defineForm } from '@/rng-form/dsl';
 import { Alert, Box, Button, Card, CardContent, CardHeader, Stack } from '@mui/material';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
+import { useSnackbar } from 'notistack';
 import { useState } from 'react';
 import { z } from 'zod';
 
@@ -29,10 +30,20 @@ const ProfileSchema = z.object({
   displayName: z.string().min(2, 'Name must be at least 2 characters'),
   // Allow File object for upload, string for existing URL, or null for removal
   photoURL: z.custom<File | string | null>().optional(),
+  email: z.string().email('Invalid email address'),
 });
 
 const profileFormConfig = defineForm<typeof ProfileSchema>((f) => [
-  f.text('displayName', { label: 'Full Name' }),
+  f.text('displayName', {
+    label: 'Full Name',
+    autoFocus: true,
+    colProps: { size: { xs: 12, sm: 6 } },
+  }),
+  f.text('email', {
+    label: 'Email Address',
+    disabled: true,
+    colProps: { size: { xs: 12, sm: 6 } },
+  }),
   f.avatar('photoURL', { label: 'Profile Picture' }),
 ]);
 
@@ -42,6 +53,7 @@ export default function ProfilePage() {
 
   const [isPasswordModalOpen, setPasswordModalOpen] = useState(false);
   const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
+  const { enqueueSnackbar } = useSnackbar();
 
   if (!user) return null;
 
@@ -56,6 +68,7 @@ export default function ProfilePage() {
             defaultValues={{
               displayName: user.displayName || '',
               photoURL: user.photoURL || null,
+              email: user.email || '',
             }}
             onSubmit={updateProfileData}
             submitLabel={isUpdating ? 'Saving...' : 'Save Changes'}
@@ -113,6 +126,8 @@ export default function ProfilePage() {
               throw new Error(res.serverError.message || 'Failed to delete account');
             }
             // Manual client-side redirect to avoid server-action redirect race conditions
+            enqueueSnackbar('Account deleted successfully', { variant: 'success' });
+            setDeleteModalOpen(false);
             router.push('/login');
           }}
         />

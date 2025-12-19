@@ -4,7 +4,7 @@
 import { logoutAction } from '@/features/auth/auth.actions';
 import { useAuth } from '@/features/auth/components/AuthContext';
 import { SessionUser } from '@/features/auth/session';
-import { Logout, Person, Settings } from '@mui/icons-material';
+import { Logout, Person } from '@mui/icons-material';
 import {
   Avatar,
   Divider,
@@ -13,8 +13,11 @@ import {
   Menu,
   MenuItem,
   Skeleton,
+  Stack,
   Tooltip,
+  Typography,
 } from '@mui/material';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
@@ -115,14 +118,24 @@ function AuthenticatedUserMenu({
             sx={{
               width: 32,
               height: 32,
+              position: 'relative',
               // Use theme color for text avatars, transparent for images
               bgcolor: hasPhoto ? 'transparent' : 'primary.main',
               fontSize: '0.875rem',
             }}
-            src={user.photoURL || undefined}
             alt={user.displayName || 'User'}
           >
-            {!hasPhoto && initials}
+            {!hasPhoto ? (
+              initials
+            ) : (
+              <Image
+                alt="User Avatar"
+                src={user.photoURL || ''}
+                fill // makes the image fill the parent
+                sizes="100vw"
+                style={{ objectFit: 'cover' }} // controls cropping and scaling
+              />
+            )}
           </Avatar>
         </IconButton>
       </Tooltip>
@@ -167,21 +180,44 @@ function AuthenticatedUserMenu({
       >
         <MenuItem component={Link} href="/dashboard/profile">
           <ListItemIcon>
+            <Avatar
+              sx={{
+                width: 32,
+                height: 32,
+                position: 'relative',
+                // Use theme color for text avatars, transparent for images
+                bgcolor: hasPhoto ? 'transparent' : 'primary.main',
+                fontSize: '0.875rem',
+              }}
+              alt={user.displayName || 'User'}
+            >
+              {!hasPhoto ? (
+                initials
+              ) : (
+                <Image
+                  alt="User Avatar"
+                  src={user.photoURL || ''}
+                  fill // makes the image fill the parent
+                  sizes="100vw"
+                  style={{ objectFit: 'cover' }} // controls cropping and scaling
+                />
+              )}
+            </Avatar>
+          </ListItemIcon>
+          <Stack>
+            <Typography variant="body2">{user.displayName}</Typography>
+            <Typography variant="subtitle2">{user.email}</Typography>
+          </Stack>
+        </MenuItem>
+        <MenuItem component={Link} href="/dashboard/profile">
+          <ListItemIcon>
             <Person fontSize="small" />
           </ListItemIcon>
           Profile
         </MenuItem>
-
-        <MenuItem disabled>
-          <ListItemIcon>
-            <Settings fontSize="small" />
-          </ListItemIcon>
-          Settings
-        </MenuItem>
-
         <Divider />
 
-        <MenuItem onClick={onLogout} sx={{ color: 'error.main' }}>
+        <MenuItem component={Link} href="/logout" sx={{ color: 'error.main' }}>
           <ListItemIcon>
             <Logout fontSize="small" color="error" />
           </ListItemIcon>

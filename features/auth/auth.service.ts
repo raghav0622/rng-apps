@@ -15,12 +15,14 @@ export class AuthService {
       const { uid, email, name, picture } = decodedToken;
 
       if (!email) {
-        throw new CustomError(AppErrorCode.VALIDATION_ERROR, 'Email is required');
+        throw new CustomError(AppErrorCode.VALIDATION_ERROR, 'Email is required for sign-up.');
       }
 
+      // Create session cookie (5 days)
       const expiresIn = 60 * 60 * 24 * 5 * 1000;
       const sessionCookie = await authRepository.createSessionCookie(idToken, expiresIn);
 
+      // Sync user data to Firestore (Source of Truth)
       await authRepository.ensureUserExists(
         uid,
         {
@@ -45,43 +47,39 @@ export class AuthService {
 
       return { success: true, data: undefined };
     } catch (error) {
+      console.error('Create Session Error:', error);
       if (error instanceof CustomError) throw error;
-      throw new CustomError(AppErrorCode.UNAUTHENTICATED, 'Failed to verify session');
+      throw new CustomError(AppErrorCode.UNAUTHENTICATED, 'Failed to create secure session.');
     }
   }
 
   static async logout(): Promise<Result<void>> {
     const cookieStore = await cookies();
     cookieStore.delete(AUTH_SESSION_COOKIE_NAME);
-    cookieStore.delete('org_session_token');
+    cookieStore.delete('org_session_token'); // Clean up tenant cookie if exists
     return { success: true, data: undefined };
   }
 
-  // FIX: Explicitly type photoURL as string | null | undefined
   static async updateProfile(
     userId: string,
     data: { displayName: string; photoURL?: string | null },
   ): Promise<Result<void>> {
     try {
-      // 1. Fetch current user to check for old avatar
       const currentUser = await authRepository.getUser(userId);
 
-      // 2. Update Source of Truth (Firestore)
-      // Note: Passing null to Firestore deletes the field or sets it to null,
-      // which is what we want for removing an avatar.
+      // 1. Update Source of Truth (Firestore)
       await authRepository.updateUser(userId, {
         displayName: data.displayName,
         photoURL: data.photoURL,
       });
 
-      // 3. Update Auth User (Syncs to Token/Cookie claims)
+      // 2. Update Auth User (Syncs to Token/Cookie claims for next refresh)
       await authRepository.updateAuthUser(userId, {
         displayName: data.displayName,
         photoURL: data.photoURL,
       });
 
-      // 4. CLEANUP: Delete old avatar if it has changed (and wasn't just set to the same value)
-      // Check if photoURL changed AND specifically if the old one existed
+      // 3. CLEANUP: Only delete old avatar if the DB updates succeeded
       if (
         currentUser?.photoURL &&
         data.photoURL !== undefined &&
@@ -89,18 +87,17 @@ export class AuthService {
       ) {
         const oldPath = extractPathFromUrl(currentUser.photoURL);
         if (oldPath) {
-          // Fire and forget cleanup
+          // Fire and forget cleanup, but logged
           storageRepository
             .deleteFile(oldPath)
-            .catch((err) => console.error('Background cleanup failed', err));
+            .catch((err) => console.warn(`Failed to cleanup old avatar: ${oldPath}`, err));
         }
       }
 
       return { success: true, data: undefined };
     } catch (error) {
-      // Log the real error on the server so we can debug if needed
       console.error('Update Profile Service Error:', error);
-      throw new CustomError(AppErrorCode.DB_ERROR, 'Failed to update profile');
+      throw new CustomError(AppErrorCode.DB_ERROR, 'Failed to update profile information.');
     }
   }
 
@@ -108,18 +105,28 @@ export class AuthService {
     try {
       const currentUser = await authRepository.getUser(userId);
 
+      // Delete from Firestore first
       await authRepository.deleteFirestoreUser(userId);
+
+      // Delete from Firebase Auth
       await authRepository.deleteAuthUser(userId);
 
+      // Cleanup Storage
       if (currentUser?.photoURL) {
         const path = extractPathFromUrl(currentUser.photoURL);
-        if (path) await storageRepository.deleteFile(path);
+        if (path) {
+          await storageRepository
+            .deleteFile(path)
+            .catch((e) => console.warn('Failed to delete avatar', e));
+        }
       }
 
+      // Finally logout
       await this.logout();
       return { success: true, data: undefined };
     } catch (error) {
-      throw new CustomError(AppErrorCode.UNKNOWN, 'Failed to delete account');
+      console.error('Delete Account Error:', error);
+      throw new CustomError(AppErrorCode.UNKNOWN, 'Failed to delete account completely.');
     }
   }
 }

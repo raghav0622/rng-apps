@@ -1,5 +1,4 @@
-import type { NextRequest } from 'next/server';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { AUTH_SESSION_COOKIE_NAME } from './lib/constants';
 import { DEFAULT_LOGIN_REDIRECT, LOGIN_ROUTE, isAuthRoute, isProtectedRoute } from './routes';
 
@@ -11,21 +10,24 @@ export function middleware(request: NextRequest) {
   const isAuthPage = isAuthRoute(nextUrl.pathname);
   const isProtected = isProtectedRoute(nextUrl.pathname);
 
-  // 1. Authenticated users trying to access Login/Signup pages -> Redirect to Dashboard
+  // 1. Authenticated users trying to access Login/Signup -> Redirect to Dashboard
   if (isAuthPage && isAuthenticated) {
     return NextResponse.redirect(new URL(DEFAULT_LOGIN_REDIRECT, nextUrl));
   }
 
   // 2. Unauthenticated users trying to access Protected pages -> Redirect to Login
   if (isProtected && !isAuthenticated) {
-    // Create the login URL with a 'redirect_to' param so we can send them back after login
     const loginUrl = new URL(LOGIN_ROUTE, nextUrl);
-    // loginUrl.searchParams.set('redirect_to', nextUrl.pathname); // Optional enhancement
+
+    // Add the current path as a 'redirect_to' param so we can return the user later
+    // We only encode the pathname + search (query params)
+    const from = nextUrl.pathname + nextUrl.search;
+    loginUrl.searchParams.set('redirect_to', from);
 
     return NextResponse.redirect(loginUrl);
   }
 
-  // 3. For all other routes (public, etc.), just continue
+  // 3. Allow request to proceed
   return NextResponse.next();
 }
 
@@ -37,8 +39,8 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - public files (images, etc) if you add them later
+     * - images/assets in public folder
      */
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };

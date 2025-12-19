@@ -10,11 +10,12 @@ import { Box, Link as MuiLink, Typography } from '@mui/material';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useAction } from 'next-safe-action/hooks';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useSnackbar } from 'notistack';
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { enqueueSnackbar } = useSnackbar();
 
   // Hook for the server action
@@ -28,17 +29,28 @@ export default function LoginPage() {
         data.email,
         data.password,
       );
-      const idToken = await userCredential.user.getIdToken();
+
+      // Force refresh of the token to ensure we have the latest claims
+      const idToken = await userCredential.user.getIdToken(true);
 
       // 2. Exchange token for Session Cookie via Server Action
       const result = await executeAsync({ idToken });
 
       if (result?.data?.success) {
-        enqueueSnackbar('Login successful! Redirecting...', { variant: 'success' });
-        // Use full page reload to ensure all server components receive the new cookie immediately
-        window.location.href = DEFAULT_LOGIN_REDIRECT;
+        enqueueSnackbar('Login successful!', { variant: 'success' });
+
+        // 3. Navigation
+        // Determine where to go: check 'redirect_to' query param or default
+        const redirectTo = searchParams.get('redirect_to') || DEFAULT_LOGIN_REDIRECT;
+
+        // Refresh router to re-run server components (layouts) so they pick up the new cookie
+        router.refresh();
+        router.replace(redirectTo);
       } else {
-        enqueueSnackbar('Failed to create secure session.', { variant: 'error' });
+        // If server action fails but client auth succeeded, we should sign out client side
+        await clientAuth.signOut();
+        const serverMsg = result?.serverError?.message || 'Failed to create secure session.';
+        enqueueSnackbar(serverMsg, { variant: 'error' });
       }
     } catch (error: any) {
       // Firebase Client Error Handling
@@ -46,9 +58,11 @@ export default function LoginPage() {
       if (error.code === 'auth/invalid-credential') msg = 'Invalid email or password.';
       if (error.code === 'auth/user-not-found') msg = 'Account not found.';
       if (error.code === 'auth/wrong-password') msg = 'Incorrect password.';
+      if (error.code === 'auth/too-many-requests')
+        msg = 'Too many failed attempts. Try again later.';
 
       enqueueSnackbar(msg, { variant: 'error' });
-      throw new FormError(msg);
+      throw new FormError(msg); // RNGForm handles this to show global error
     }
   };
 
@@ -67,6 +81,7 @@ export default function LoginPage() {
             type: 'text',
             label: 'Email Address',
             autoFocus: true,
+            placeholder: 'you@example.com',
           },
           {
             name: 'password',
@@ -83,9 +98,8 @@ export default function LoginPage() {
           </MuiLink>
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Forgot Your Password?{' '}
           <MuiLink component={Link} href="/forgot-password" underline="hover" fontWeight="500">
-            Reset Password
+            Forgot password?
           </MuiLink>
         </Typography>
       </Box>

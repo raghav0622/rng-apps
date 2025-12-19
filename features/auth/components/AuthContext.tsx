@@ -1,4 +1,3 @@
-// features/auth/components/AuthContext.tsx
 'use client';
 
 import { clientAuth as auth } from '@/lib/firebase/client';
@@ -10,9 +9,6 @@ interface AuthContextType {
   user: SessionUser | null;
   loading: boolean;
   isInitialized: boolean;
-  /** * Updates the local user state optimistically.
-   * Use this for immediate UI feedback while server sync happens in background.
-   */
   updateUser: (updates: Partial<SessionUser>) => void;
 }
 
@@ -31,8 +27,8 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children, initialUser = null }: AuthProviderProps) {
   const [user, setUser] = useState<SessionUser | null>(initialUser);
-  const [loading, setLoading] = useState(!initialUser);
-  const [isInitialized, setIsInitialized] = useState(!!initialUser);
+  const [loading, setLoading] = useState<boolean>(!initialUser);
+  const [isInitialized, setIsInitialized] = useState<boolean>(!!initialUser);
 
   // Helper to map Firebase User to our SessionUser shape
   const mapUser = (fbUser: FirebaseUser): SessionUser => ({
@@ -43,12 +39,12 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
   });
 
   useEffect(() => {
-    // onIdTokenChanged triggers on login, logout, AND token refreshes
+    // onIdTokenChanged triggers on login, logout, AND token refreshes (every hour)
     const unsubscribe = onIdTokenChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
         const mapped = mapUser(firebaseUser);
 
-        // Prevent unnecessary re-renders if data hasn't effectively changed
+        // Deep comparison to prevent re-renders loops
         setUser((prev) => {
           if (
             prev &&
@@ -75,12 +71,10 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
   const updateUser = (updates: Partial<SessionUser>) => {
     setUser((prev) => {
       if (!prev) return null;
-
-      // Robust merge logic
       return {
         ...prev,
         ...updates,
-        // Ensure we don't accidentally undefined properties that should be null
+        // Ensure explicit undefined checks to allow nulls
         displayName: updates.displayName === undefined ? prev.displayName : updates.displayName,
         photoURL: updates.photoURL === undefined ? prev.photoURL : updates.photoURL,
       };

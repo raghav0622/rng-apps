@@ -9,6 +9,12 @@ interface AuthContextType {
   user: SessionUser | null;
   loading: boolean;
   isInitialized: boolean;
+  /**
+   * Manually updates the local user state.
+   * Use this for Optimistic UI updates (immediate feedback)
+   * while waiting for server/firebase sync.
+   */
+  updateUser: (updates: Partial<SessionUser>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -66,7 +72,17 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
     return () => unsubscribe();
   }, []);
 
+  // Helper to manually patch the user state for instant UI feedback
+  const updateUser = (updates: Partial<SessionUser>) => {
+    setUser((prev) => {
+      if (!prev) return null;
+      return { ...prev, ...updates };
+    });
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, isInitialized }}>{children}</AuthContext.Provider>
+    <AuthContext.Provider value={{ user, loading, isInitialized, updateUser }}>
+      {children}
+    </AuthContext.Provider>
   );
 }

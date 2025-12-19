@@ -1,3 +1,6 @@
+// features/auth/auth.service.ts
+import { storageRepository } from '@/features/storage/storage.repository'; // Import Storage Repo
+import { extractPathFromUrl } from '@/features/storage/storage.utils'; // Import Utils
 import { AUTH_SESSION_COOKIE_NAME } from '@/lib/constants';
 import { AppErrorCode, CustomError } from '@/lib/errors';
 import { Result } from '@/lib/types';
@@ -59,17 +62,35 @@ export class AuthService {
     data: { displayName: string; photoURL?: string },
   ): Promise<Result<void>> {
     try {
-      // 1. Update Source of Truth (Firestore)
+      // 1. Fetch current user to check for old avatar
+      const currentUser = await authRepository.getUser(userId);
+
+      // 2. Update Source of Truth (Firestore)
       await authRepository.updateUser(userId, {
         displayName: data.displayName,
         photoURL: data.photoURL || null,
       });
 
-      // 2. Update Auth User (Syncs to Token/Cookie claims)
+      // 3. Update Auth User (Syncs to Token/Cookie claims)
       await authRepository.updateAuthUser(userId, {
         displayName: data.displayName,
         photoURL: data.photoURL || null,
       });
+
+      // 4. CLEANUP: Delete old avatar if it has changed
+      if (
+        currentUser?.photoURL &&
+        data.photoURL !== undefined &&
+        currentUser.photoURL !== data.photoURL
+      ) {
+        const oldPath = extractPathFromUrl(currentUser.photoURL);
+        if (oldPath) {
+          // Fire and forget (don't await/block the response for cleanup)
+          storageRepository
+            .deleteFile(oldPath)
+            .catch((err) => console.error('Background cleanup failed', err));
+        }
+      }
 
       return { success: true, data: undefined };
     } catch (error) {
@@ -79,8 +100,19 @@ export class AuthService {
 
   static async deleteAccount(userId: string): Promise<Result<void>> {
     try {
+      // 1. Fetch user to find avatar
+      const currentUser = await authRepository.getUser(userId);
+
+      // 2. Delete User Data
       await authRepository.deleteFirestoreUser(userId);
       await authRepository.deleteAuthUser(userId);
+
+      // 3. Cleanup Avatar
+      if (currentUser?.photoURL) {
+        const path = extractPathFromUrl(currentUser.photoURL);
+        if (path) await storageRepository.deleteFile(path);
+      }
+
       await this.logout();
       return { success: true, data: undefined };
     } catch (error) {

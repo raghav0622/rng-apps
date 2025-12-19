@@ -1,3 +1,4 @@
+// app/dashboard/profile/page.tsx
 'use client';
 
 import {
@@ -6,16 +7,31 @@ import {
   updateProfileAction,
 } from '@/features/auth/auth.actions';
 import { useAuth } from '@/features/auth/components/AuthContext';
-import { ChangePasswordModal } from '@/features/auth/components/ChangePasswordModal';
-import { ConfirmPasswordModal } from '@/features/auth/components/ConfirmPasswordModal';
-import { clientAuth, clientStorage } from '@/lib/firebase/client';
+import { uploadAvatarAction } from '@/features/storage/storage.actions'; // New Import
+import { clientAuth } from '@/lib/firebase/client';
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';
-import { Alert, Box, Button, Card, CardContent, CardHeader, Stack } from '@mui/material';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import { Alert, Box, Button, Card, CardContent, CardHeader, Skeleton, Stack } from '@mui/material';
+import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
 import { useSnackbar } from 'notistack';
 import { useState } from 'react';
 import { z } from 'zod';
+
+// Lazy Load Modals
+const ChangePasswordModal = dynamic(
+  () =>
+    import('@/features/auth/components/ChangePasswordModal').then((mod) => mod.ChangePasswordModal),
+  { loading: () => null },
+);
+
+const ConfirmPasswordModal = dynamic(
+  () =>
+    import('@/features/auth/components/ConfirmPasswordModal').then(
+      (mod) => mod.ConfirmPasswordModal,
+    ),
+  { loading: () => null },
+);
 
 const ProfileSchema = z.object({
   displayName: z.string().min(2, 'Name must be at least 2 characters'),
@@ -28,27 +44,42 @@ const profileFormConfig = defineForm<typeof ProfileSchema>((f) => [
 ]);
 
 export default function ProfilePage() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const { enqueueSnackbar } = useSnackbar();
+  const router = useRouter();
 
   const [isPasswordModalOpen, setPasswordModalOpen] = useState(false);
   const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
 
-  if (!user) return null;
+  if (!user) {
+    return (
+      <Stack spacing={4}>
+        <Card>
+          <Skeleton variant="rectangular" height={300} />
+        </Card>
+        <Card>
+          <Skeleton variant="rectangular" height={150} />
+        </Card>
+      </Stack>
+    );
+  }
 
   const handleUpdateProfile = async (values: z.infer<typeof ProfileSchema>) => {
-    // Default to existing URL
     let finalPhotoURL = typeof values.photoURL === 'string' ? values.photoURL : user.photoURL;
 
     try {
-      // 1. Upload new image to Storage if a file was selected
+      // 1. Upload via Server Action if a file was selected
       if (values.photoURL instanceof File) {
-        const file = values.photoURL;
-        // Path: users/{uid}/avatar
-        const storageRef = ref(clientStorage, `users/${user.uid}/avatar`);
+        const formData = new FormData();
+        formData.append('file', values.photoURL);
 
-        const snapshot = await uploadBytes(storageRef, file);
-        finalPhotoURL = await getDownloadURL(snapshot.ref);
+        const uploadResult = await uploadAvatarAction(formData);
+
+        if (!uploadResult.success) {
+          throw new Error(uploadResult.error);
+        }
+
+        finalPhotoURL = uploadResult.url || null;
       }
 
       // 2. Call Server Action to update Firestore & Auth User
@@ -57,17 +88,19 @@ export default function ProfilePage() {
         photoURL: typeof finalPhotoURL === 'string' ? finalPhotoURL : undefined,
       });
 
-      // 3. Refresh Session Cookie
-      // Since we updated the Auth User on the server, we need a new token
-      // with the updated claims (name, picture) to write a new cookie.
+      // 3. OPTIMISTIC UPDATE
+      updateUser({
+        displayName: values.displayName,
+        photoURL: finalPhotoURL as string | null,
+      });
+
+      // 4. Refresh Session Cookie
       if (clientAuth.currentUser) {
-        // Force refresh token to get new claims
         const idToken = await clientAuth.currentUser.getIdToken(true);
-        // Exchange new token for new session cookie
         await createSessionAction({ idToken });
+        router.refresh();
       }
 
-      // 4. Update UI Context
       enqueueSnackbar('Profile updated successfully', { variant: 'success' });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
@@ -115,18 +148,25 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
 
-      <ChangePasswordModal open={isPasswordModalOpen} onClose={() => setPasswordModalOpen(false)} />
+      {isPasswordModalOpen && (
+        <ChangePasswordModal
+          open={isPasswordModalOpen}
+          onClose={() => setPasswordModalOpen(false)}
+        />
+      )}
 
-      <ConfirmPasswordModal
-        open={isDeleteModalOpen}
-        onClose={() => setDeleteModalOpen(false)}
-        title="Delete Account?"
-        description="This action cannot be undone. Please enter your password to confirm."
-        confirmLabel="Delete Permanently"
-        onConfirm={async () => {
-          await deleteAccountAction();
-        }}
-      />
+      {isDeleteModalOpen && (
+        <ConfirmPasswordModal
+          open={isDeleteModalOpen}
+          onClose={() => setDeleteModalOpen(false)}
+          title="Delete Account?"
+          description="This action cannot be undone. Please enter your password to confirm."
+          confirmLabel="Delete Permanently"
+          onConfirm={async () => {
+            await deleteAccountAction();
+          }}
+        />
+      )}
     </Stack>
   );
 }

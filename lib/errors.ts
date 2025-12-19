@@ -9,6 +9,7 @@ export enum AppErrorCode {
   DB_ERROR = 'DB_ERROR', // Added as requested
   ORGANIZATION_REQUIRED = 'ORGANIZATION_REQUIRED',
   ORG_ACCESS_DENIED = 'ORG_ACCESS_DENIED',
+  INVALID_INPUT = 'INVALID_INPUT',
 }
 
 export interface AppError {

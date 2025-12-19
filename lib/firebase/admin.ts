@@ -1,5 +1,6 @@
-import 'server-only';
+// lib/firebase/admin.ts
 import * as admin from 'firebase-admin';
+import 'server-only';
 import { logInfo } from '../logger';
 
 function initializeAdmin() {
@@ -23,6 +24,7 @@ function initializeAdmin() {
     );
   }
 
+  // Handle various formats of newlines in private keys
   const formattedPrivateKey = privateKey.replace(/\\n/g, '\n');
 
   admin.initializeApp({
@@ -31,6 +33,7 @@ function initializeAdmin() {
       clientEmail,
       privateKey: formattedPrivateKey,
     }),
+    storageBucket: `${projectId}.firebasestorage.app`, // Infer bucket or use env var if needed
   });
 
   admin.firestore().settings({
@@ -48,7 +51,6 @@ initializeAdmin();
  */
 export const firestore = () => {
   if (!admin.apps.length) initializeAdmin();
-
   return admin.firestore();
 };
 
@@ -58,6 +60,14 @@ export const firestore = () => {
 export const auth = () => {
   if (!admin.apps.length) initializeAdmin();
   return admin.auth();
+};
+
+/**
+ * Returns the initialized Storage instance.
+ */
+export const storage = () => {
+  if (!admin.apps.length) initializeAdmin();
+  return admin.storage();
 };
 
 // Re-export specific types

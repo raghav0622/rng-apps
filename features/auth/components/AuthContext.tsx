@@ -2,7 +2,7 @@
 'use client';
 
 import { clientAuth as auth } from '@/lib/firebase/client';
-import { onIdTokenChanged } from 'firebase/auth';
+import { User as FirebaseUser, onIdTokenChanged } from 'firebase/auth';
 import { createContext, useContext, useEffect, useState } from 'react';
 import { SessionUser } from '../session';
 
@@ -10,6 +10,9 @@ interface AuthContextType {
   user: SessionUser | null;
   loading: boolean;
   isInitialized: boolean;
+  /** * Updates the local user state optimistically.
+   * Use this for immediate UI feedback while server sync happens in background.
+   */
   updateUser: (updates: Partial<SessionUser>) => void;
 }
 
@@ -31,31 +34,37 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
   const [loading, setLoading] = useState(!initialUser);
   const [isInitialized, setIsInitialized] = useState(!!initialUser);
 
+  // Helper to map Firebase User to our SessionUser shape
+  const mapUser = (fbUser: FirebaseUser): SessionUser => ({
+    uid: fbUser.uid,
+    email: fbUser.email,
+    displayName: fbUser.displayName,
+    photoURL: fbUser.photoURL,
+  });
+
   useEffect(() => {
+    // onIdTokenChanged triggers on login, logout, AND token refreshes
     const unsubscribe = onIdTokenChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
-        const mappedUser: SessionUser = {
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          displayName: firebaseUser.displayName,
-          photoURL: firebaseUser.photoURL,
-        };
+        const mapped = mapUser(firebaseUser);
 
+        // Prevent unnecessary re-renders if data hasn't effectively changed
         setUser((prev) => {
           if (
             prev &&
-            prev.uid === mappedUser.uid &&
-            prev.email === mappedUser.email &&
-            prev.photoURL === mappedUser.photoURL &&
-            prev.displayName === mappedUser.displayName
+            prev.uid === mapped.uid &&
+            prev.email === mapped.email &&
+            prev.photoURL === mapped.photoURL &&
+            prev.displayName === mapped.displayName
           ) {
             return prev;
           }
-          return mappedUser;
+          return mapped;
         });
       } else {
         setUser(null);
       }
+
       setLoading(false);
       setIsInitialized(true);
     });
@@ -67,11 +76,11 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
     setUser((prev) => {
       if (!prev) return null;
 
-      // CRITICAL FIX: We must allow 'null' to override the previous value.
-      // We only want to fallback to prev if the update is explicitly 'undefined'.
+      // Robust merge logic
       return {
         ...prev,
         ...updates,
+        // Ensure we don't accidentally undefined properties that should be null
         displayName: updates.displayName === undefined ? prev.displayName : updates.displayName,
         photoURL: updates.photoURL === undefined ? prev.photoURL : updates.photoURL,
       };

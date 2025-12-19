@@ -66,6 +66,7 @@ export default function LoginPage() {
             name: 'email',
             type: 'text',
             label: 'Email Address',
+            autoFocus: true,
           },
           {
             name: 'password',

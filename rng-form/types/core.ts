@@ -3,7 +3,7 @@ import { FieldValues, Path, UseFormReturn } from 'react-hook-form';
 import { z } from 'zod';
 
 // Stricter schema definition
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 export type FormSchema = z.ZodType<any, any, any>;
 
 export type FormContextState<TFieldValues extends FieldValues = FieldValues> = {
@@ -35,18 +35,19 @@ export type BaseFormItem<Schema extends FormSchema> = {
    * @param scope - The values relative to the current nesting (e.g., current array item)
    * @param root - The global form values
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   renderLogic?: (scope: any, root: z.infer<Schema>) => boolean;
 
   /** * Logic: Return partial props to dynamically override
    * @param scope - The values relative to the current nesting (e.g., current array item)
    * @param root - The global form values
    */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   propsLogic?: (scope: any, root: z.infer<Schema>) => Partial<any>;
 
   /** Disable the input */
   disabled?: boolean;
   /** ID for testing or dom selection */
   id?: string;
+  autoFocus?: boolean;
 };

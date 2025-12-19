@@ -12,8 +12,7 @@
     ".prettierrc": true,
     "next-env.d.ts": true,
     ".vscode": true,
-    "public": true,
-    "rng-form": true
+    "public": true
   },
   "hide-files.files": [
     "node_modules",
@@ -23,8 +22,7 @@
     ".prettierrc",
     "next-env.d.ts",
     ".vscode",
-    "public",
-    "rng-form"
+    "public"
   ],
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {

@@ -21,33 +21,29 @@ export function useAuth() {
 
 interface AuthProviderProps {
   children: React.ReactNode;
-  initialUser?: SessionUser | null; // <--- ADD THIS
+  initialUser?: SessionUser | null; // Receive server data
 }
 
 export function AuthProvider({ children, initialUser = null }: AuthProviderProps) {
-  // Initialize state with the Server-Side user (if available)
+  // CRITICAL FIX: Initialize with server data to prevent "logged out" flash
   const [user, setUser] = useState<SessionUser | null>(initialUser);
+  // If we have an initialUser, we are not loading. If not, we wait for Firebase.
   const [loading, setLoading] = useState(!initialUser);
   const [isInitialized, setIsInitialized] = useState(!!initialUser);
 
   useEffect(() => {
-    // Listen for Client-Side Token Updates (e.g. invalidation, token refresh)
-    const unsubscribe = onIdTokenChanged(auth, async (firebaseUser) => {
+    const unsubscribe = onIdTokenChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
-        // Client SDK is signed in
-        setUser({
+        // Map Firebase user to SessionUser structure
+        const mappedUser: SessionUser = {
           uid: firebaseUser.uid,
           email: firebaseUser.email,
           displayName: firebaseUser.displayName,
           photoURL: firebaseUser.photoURL,
-        });
+        };
+        setUser(mappedUser);
       } else {
-        // Client SDK is not signed in.
-        // If we had an initialUser (SSR), we generally trust it until
-        // an explicit logout action clears the server cookie.
-        // However, if the client SDK explicitly says "nobody is home" AND
-        // we are sure it's not just initializing, we might sync state.
-        // For session-cookie based apps, we often rely on the SSR state mostly.
+        setUser(null);
       }
       setLoading(false);
       setIsInitialized(true);

@@ -27,7 +27,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // For now, we allow the layout to render to feel faster, and UserProfileContext handles its own internal loading if needed.
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
+    <Box
+      sx={{
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: '100vh',
+        bgcolor: 'background.default',
+      }}
+    >
       <AppHeader />
 
       <AppDrawer>

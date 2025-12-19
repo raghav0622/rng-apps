@@ -1,7 +1,6 @@
 'use client';
 
 import { AuthProvider } from '@/features/auth/components/AuthContext';
-import { UserProfileProvider } from '@/features/auth/components/UserProfileContext';
 import { SessionUser } from '@/features/auth/session';
 import { LayoutContextProvider } from '@/ui/layout/LayoutContext';
 import theme from '@/ui/theme';
@@ -21,9 +20,7 @@ export function RootProvider({ children, sessionUser }: RootProviderProps) {
         <CssBaseline /> {/* Fixes broken browser default styles */}
         <SnackbarProvider maxSnack={3} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
           <AuthProvider initialUser={sessionUser}>
-            <UserProfileProvider>
-              <LayoutContextProvider>{children}</LayoutContextProvider>
-            </UserProfileProvider>
+            <LayoutContextProvider>{children}</LayoutContextProvider>
           </AuthProvider>
         </SnackbarProvider>
       </ThemeProvider>

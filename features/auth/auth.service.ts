@@ -18,19 +18,15 @@ export class AuthService {
       const expiresIn = 60 * 60 * 24 * 5 * 1000;
       const sessionCookie = await authRepository.createSessionCookie(idToken, expiresIn);
 
-      // FIX: Use split logic for Defaults vs Updates
       await authRepository.ensureUserExists(
         uid,
-        // 1. Defaults (Used only if creating new user)
         {
           email,
           displayName: name,
           photoURL: picture,
         },
-        // 2. Updates (Applied to existing users)
         {
           lastLoginAt: new Date(),
-          // Only force-update name if it came from the form (Signup), otherwise ignore
           displayName: fullName,
         },
       );
@@ -63,10 +59,18 @@ export class AuthService {
     data: { displayName: string; photoURL?: string },
   ): Promise<Result<void>> {
     try {
+      // 1. Update Source of Truth (Firestore)
       await authRepository.updateUser(userId, {
         displayName: data.displayName,
         photoURL: data.photoURL || null,
       });
+
+      // 2. Update Auth User (Syncs to Token/Cookie claims)
+      await authRepository.updateAuthUser(userId, {
+        displayName: data.displayName,
+        photoURL: data.photoURL || null,
+      });
+
       return { success: true, data: undefined };
     } catch (error) {
       throw new CustomError(AppErrorCode.DB_ERROR, 'Failed to update profile');

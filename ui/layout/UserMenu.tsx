@@ -1,16 +1,14 @@
 'use client';
 
 import { logoutAction } from '@/features/auth/auth.actions';
-import { useUserProfile } from '@/features/auth/components/UserProfileContext'; // [CHANGED]
+import { useAuth } from '@/features/auth/components/AuthContext';
 import { Logout, Person, Settings } from '@mui/icons-material';
 import { Avatar, Divider, IconButton, ListItemIcon, Menu, MenuItem, Skeleton } from '@mui/material';
 import Link from 'next/link';
 import { useState } from 'react';
 
 export function UserMenu() {
-  // [CHANGED] Use the profile context instead of raw auth
-  const { data: user, isLoading } = useUserProfile();
-
+  const { user, loading: isLoading } = useAuth();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
 
@@ -27,11 +25,12 @@ export function UserMenu() {
     await logoutAction();
   };
 
-  // [ADDITION] Prevent rendering broken state while loading
+  // If loading and we have absolutely no user data, show skeleton
   if (isLoading && !user) {
-    return <Skeleton variant="circular" width={32} height={32} />;
+    return <Skeleton variant="circular" width={32} height={32} animation="wave" />;
   }
 
+  // Should not happen in protected routes, but good fallback
   if (!user) return null;
 
   const hasPhoto = Boolean(user.photoURL && user.photoURL.length > 0);
@@ -45,9 +44,10 @@ export function UserMenu() {
         aria-controls={open ? 'account-menu' : undefined}
         aria-haspopup="true"
         aria-expanded={open ? 'true' : undefined}
+        aria-label="Account settings"
       >
         <Avatar
-          sx={{ width: 32, height: 32, bgcolor: hasPhoto ? 'transparent' : 'primary.main' }}
+          sx={{ width: 32, height: 32, bgcolor: hasPhoto ? 'transparent' : 'secondary.main' }}
           src={user.photoURL || ''}
           alt={user.displayName || 'User'}
         >
@@ -70,6 +70,7 @@ export function UserMenu() {
               overflow: 'visible',
               filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
               mt: 1.5,
+              minWidth: 180,
               '& .MuiAvatar-root': {
                 width: 32,
                 height: 32,

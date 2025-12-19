@@ -13,8 +13,10 @@ export interface SessionUser {
 
 /**
  * Server-Side: Get current user.
- * Strategy: Verify Cookie for Auth -> Fetch Firestore for Data.
- * Cached per request to avoid multiple Firestore reads.
+ * Strategy: Verify Cookie Claims ONLY.
+ * * CHANGE: We removed the secondary Firestore fetch.
+ * Since profile photos are now stored as Storage URLs (short strings),
+ * they fit inside the session cookie claims.
  */
 export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
   const cookieStore = await cookies();
@@ -23,26 +25,14 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
   if (!sessionCookie) return null;
 
   try {
-    // 1. Verify Identity (Fast, Low Latency check)
+    // 1. Verify Identity & Get Claims (Zero Latency)
     const decodedClaims = await authRepository.verifySessionCookie(sessionCookie);
-    const uid = decodedClaims.uid;
-
-    // 2. Fetch Fresh Data (Source of Truth)
-    // We do NOT use decodedClaims for profile data because:
-    // a) It might be stale (cached in cookie).
-    // b) Large Base64 avatars don't fit in cookies.
-    const userProfile = await authRepository.getUser(uid);
-
-    if (!userProfile) {
-      // Edge case: User deleted in Firestore but cookie still valid
-      return null;
-    }
 
     return {
-      uid: userProfile.uid,
-      email: userProfile.email,
-      displayName: userProfile.displayName,
-      photoURL: userProfile.photoURL,
+      uid: decodedClaims.uid,
+      email: decodedClaims.email ?? null,
+      displayName: (decodedClaims.name as string) ?? null,
+      photoURL: (decodedClaims.picture as string) ?? null,
     };
   } catch (error) {
     // Cookie is invalid or expired

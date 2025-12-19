@@ -10,18 +10,18 @@ const Main = styled('main', {
   drawerWidth: number;
 }>(({ theme, open, drawerWidth }) => ({
   flexGrow: 1,
-  padding: theme.spacing(2),
+  padding: theme.spacing(3), // Increased padding for better breathing room
   transition: theme.transitions.create('margin', {
     easing: theme.transitions.easing.sharp,
     duration: theme.transitions.duration.leavingScreen,
   }),
-  marginLeft: 0, // Default for mobile or closed
+  marginLeft: 0,
   ...(open && {
     transition: theme.transitions.create('margin', {
       easing: theme.transitions.easing.easeOut,
       duration: theme.transitions.duration.enteringScreen,
     }),
-    marginLeft: 0, // Reset for mobile
+    marginLeft: 0,
     [theme.breakpoints.up('sm')]: {
       marginLeft: `${drawerWidth}px`,
     },
@@ -35,7 +35,11 @@ export const AppContent: React.FC<{ children: React.ReactNode }> = ({ children }
     <Main open={!mobile && drawerOpen} drawerWidth={drawerWidth}>
       {/* Spacer to push content below fixed header */}
       <Toolbar variant="dense" />
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>{children}</Box>
+      <Box
+        sx={{ display: 'flex', flexDirection: 'column', gap: 3, maxWidth: '1600px', mx: 'auto' }}
+      >
+        {children}
+      </Box>
     </Main>
   );
 };

@@ -3,15 +3,15 @@
 import { Menu as MenuIcon } from '@mui/icons-material';
 import { AppBar, Box, IconButton, Skeleton, Stack, Toolbar } from '@mui/material';
 import dynamic from 'next/dynamic';
-import { Suspense } from 'react'; // Use React Suspense
+import { Suspense } from 'react';
 import Logo from '../Logo';
 import DarkModeToggle from '../ThemeSwitch';
 import { useLayoutContext } from './LayoutContext';
 
-// Dynamic import with no SSR option if it relies purely on browser APIs,
-// otherwise let it hydrate. Using a loading skeleton here is key.
+// Dynamic import for UserMenu to reduce initial bundle size
 const UserMenu = dynamic(() => import('./UserMenu').then((mod) => mod.UserMenu), {
-  loading: () => <Skeleton variant="circular" width={40} height={40} animation="wave" />,
+  loading: () => <Skeleton variant="circular" width={32} height={32} animation="wave" />,
+  ssr: true, // Enable SSR to show the skeleton or initial state faster
 });
 
 export default function AppHeader() {
@@ -33,6 +33,7 @@ export default function AppHeader() {
           edge="start"
           onClick={handleDrawerToggle}
           sx={{ mr: 2, display: { sm: 'none' } }}
+          aria-label="open drawer"
         >
           <MenuIcon />
         </IconButton>
@@ -43,8 +44,8 @@ export default function AppHeader() {
 
         <Stack direction="row" spacing={1} alignItems="center">
           <DarkModeToggle />
-          {/* Suspense Boundary for User Menu */}
-          <Suspense fallback={<Skeleton variant="circular" width={40} height={40} />}>
+          {/* Suspense Boundary isolates UserMenu data fetching/loading */}
+          <Suspense fallback={<Skeleton variant="circular" width={32} height={32} />}>
             <UserMenu />
           </Suspense>
         </Stack>

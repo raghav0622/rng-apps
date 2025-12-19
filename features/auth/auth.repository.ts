@@ -54,10 +54,6 @@ export class AuthRepository {
     }
   }
 
-  /**
-   * Fetch the latest user profile from Firestore.
-   * This ensures we get the large Base64 photoURL that won't fit in a cookie.
-   */
   async getUser(uid: string) {
     const snap = await this.usersCollection.doc(uid).get();
     if (!snap.exists) return null;
@@ -68,7 +64,6 @@ export class AuthRepository {
       email: data?.email ?? null,
       displayName: data?.displayName ?? null,
       photoURL: data?.photoURL ?? null,
-      // Add other fields as needed
     };
   }
 
@@ -79,6 +74,17 @@ export class AuthRepository {
     if (data.displayName) updates.displayName = data.displayName;
     if (data.photoURL !== undefined) updates.photoURL = data.photoURL;
     await userRef.update(updates);
+  }
+
+  /**
+   * Updates the Firebase Auth user record.
+   * This ensures the next time an ID token is minted, it contains the new name/photo.
+   */
+  async updateAuthUser(uid: string, data: { displayName: string; photoURL?: string | null }) {
+    await auth().updateUser(uid, {
+      displayName: data.displayName,
+      photoURL: data.photoURL || null,
+    });
   }
 
   async deleteFirestoreUser(uid: string) {

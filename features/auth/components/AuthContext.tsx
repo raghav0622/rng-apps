@@ -25,23 +25,37 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children, initialUser = null }: AuthProviderProps) {
-  // CRITICAL FIX: Initialize with server data to prevent "logged out" flash
+  // CRITICAL: Initialize with server data to prevent "logged out" flash
   const [user, setUser] = useState<SessionUser | null>(initialUser);
-  // If we have an initialUser, we are not loading. If not, we wait for Firebase.
+
+  // If we have an initialUser, we are "optimistically" loaded.
+  // We wait for Firebase only if we started with null (unknown state).
   const [loading, setLoading] = useState(!initialUser);
   const [isInitialized, setIsInitialized] = useState(!!initialUser);
 
   useEffect(() => {
     const unsubscribe = onIdTokenChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
-        // Map Firebase user to SessionUser structure
         const mappedUser: SessionUser = {
           uid: firebaseUser.uid,
           email: firebaseUser.email,
           displayName: firebaseUser.displayName,
           photoURL: firebaseUser.photoURL,
         };
-        setUser(mappedUser);
+
+        // Prevents unnecessary re-renders if data hasn't changed (Object Reference Stability)
+        setUser((prev) => {
+          if (
+            prev &&
+            prev.uid === mappedUser.uid &&
+            prev.email === mappedUser.email &&
+            prev.photoURL === mappedUser.photoURL &&
+            prev.displayName === mappedUser.displayName
+          ) {
+            return prev;
+          }
+          return mappedUser;
+        });
       } else {
         setUser(null);
       }

@@ -7,22 +7,22 @@ import {
   updateProfileAction,
 } from '@/features/auth/auth.actions';
 import { useAuth } from '@/features/auth/components/AuthContext';
-import { uploadAvatarAction } from '@/features/storage/storage.actions'; // New Import
+import { uploadAvatarAction } from '@/features/storage/storage.actions';
 import { clientAuth } from '@/lib/firebase/client';
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';
-import { Alert, Box, Button, Card, CardContent, CardHeader, Skeleton, Stack } from '@mui/material';
+import { Alert, Box, Button, Card, CardContent, CardHeader, Stack } from '@mui/material';
+import { updateProfile } from 'firebase/auth';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useSnackbar } from 'notistack';
 import { useState } from 'react';
 import { z } from 'zod';
 
-// Lazy Load Modals
 const ChangePasswordModal = dynamic(
   () =>
     import('@/features/auth/components/ChangePasswordModal').then((mod) => mod.ChangePasswordModal),
-  { loading: () => null },
+  { ssr: false },
 );
 
 const ConfirmPasswordModal = dynamic(
@@ -30,12 +30,12 @@ const ConfirmPasswordModal = dynamic(
     import('@/features/auth/components/ConfirmPasswordModal').then(
       (mod) => mod.ConfirmPasswordModal,
     ),
-  { loading: () => null },
+  { ssr: false },
 );
 
 const ProfileSchema = z.object({
   displayName: z.string().min(2, 'Name must be at least 2 characters'),
-  photoURL: z.union([z.string(), z.any()]).optional(),
+  photoURL: z.union([z.string(), z.any()]).nullable().optional(),
 });
 
 const profileFormConfig = defineForm<typeof ProfileSchema>((f) => [
@@ -51,50 +51,59 @@ export default function ProfilePage() {
   const [isPasswordModalOpen, setPasswordModalOpen] = useState(false);
   const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
 
-  if (!user) {
-    return (
-      <Stack spacing={4}>
-        <Card>
-          <Skeleton variant="rectangular" height={300} />
-        </Card>
-        <Card>
-          <Skeleton variant="rectangular" height={150} />
-        </Card>
-      </Stack>
-    );
-  }
+  if (!user) return null;
 
   const handleUpdateProfile = async (values: z.infer<typeof ProfileSchema>) => {
-    let finalPhotoURL = typeof values.photoURL === 'string' ? values.photoURL : user.photoURL;
+    let finalPhotoURL: string | null = user.photoURL || null;
 
     try {
-      // 1. Upload via Server Action if a file was selected
+      // 1. Handle File Upload or Deletion
       if (values.photoURL instanceof File) {
         const formData = new FormData();
         formData.append('file', values.photoURL);
-
         const uploadResult = await uploadAvatarAction(formData);
-
         if (!uploadResult.success) {
-          throw new Error(uploadResult.error);
+          throw new Error(uploadResult.error || 'Avatar upload failed');
         }
-
         finalPhotoURL = uploadResult.url || null;
+      } else if (values.photoURL === null) {
+        finalPhotoURL = null;
+      } else if (typeof values.photoURL === 'string') {
+        finalPhotoURL = values.photoURL;
       }
 
-      // 2. Call Server Action to update Firestore & Auth User
-      await updateProfileAction({
+      const updates = {
         displayName: values.displayName,
-        photoURL: typeof finalPhotoURL === 'string' ? finalPhotoURL : undefined,
+        photoURL: finalPhotoURL,
+      };
+
+      // 2. Client-Side Update (Firebase SDK)
+      if (clientAuth.currentUser) {
+        await updateProfile(clientAuth.currentUser, {
+          displayName: updates.displayName,
+          photoURL: updates.photoURL,
+        });
+      }
+
+      // 3. Optimistic Update
+      updateUser(updates);
+
+      // 4. Server-Side Update
+      const result = await updateProfileAction({
+        displayName: updates.displayName,
+        photoURL: updates.photoURL,
       });
 
-      // 3. OPTIMISTIC UPDATE
-      updateUser({
-        displayName: values.displayName,
-        photoURL: finalPhotoURL as string | null,
-      });
+      if (result?.serverError) {
+        // Safe check: handle if serverError is a string or an object
+        const message =
+          typeof result.serverError === 'string'
+            ? result.serverError
+            : result.serverError?.message || 'Failed to update profile on server';
+        throw new Error(message);
+      }
 
-      // 4. Refresh Session Cookie
+      // 5. Refresh Session
       if (clientAuth.currentUser) {
         const idToken = await clientAuth.currentUser.getIdToken(true);
         await createSessionAction({ idToken });
@@ -102,10 +111,10 @@ export default function ProfilePage() {
       }
 
       enqueueSnackbar('Profile updated successfully', { variant: 'success' });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error(error);
       enqueueSnackbar(error.message || 'Something went wrong', { variant: 'error' });
+      router.refresh();
     }
   };
 
@@ -119,7 +128,7 @@ export default function ProfilePage() {
             uiSchema={profileFormConfig}
             defaultValues={{
               displayName: user.displayName || '',
-              photoURL: user.photoURL || '',
+              photoURL: user.photoURL || null,
             }}
             onSubmit={handleUpdateProfile}
             submitLabel="Save Changes"
@@ -134,14 +143,11 @@ export default function ProfilePage() {
             <Button variant="outlined" onClick={() => setPasswordModalOpen(true)}>
               Change Password
             </Button>
-
             <Box flexGrow={1} />
-
             <Button variant="contained" color="error" onClick={() => setDeleteModalOpen(true)}>
               Delete Account
             </Button>
           </Stack>
-
           <Alert severity="warning" sx={{ mt: 3 }}>
             Deleting your account is permanent. All your personal data will be removed.
           </Alert>
@@ -163,7 +169,15 @@ export default function ProfilePage() {
           description="This action cannot be undone. Please enter your password to confirm."
           confirmLabel="Delete Permanently"
           onConfirm={async () => {
-            await deleteAccountAction();
+            const res = await deleteAccountAction();
+
+            if (res?.serverError) {
+              // FIX: Access .message property since serverError is an AppError object
+              throw new Error(res.serverError.message || 'Failed to delete account');
+            }
+
+            // Redirect client-side to avoid "NEXT_REDIRECT" error inside try/catch
+            router.push('/login');
           }}
         />
       )}

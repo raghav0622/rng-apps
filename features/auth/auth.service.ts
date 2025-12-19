@@ -1,6 +1,6 @@
 // features/auth/auth.service.ts
-import { storageRepository } from '@/features/storage/storage.repository'; // Import Storage Repo
-import { extractPathFromUrl } from '@/features/storage/storage.utils'; // Import Utils
+import { storageRepository } from '@/features/storage/storage.repository';
+import { extractPathFromUrl } from '@/features/storage/storage.utils';
 import { AUTH_SESSION_COOKIE_NAME } from '@/lib/constants';
 import { AppErrorCode, CustomError } from '@/lib/errors';
 import { Result } from '@/lib/types';
@@ -57,27 +57,31 @@ export class AuthService {
     return { success: true, data: undefined };
   }
 
+  // FIX: Explicitly type photoURL as string | null | undefined
   static async updateProfile(
     userId: string,
-    data: { displayName: string; photoURL?: string },
+    data: { displayName: string; photoURL?: string | null },
   ): Promise<Result<void>> {
     try {
       // 1. Fetch current user to check for old avatar
       const currentUser = await authRepository.getUser(userId);
 
       // 2. Update Source of Truth (Firestore)
+      // Note: Passing null to Firestore deletes the field or sets it to null,
+      // which is what we want for removing an avatar.
       await authRepository.updateUser(userId, {
         displayName: data.displayName,
-        photoURL: data.photoURL || null,
+        photoURL: data.photoURL,
       });
 
       // 3. Update Auth User (Syncs to Token/Cookie claims)
       await authRepository.updateAuthUser(userId, {
         displayName: data.displayName,
-        photoURL: data.photoURL || null,
+        photoURL: data.photoURL,
       });
 
-      // 4. CLEANUP: Delete old avatar if it has changed
+      // 4. CLEANUP: Delete old avatar if it has changed (and wasn't just set to the same value)
+      // Check if photoURL changed AND specifically if the old one existed
       if (
         currentUser?.photoURL &&
         data.photoURL !== undefined &&
@@ -85,7 +89,7 @@ export class AuthService {
       ) {
         const oldPath = extractPathFromUrl(currentUser.photoURL);
         if (oldPath) {
-          // Fire and forget (don't await/block the response for cleanup)
+          // Fire and forget cleanup
           storageRepository
             .deleteFile(oldPath)
             .catch((err) => console.error('Background cleanup failed', err));
@@ -94,20 +98,19 @@ export class AuthService {
 
       return { success: true, data: undefined };
     } catch (error) {
+      // Log the real error on the server so we can debug if needed
+      console.error('Update Profile Service Error:', error);
       throw new CustomError(AppErrorCode.DB_ERROR, 'Failed to update profile');
     }
   }
 
   static async deleteAccount(userId: string): Promise<Result<void>> {
     try {
-      // 1. Fetch user to find avatar
       const currentUser = await authRepository.getUser(userId);
 
-      // 2. Delete User Data
       await authRepository.deleteFirestoreUser(userId);
       await authRepository.deleteAuthUser(userId);
 
-      // 3. Cleanup Avatar
       if (currentUser?.photoURL) {
         const path = extractPathFromUrl(currentUser.photoURL);
         if (path) await storageRepository.deleteFile(path);

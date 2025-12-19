@@ -1,3 +1,4 @@
+// features/auth/auth.actions.ts
 'use server';
 
 import { actionClient, authActionClient } from '@/lib/safe-action';
@@ -23,9 +24,10 @@ export const logoutAction = actionClient.metadata({ name: 'auth.logout' }).actio
   redirect('/login');
 });
 
+// FIX: Schema must allow null for photoURL to support removal
 const UpdateProfileSchema = z.object({
   displayName: z.string().min(2),
-  photoURL: z.string().optional(),
+  photoURL: z.string().nullable().optional(),
 });
 
 export const updateProfileAction = authActionClient
@@ -38,8 +40,10 @@ export const updateProfileAction = authActionClient
 export const deleteAccountAction = authActionClient
   .metadata({ name: 'auth.deleteAccount' })
   .action(async ({ ctx }) => {
-    await AuthService.deleteAccount(ctx.userId);
-    redirect('/login');
+    // FIX: Do not redirect here. Return the result so the client can handle navigation.
+    // Redirecting here throws an error ('NEXT_REDIRECT') which is caught by the
+    // ConfirmPasswordModal as a "failure" (incorrect password).
+    return await AuthService.deleteAccount(ctx.userId);
   });
 
 export const getProfileAction = authActionClient

@@ -1,3 +1,4 @@
+// ui/layout/UserMenu.tsx
 'use client';
 
 import { logoutAction } from '@/features/auth/auth.actions';
@@ -25,16 +26,18 @@ export function UserMenu() {
     await logoutAction();
   };
 
-  // If loading and we have absolutely no user data, show skeleton
   if (isLoading && !user) {
     return <Skeleton variant="circular" width={32} height={32} animation="wave" />;
   }
 
-  // Should not happen in protected routes, but good fallback
   if (!user) return null;
 
+  // FIX: Explicit check. If string is empty or null, treat as no photo.
   const hasPhoto = Boolean(user.photoURL && user.photoURL.length > 0);
-  const initial = user.displayName ? user.displayName.charAt(0).toUpperCase() : 'U';
+
+  const initial = user.displayName
+    ? user.displayName.charAt(0).toUpperCase()
+    : user.email?.charAt(0).toUpperCase() || 'U';
 
   return (
     <>
@@ -48,7 +51,8 @@ export function UserMenu() {
       >
         <Avatar
           sx={{ width: 32, height: 32, bgcolor: hasPhoto ? 'transparent' : 'secondary.main' }}
-          src={user.photoURL || ''}
+          // FIX: Pass undefined if null/empty so MUI renders the children (initials)
+          src={hasPhoto ? user.photoURL! : undefined}
           alt={user.displayName || 'User'}
         >
           {!hasPhoto && initial}

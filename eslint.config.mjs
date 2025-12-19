@@ -16,7 +16,7 @@ const eslintConfig = defineConfig([
       import: eslintPluginImport,
     },
     rules: {
-      // '@typescript-eslint/no-explicit-any': 'error',
+      '@typescript-eslint/no-explicit-any': 'off',
       'no-console': ['error', { allow: ['warn', 'error', 'info'] }],
       '@next/next/no-img-element': 'error',
       'no-unused-vars': 'off',

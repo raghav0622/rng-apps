@@ -1,3 +1,4 @@
+// features/auth/components/AuthContext.tsx
 'use client';
 
 import { clientAuth as auth } from '@/lib/firebase/client';
@@ -9,11 +10,6 @@ interface AuthContextType {
   user: SessionUser | null;
   loading: boolean;
   isInitialized: boolean;
-  /**
-   * Manually updates the local user state.
-   * Use this for Optimistic UI updates (immediate feedback)
-   * while waiting for server/firebase sync.
-   */
   updateUser: (updates: Partial<SessionUser>) => void;
 }
 
@@ -27,15 +23,11 @@ export function useAuth() {
 
 interface AuthProviderProps {
   children: React.ReactNode;
-  initialUser?: SessionUser | null; // Receive server data
+  initialUser?: SessionUser | null;
 }
 
 export function AuthProvider({ children, initialUser = null }: AuthProviderProps) {
-  // CRITICAL: Initialize with server data to prevent "logged out" flash
   const [user, setUser] = useState<SessionUser | null>(initialUser);
-
-  // If we have an initialUser, we are "optimistically" loaded.
-  // We wait for Firebase only if we started with null (unknown state).
   const [loading, setLoading] = useState(!initialUser);
   const [isInitialized, setIsInitialized] = useState(!!initialUser);
 
@@ -49,7 +41,6 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
           photoURL: firebaseUser.photoURL,
         };
 
-        // Prevents unnecessary re-renders if data hasn't changed (Object Reference Stability)
         setUser((prev) => {
           if (
             prev &&
@@ -72,11 +63,18 @@ export function AuthProvider({ children, initialUser = null }: AuthProviderProps
     return () => unsubscribe();
   }, []);
 
-  // Helper to manually patch the user state for instant UI feedback
   const updateUser = (updates: Partial<SessionUser>) => {
     setUser((prev) => {
       if (!prev) return null;
-      return { ...prev, ...updates };
+
+      // CRITICAL FIX: We must allow 'null' to override the previous value.
+      // We only want to fallback to prev if the update is explicitly 'undefined'.
+      return {
+        ...prev,
+        ...updates,
+        displayName: updates.displayName === undefined ? prev.displayName : updates.displayName,
+        photoURL: updates.photoURL === undefined ? prev.photoURL : updates.photoURL,
+      };
     });
   };
 

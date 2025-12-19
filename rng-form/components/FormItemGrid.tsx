@@ -15,15 +15,15 @@ interface FormItemGridProps<S extends FormSchema> {
  * Used by FormBuilder to render items in a responsive grid.
  */
 export function FormItemGrid<S extends FormSchema>({ item, pathPrefix }: FormItemGridProps<S>) {
-  // Pass pathPrefix to useFieldLogic to ensure dependencies are scoped correctly
   const { isVisible, mergedItem } = useFieldLogic(item, pathPrefix);
 
   if (!isVisible) return null;
 
+  // Extract colProps to keep the Grid component clean
+  const { size, ...otherColProps } = mergedItem.colProps || {};
+
   return (
-    // MUI v7: 'size' prop is the default. Leaving 'size' and spreading colProps.
-    <Grid size={mergedItem.colProps?.size ?? 12} {...mergedItem.colProps}>
-      {/* We pass the merged item (with dynamic props) to the renderer */}
+    <Grid size={size ?? 12} {...otherColProps}>
       <RenderItem item={mergedItem} pathPrefix={pathPrefix} />
     </Grid>
   );

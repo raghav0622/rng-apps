@@ -3,15 +3,14 @@
 import { Menu as MenuIcon } from '@mui/icons-material';
 import { AppBar, Box, IconButton, Skeleton, Stack, Toolbar } from '@mui/material';
 import dynamic from 'next/dynamic';
-import { Suspense } from 'react';
 import Logo from '../Logo';
 import DarkModeToggle from '../ThemeSwitch';
 import { useLayoutContext } from './LayoutContext';
 
-// Dynamic import for UserMenu to reduce initial bundle size
+// Dynamic import with SSR enabled prevents layout shift during hydration
 const UserMenu = dynamic(() => import('./UserMenu').then((mod) => mod.UserMenu), {
   loading: () => <Skeleton variant="circular" width={32} height={32} animation="wave" />,
-  ssr: true, // Enable SSR to show the skeleton or initial state faster
+  ssr: true,
 });
 
 export default function AppHeader() {
@@ -20,11 +19,12 @@ export default function AppHeader() {
   return (
     <AppBar
       position="fixed"
-      color="primary"
+      color="inherit" // Better for dark/light mode switching than 'primary'
       elevation={0}
       sx={{
-        borderBottom: '1px solid',
+        borderBottom: 1,
         borderColor: 'divider',
+        bgcolor: 'background.paper', // Ensures it respects theme background
         zIndex: (theme) => theme.zIndex.drawer + 1,
       }}
     >
@@ -44,10 +44,7 @@ export default function AppHeader() {
 
         <Stack direction="row" spacing={1} alignItems="center">
           <DarkModeToggle />
-          {/* Suspense Boundary isolates UserMenu data fetching/loading */}
-          <Suspense fallback={<Skeleton variant="circular" width={32} height={32} />}>
-            <UserMenu />
-          </Suspense>
+          <UserMenu />
         </Stack>
       </Toolbar>
     </AppBar>

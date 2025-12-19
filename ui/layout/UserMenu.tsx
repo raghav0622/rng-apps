@@ -3,14 +3,44 @@
 
 import { logoutAction } from '@/features/auth/auth.actions';
 import { useAuth } from '@/features/auth/components/AuthContext';
+import { SessionUser } from '@/features/auth/session';
 import { Logout, Person, Settings } from '@mui/icons-material';
-import { Avatar, Divider, IconButton, ListItemIcon, Menu, MenuItem, Skeleton } from '@mui/material';
+import {
+  Avatar,
+  Divider,
+  IconButton,
+  ListItemIcon,
+  Menu,
+  MenuItem,
+  Skeleton,
+  Tooltip,
+} from '@mui/material';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+
+// Helper to generate consistent initials
+const getInitials = (displayName: string | null | undefined, email: string | null | undefined) => {
+  if (displayName) {
+    // Attempt to get first letter of first and last name
+    const parts = displayName.trim().split(' ');
+    if (parts.length >= 2) {
+      return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
+    }
+    return displayName.slice(0, 2).toUpperCase();
+  }
+  if (email) {
+    return email.slice(0, 2).toUpperCase();
+  }
+  return 'U';
+};
 
 export function UserMenu() {
   const { user, loading: isLoading } = useAuth();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+
+  // Optimistic UI: We might be technically "logged in" but performing the logout action
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
   const open = Boolean(anchorEl);
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -22,49 +52,87 @@ export function UserMenu() {
   };
 
   const handleLogout = async () => {
+    setIsLoggingOut(true);
     handleClose();
     await logoutAction();
   };
 
-  if (isLoading && !user) {
+  // 1. Loading State
+  if (isLoading || isLoggingOut) {
     return <Skeleton variant="circular" width={32} height={32} animation="wave" />;
   }
 
+  // 2. Unauthenticated State (Should ideally be handled by layout, but safe guard here)
   if (!user) return null;
 
-  // FIX: Explicit check. If string is empty or null, treat as no photo.
-  const hasPhoto = Boolean(user.photoURL && user.photoURL.length > 0);
+  return (
+    <AuthenticatedUserMenu
+      user={user}
+      anchorEl={anchorEl}
+      open={open}
+      onClick={handleClick}
+      onClose={handleClose}
+      onLogout={handleLogout}
+    />
+  );
+}
 
-  const initial = user.displayName
-    ? user.displayName.charAt(0).toUpperCase()
-    : user.email?.charAt(0).toUpperCase() || 'U';
+// Split component for cleaner rendering
+interface AuthenticatedMenuProps {
+  user: SessionUser;
+  anchorEl: HTMLElement | null;
+  open: boolean;
+  onClick: (e: React.MouseEvent<HTMLElement>) => void;
+  onClose: () => void;
+  onLogout: () => void;
+}
+
+function AuthenticatedUserMenu({
+  user,
+  anchorEl,
+  open,
+  onClick,
+  onClose,
+  onLogout,
+}: AuthenticatedMenuProps) {
+  const hasPhoto = Boolean(user.photoURL);
+  const initials = useMemo(
+    () => getInitials(user.displayName, user.email),
+    [user.displayName, user.email],
+  );
 
   return (
     <>
-      <IconButton
-        onClick={handleClick}
-        size="small"
-        aria-controls={open ? 'account-menu' : undefined}
-        aria-haspopup="true"
-        aria-expanded={open ? 'true' : undefined}
-        aria-label="Account settings"
-      >
-        <Avatar
-          sx={{ width: 32, height: 32, bgcolor: hasPhoto ? 'transparent' : 'secondary.main' }}
-          // FIX: Pass undefined if null/empty so MUI renders the children (initials)
-          src={hasPhoto ? user.photoURL! : undefined}
-          alt={user.displayName || 'User'}
+      <Tooltip title="Account settings">
+        <IconButton
+          onClick={onClick}
+          size="small"
+          aria-controls={open ? 'account-menu' : undefined}
+          aria-haspopup="true"
+          aria-expanded={open ? 'true' : undefined}
         >
-          {!hasPhoto && initial}
-        </Avatar>
-      </IconButton>
+          <Avatar
+            sx={{
+              width: 32,
+              height: 32,
+              // Use theme color for text avatars, transparent for images
+              bgcolor: hasPhoto ? 'transparent' : 'primary.main',
+              fontSize: '0.875rem',
+            }}
+            src={user.photoURL || undefined}
+            alt={user.displayName || 'User'}
+          >
+            {!hasPhoto && initials}
+          </Avatar>
+        </IconButton>
+      </Tooltip>
 
       <Menu
         anchorEl={anchorEl}
         id="account-menu"
         open={open}
-        onClose={handleClose}
-        onClick={handleClose}
+        onClose={onClose}
+        onClick={onClose}
         transformOrigin={{ horizontal: 'right', vertical: 'top' }}
         anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
         slotProps={{
@@ -74,7 +142,7 @@ export function UserMenu() {
               overflow: 'visible',
               filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
               mt: 1.5,
-              minWidth: 180,
+              minWidth: 200,
               '& .MuiAvatar-root': {
                 width: 32,
                 height: 32,
@@ -104,7 +172,7 @@ export function UserMenu() {
           Profile
         </MenuItem>
 
-        <MenuItem onClick={handleClose}>
+        <MenuItem disabled>
           <ListItemIcon>
             <Settings fontSize="small" />
           </ListItemIcon>
@@ -113,9 +181,9 @@ export function UserMenu() {
 
         <Divider />
 
-        <MenuItem onClick={handleLogout}>
+        <MenuItem onClick={onLogout} sx={{ color: 'error.main' }}>
           <ListItemIcon>
-            <Logout fontSize="small" />
+            <Logout fontSize="small" color="error" />
           </ListItemIcon>
           Logout
         </MenuItem>

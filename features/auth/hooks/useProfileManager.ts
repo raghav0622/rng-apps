@@ -31,10 +31,10 @@ export function useProfileManager() {
         formData.append('file', values.photoURL);
 
         const uploadResult = await uploadAvatarAction(formData);
-        if (!uploadResult?.url) {
+        if (!uploadResult?.data?.url) {
           throw new Error('Failed to upload profile picture.');
         }
-        finalPhotoURL = uploadResult.url;
+        finalPhotoURL = uploadResult.data.url;
       } else if (values.photoURL === null) {
         finalPhotoURL = null;
       } else if (typeof values.photoURL === 'string') {

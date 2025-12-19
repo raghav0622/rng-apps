@@ -22,7 +22,8 @@
     ".prettierrc",
     "next-env.d.ts",
     ".vscode",
-    "public"
+    "public",
+    "rng-form"
   ],
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {

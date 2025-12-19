@@ -75,6 +75,8 @@ export class AuthRepository {
       email: data?.email ?? null,
       displayName: data?.displayName ?? null,
       photoURL: data?.photoURL ?? null,
+      // ADDED: Needed for Org Context checks
+      orgId: (data?.orgId as string) ?? null,
     };
   }
 

@@ -1,9 +1,10 @@
+import AuthLayout from '@/ui/layout/AuthLayout';
 import { Container, Paper } from '@mui/material';
 
-export default function AuthLayout({ children }: { children: React.ReactNode }) {
+export default function layout({ children }: { children: React.ReactNode }) {
   return (
     <AuthLayout>
-      <Container maxWidth="sm">
+      <Container maxWidth="sm" sx={{ my: 4 }}>
         <Paper elevation={3} sx={{ p: 4, borderRadius: 2 }}>
           {children}
         </Paper>

@@ -8,7 +8,6 @@ import theme from '@/ui/theme';
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v13-appRouter';
 import { ThemeProvider } from '@mui/material/styles';
 import { SnackbarProvider } from 'notistack';
-import DashboardLayout from './DashboardLayout';
 
 export function RootProvider({
   children,
@@ -25,7 +24,7 @@ export function RootProvider({
             <AuthProvider initialUser={initialUser}>
               {/* [ADDITION] Wrap Layout with UserProfileProvider */}
               <UserProfileProvider>
-                <DashboardLayout>{children}</DashboardLayout>
+                <>{children}</>
               </UserProfileProvider>
             </AuthProvider>
           </LayoutContextProvider>

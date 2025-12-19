@@ -1,14 +1,16 @@
 'use client';
 
 import { logoutAction } from '@/features/auth/auth.actions';
-import { useAuth } from '@/lib/auth/AuthContext';
+import { useUserProfile } from '@/lib/auth/UserProfileContext'; // [CHANGED]
 import { Logout, Person, Settings } from '@mui/icons-material';
-import { Avatar, Divider, IconButton, ListItemIcon, Menu, MenuItem } from '@mui/material';
+import { Avatar, Divider, IconButton, ListItemIcon, Menu, MenuItem, Skeleton } from '@mui/material';
 import Link from 'next/link';
 import { useState } from 'react';
 
 export function UserMenu() {
-  const { user } = useAuth();
+  // [CHANGED] Use the profile context instead of raw auth
+  const { data: user, isLoading } = useUserProfile();
+
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
 
@@ -25,9 +27,13 @@ export function UserMenu() {
     await logoutAction();
   };
 
+  // [ADDITION] Prevent rendering broken state while loading
+  if (isLoading && !user) {
+    return <Skeleton variant="circular" width={32} height={32} />;
+  }
+
   if (!user) return null;
 
-  // Robust Fallback Logic
   const hasPhoto = Boolean(user.photoURL && user.photoURL.length > 0);
   const initial = user.displayName ? user.displayName.charAt(0).toUpperCase() : 'U';
 

@@ -3,6 +3,7 @@
 import { actionClient, authActionClient } from '@/lib/safe-action';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
+import { authRepository } from './auth.repository';
 import { AuthService } from './auth.service';
 
 const SessionSchema = z.object({
@@ -39,4 +40,10 @@ export const deleteAccountAction = authActionClient
   .action(async ({ ctx }) => {
     await AuthService.deleteAccount(ctx.userId);
     redirect('/login');
+  });
+
+export const getProfileAction = authActionClient
+  .metadata({ name: 'auth.getProfile' })
+  .action(async ({ ctx }) => {
+    return await authRepository.getUser(ctx.userId);
   });

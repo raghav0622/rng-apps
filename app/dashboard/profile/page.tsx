@@ -1,7 +1,8 @@
 'use client';
 
 import { deleteAccountAction, updateProfileAction } from '@/features/auth/auth.actions';
-import { useAuth } from '@/lib/auth/AuthContext';
+// [CHANGED] Use new profile context
+import { useUserProfile } from '@/lib/auth/UserProfileContext';
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';
 import { ChangePasswordModal } from '@/ui/modals/ChangePasswordModal';
@@ -32,7 +33,8 @@ const profileFormConfig = defineForm<typeof ProfileSchema>((f) => [
 ]);
 
 export default function ProfilePage() {
-  const { user } = useAuth();
+  // [CHANGED] Get data and the refresh method from Context
+  const { data: user, refreshProfile } = useUserProfile();
   const { enqueueSnackbar } = useSnackbar();
 
   const [isPasswordModalOpen, setPasswordModalOpen] = useState(false);
@@ -49,7 +51,7 @@ export default function ProfilePage() {
             schema={ProfileSchema}
             uiSchema={profileFormConfig}
             defaultValues={{
-              displayName: user.displayName,
+              displayName: user.displayName || '',
               photoURL: user.photoURL || '',
             }}
             onSubmit={async (values) => {
@@ -70,7 +72,8 @@ export default function ProfilePage() {
 
               if (result?.data?.success) {
                 enqueueSnackbar('Profile updated successfully', { variant: 'success' });
-                window.location.reload();
+                // [ADDITION] Immediately refresh global state so Header updates
+                await refreshProfile();
               } else {
                 const errorMsg =
                   result?.data?.success === false ? result.data.error.message : 'Failed to update';
@@ -82,7 +85,7 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
 
-      {/* Security Section */}
+      {/* Security Section (Unchanged) */}
       <Card>
         <CardHeader title="Security" subheader="Password and Account Settings" />
         <CardContent>
@@ -104,7 +107,6 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
 
-      {/* Modals */}
       <ChangePasswordModal open={isPasswordModalOpen} onClose={() => setPasswordModalOpen(false)} />
 
       <ConfirmPasswordModal
@@ -114,7 +116,6 @@ export default function ProfilePage() {
         description="This action cannot be undone. Please enter your password to confirm."
         confirmLabel="Delete Permanently"
         onConfirm={async () => {
-          // Trigger server action to delete account
           await deleteAccountAction();
         }}
       />

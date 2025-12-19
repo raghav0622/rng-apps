@@ -15,20 +15,26 @@ type UserProfileData = {
 type UserProfileContextType = {
   data: UserProfileData | null;
   isLoading: boolean;
+  isInitialized: boolean; // Added to track initial fetch completion
   refreshProfile: () => Promise<void>;
 };
 
 const UserProfileContext = createContext<UserProfileContextType | undefined>(undefined);
 
 export function UserProfileProvider({ children }: { children: React.ReactNode }) {
-  const { user: authUser } = useAuth(); // Connects to your existing Auth
+  const { user: authUser } = useAuth();
   const [data, setData] = useState<UserProfileData | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   const { executeAsync: fetchProfile, isExecuting } = useAction(getProfileAction, {
     onSuccess: ({ data }) => {
       if (data) {
         setData(data);
       }
+      setIsInitialized(true);
+    },
+    onError: () => {
+      setIsInitialized(true); // Mark initialized even on error to stop loading spinners
     },
   });
 
@@ -38,19 +44,32 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
     }
   };
 
-  // Sync: When Auth User appears, fetch the detailed Profile Data
   useEffect(() => {
-    if (authUser?.uid) {
-      // Avoid re-fetching if we already have data for this user
-      if (data?.uid === authUser.uid) return;
-      fetchProfile();
-    } else {
-      setData(null);
-    }
+    let mounted = true;
+
+    const initProfile = async () => {
+      if (authUser?.uid) {
+        // Only fetch if we don't have data matching this user
+        if (data?.uid !== authUser.uid) {
+          await fetchProfile();
+        } else {
+          setIsInitialized(true);
+        }
+      } else {
+        setData(null);
+        setIsInitialized(true);
+      }
+    };
+
+    initProfile();
+
+    return () => {
+      mounted = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authUser?.uid]);
 
-  // Fallback: If no server data yet, use the basic auth user to prevent white flash
+  // Fallback: If no detailed server data yet, use the basic auth user
   const effectiveUser = data || (authUser as UserProfileData | null);
 
   return (
@@ -58,6 +77,7 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
       value={{
         data: effectiveUser,
         isLoading: isExecuting,
+        isInitialized,
         refreshProfile,
       }}
     >

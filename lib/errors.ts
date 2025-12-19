@@ -1,5 +1,3 @@
-import 'server-only';
-
 export enum AppErrorCode {
   UNKNOWN = 'UNKNOWN',
   VALIDATION_ERROR = 'VALIDATION_ERROR',

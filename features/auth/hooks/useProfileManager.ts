@@ -47,7 +47,6 @@ export function useProfileManager() {
       };
 
       // 2. Client-Side Update (Firebase SDK)
-      // This ensures the next "getIdToken" call includes the new name/photo
       if (clientAuth.currentUser) {
         await updateProfile(clientAuth.currentUser, {
           displayName: updates.displayName,
@@ -55,10 +54,10 @@ export function useProfileManager() {
         });
       }
 
-      // 3. Optimistic Update (Immediate UI feedback)
+      // 3. Optimistic Update
       updateUser(updates);
 
-      // 4. Server-Side Update (Syncs Firestore)
+      // 4. Server-Side Update
       const result = await updateProfileAction({
         displayName: updates.displayName,
         photoURL: updates.photoURL,
@@ -68,13 +67,10 @@ export function useProfileManager() {
         throw new Error(result.serverError.message || 'Server update failed');
       }
 
-      // 5. Refresh Session Cookie (Critical for Server Components)
-      // We force a token refresh to get the new claims (name/picture)
+      // 5. Refresh Session Cookie
       if (clientAuth.currentUser) {
         const idToken = await clientAuth.currentUser.getIdToken(true);
         await createSessionAction({ idToken });
-
-        // Refresh the Next.js router to update Server Components (like the Header)
         router.refresh();
       }
 
@@ -82,7 +78,8 @@ export function useProfileManager() {
     } catch (error: any) {
       console.error('Profile Update Error:', error);
       enqueueSnackbar(error.message || 'Failed to update profile', { variant: 'error' });
-      // Revert optimistic update if needed? (Advanced: Implement rollback logic here)
+      // FIX: Re-throw the error so the calling component knows the request failed
+      throw error;
     } finally {
       setIsUpdating(false);
     }

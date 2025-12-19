@@ -1,5 +1,6 @@
-import { auth, firestore } from '@/lib/firebase/admin';
 import 'server-only';
+
+import { auth, firestore } from '@/lib/firebase/admin';
 
 export class AuthRepository {
   private usersCollection = firestore().collection('users');
@@ -40,14 +41,24 @@ export class AuthRepository {
         lastLoginAt: updates.lastLoginAt,
       });
     } else {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const finalUpdates: Record<string, any> = {
         updatedAt: now,
         lastLoginAt: updates.lastLoginAt,
       };
 
+      const currentData = snapshot.data();
+
+      // Sync Display Name: Use explicit update, OR fallback to token default if DB is different
       if (updates.displayName) {
         finalUpdates.displayName = updates.displayName;
+      } else if (defaults.displayName && currentData?.displayName !== defaults.displayName) {
+        finalUpdates.displayName = defaults.displayName;
+      }
+
+      // Sync Photo URL: If token has a photo and DB is different/missing, sync it.
+      // This ensures Auth source-of-truth propagates to DB on login.
+      if (defaults.photoURL !== undefined && currentData?.photoURL !== defaults.photoURL) {
+        finalUpdates.photoURL = defaults.photoURL;
       }
 
       await userRef.update(finalUpdates);
@@ -69,7 +80,7 @@ export class AuthRepository {
 
   async updateUser(uid: string, data: { displayName?: string; photoURL?: string | null }) {
     const userRef = this.usersCollection.doc(uid);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const updates: Record<string, any> = { updatedAt: new Date() };
     if (data.displayName) updates.displayName = data.displayName;
     if (data.photoURL !== undefined) updates.photoURL = data.photoURL;

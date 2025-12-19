@@ -90,10 +90,10 @@ export function ChangePasswordModal({ open, onClose }: ChangePasswordModalProps)
 
               enqueueSnackbar('Password updated successfully', { variant: 'success' });
               onClose();
-            } catch (error) {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            } catch (error: any) {
               const msg =
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (error as any).code === 'auth/invalid-credential'
+                error.code === 'auth/invalid-credential'
                   ? 'Incorrect current password'
                   : error.message;
               enqueueSnackbar(msg, { variant: 'error' });

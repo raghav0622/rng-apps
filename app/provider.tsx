@@ -8,11 +8,11 @@ import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
 import { SnackbarKey, SnackbarProvider } from 'notistack';
 import { useRef } from 'react';
 
-interface RootProviderProps {
+interface AppProviderProps {
   children: React.ReactNode;
 }
 
-export function RootProvider({ children }: RootProviderProps) {
+function AppProvider({ children }: AppProviderProps) {
   const snackbarRef = useRef<SnackbarProvider>(null);
 
   return (
@@ -51,3 +51,5 @@ export function RootProvider({ children }: RootProviderProps) {
     </AppRouterCacheProvider>
   );
 }
+
+export default AppProvider;

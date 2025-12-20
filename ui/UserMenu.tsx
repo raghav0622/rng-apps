@@ -49,7 +49,6 @@ export function UserMenu() {
     setAnchorEl(null);
   };
 
-  // 2. Unauthenticated State (Should ideally be handled by layout, but safe guard here)
   if (!user) return null;
 
   return (

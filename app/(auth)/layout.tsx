@@ -1,10 +1,10 @@
 import AppContent from '@/ui/layout/AppContent';
-import AuthAppHeader from '@/ui/layout/AuthAppHeader';
+import AppHeader from '@/ui/layout/AppHeader';
 
 export default function layout({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <AuthAppHeader />
+      <AppHeader />
       <AppContent drawerDisabled>{children}</AppContent>
     </>
   );

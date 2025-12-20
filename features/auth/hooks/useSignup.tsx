@@ -3,8 +3,8 @@ import { useRouter } from 'next/navigation';
 
 import { createSessionAction, signupAction } from '@/features/auth/auth.actions';
 import { SignupInput } from '@/features/auth/auth.model';
-import { useRNGServerAction } from '@/hooks/use-rng-action';
 import { clientAuth } from '@/lib/firebase/client';
+import { useRNGServerAction } from '@/lib/use-rng-action';
 import { signInWithCustomToken } from 'firebase/auth';
 
 export function useSignup() {

@@ -2,10 +2,9 @@ import { createSafeActionClient, DEFAULT_SERVER_ERROR_MESSAGE } from 'next-safe-
 import { cookies } from 'next/headers';
 import 'server-only';
 import { z } from 'zod';
-import { UserRoleInOrg } from '../features/enums';
-import { AUTH_SESSION_COOKIE_NAME, ORG_SESSION_COOKIE_NAME } from './constants';
+import { AUTH_SESSION_COOKIE_NAME } from './constants';
 import { AppError, AppErrorCode, CustomError } from './errors';
-import { auth, firestore } from './firebase/admin';
+import { auth } from './firebase/admin';
 import { logError, logInfo } from './logger';
 import { generateTraceId, getTraceId, withTraceId } from './tracing';
 
@@ -78,7 +77,6 @@ export const authActionClient = actionClient.use(async ({ next, ctx }) => {
   }
 
   try {
-    // Verify session via Firebase Admin
     const decodedToken = await auth().verifySessionCookie(sessionToken, true);
     return next({
       ctx: {
@@ -93,58 +91,58 @@ export const authActionClient = actionClient.use(async ({ next, ctx }) => {
 });
 
 // ----------------------------------------------------------------------------
-// 3. Organization Middleware (Enforce Single Tenancy)
-// ----------------------------------------------------------------------------
+// // 3. Organization Middleware (Enforce Single Tenancy)
+// // ----------------------------------------------------------------------------
 
-export const orgActionClient = authActionClient.use(async ({ next, ctx }) => {
-  const cookieStore = await cookies();
-  const orgId = cookieStore.get(ORG_SESSION_COOKIE_NAME)?.value;
+// export const orgActionClient = authActionClient.use(async ({ next, ctx }) => {
+//   const cookieStore = await cookies();
+//   const { orgId } = cookieStore.get(AUTH_SESSION_COOKIE_NAME)?.value as UserInSession;
 
-  if (!orgId) {
-    throw new CustomError(AppErrorCode.ORGANIZATION_REQUIRED, 'No active organization selected');
-  }
+//   if (!orgId) {
+//     throw new CustomError(AppErrorCode.ORGANIZATION_REQUIRED, 'No active organization selected');
+//   }
 
-  // Verify user's membership in this org
-  // We check the 'members' collection in the org document or a dedicated 'memberships' collection.
-  // Assuming a subcollection structure: organizations/{orgId}/members/{userId}
-  const memberSnap = await firestore()
-    .collection('organizations')
-    .doc(orgId)
-    .collection('members')
-    .doc(ctx.userId)
-    .get();
+//   // Verify user's membership in this org
+//   // We check the 'members' collection in the org document or a dedicated 'memberships' collection.
+//   // Assuming a subcollection structure: organizations/{orgId}/members/{userId}
+//   const memberSnap = await firestore()
+//     .collection('organizations')
+//     .doc(orgId)
+//     .collection('members')
+//     .doc(ctx.userId)
+//     .get();
 
-  if (!memberSnap.exists) {
-    throw new CustomError(
-      AppErrorCode.ORG_ACCESS_DENIED,
-      'User is not a member of this organization',
-    );
-  }
+//   if (!memberSnap.exists) {
+//     throw new CustomError(
+//       AppErrorCode.ORG_ACCESS_DENIED,
+//       'User is not a member of this organization',
+//     );
+//   }
 
-  const memberData = memberSnap.data();
-  const role = memberData?.role as UserRoleInOrg;
+//   const memberData = memberSnap.data();
+//   const role = memberData?.role as UserRoleInOrg;
 
-  return next({
-    ctx: {
-      ...ctx,
-      orgId,
-      role,
-    },
-  });
-});
+//   return next({
+//     ctx: {
+//       ...ctx,
+//       orgId,
+//       role,
+//     },
+//   });
+// });
 
-// ----------------------------------------------------------------------------
-// 4. Permissions Utility (To be used inside actions)
-// ----------------------------------------------------------------------------
-/**
- * Utility to enforce permissions dynamically inside the action handler
- * if strict middleware isn't enough (e.g., conditional permissions).
- */
-export function requirePermission(role: UserRoleInOrg, requiredRole: UserRoleInOrg[]) {
-  if (!requiredRole.includes(role)) {
-    throw new CustomError(
-      AppErrorCode.PERMISSION_DENIED,
-      `Role ${role} lacks required permissions.`,
-    );
-  }
-}
+// // ----------------------------------------------------------------------------
+// // 4. Permissions Utility (To be used inside actions)
+// // ----------------------------------------------------------------------------
+// /**
+//  * Utility to enforce permissions dynamically inside the action handler
+//  * if strict middleware isn't enough (e.g., conditional permissions).
+//  */
+// export function requirePermission(role: UserRoleInOrg, requiredRole: UserRoleInOrg[]) {
+//   if (!requiredRole.includes(role)) {
+//     throw new CustomError(
+//       AppErrorCode.PERMISSION_DENIED,
+//       `Role ${role} lacks required permissions.`,
+//     );
+//   }
+// }

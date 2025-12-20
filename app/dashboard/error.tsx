@@ -21,7 +21,6 @@ export default function Error({
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        height: '100vh',
         gap: 2,
       }}
     >

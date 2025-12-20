@@ -12,7 +12,7 @@ const UploadAvatarSchema = zfd.formData({
 
 export const uploadAvatarAction = authActionClient
   .metadata({ name: 'storage.uploadAvatar' })
-  .schema(UploadAvatarSchema)
+  .inputSchema(UploadAvatarSchema)
   .action(async ({ ctx, parsedInput }) => {
     // parsedInput.file is a validated File object
     const url = await StorageService.uploadAvatar(ctx.userId, parsedInput.file);

@@ -8,23 +8,27 @@
     "node_modules": true,
     ".gitignore": true,
     "package-lock.json": true,
-    ".next": true,
     ".prettierrc": true,
     "next-env.d.ts": true,
     ".vscode": true,
     "public": true,
-    "rng-form": true
+    "rng-form": true,
+    "app/page.tsx": true,
+    "app/loading.tsx": true,
+    ".next": true
   },
   "hide-files.files": [
     "node_modules",
     ".gitignore",
     "package-lock.json",
-    ".next",
     ".prettierrc",
     "next-env.d.ts",
     ".vscode",
     "public",
-    "rng-form"
+    "rng-form",
+    "app/page.tsx",
+    "app/loading.tsx",
+    ".next"
   ],
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {

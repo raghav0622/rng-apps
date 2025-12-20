@@ -1,7 +1,7 @@
 'use client';
 
 import { Dashboard, Menu as MenuIcon } from '@mui/icons-material';
-import { AppBar, Box, IconButton, Skeleton, Stack, Toolbar, Tooltip } from '@mui/material';
+import { AppBar, Box, IconButton, Stack, Toolbar, Tooltip } from '@mui/material';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -9,13 +9,9 @@ import Logo from '../Logo';
 import DarkModeToggle from '../ThemeSwitch';
 import { useLayoutContext } from './LayoutContext';
 // Dynamic import with SSR enabled prevents layout shift during hydration
-const UserMenu = dynamic(
-  () => import('../../features/auth/components/UserMenu').then((mod) => mod.UserMenu),
-  {
-    loading: () => <Skeleton variant="circular" width={32} height={32} animation="wave" />,
-    ssr: true,
-  },
-);
+const UserMenu = dynamic(() => import('@/ui/UserMenu').then((mod) => mod.UserMenu), {
+  ssr: true,
+});
 
 export default function AppHeader({ drawerDisabled = false }: { drawerDisabled?: boolean }) {
   const { handleDrawerToggle } = useLayoutContext();

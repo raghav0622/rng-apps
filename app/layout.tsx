@@ -2,7 +2,7 @@ import { RNGAuthContextProvider } from '@/features/auth/components/AuthContext';
 import { getCurrentUser } from '@/features/auth/session';
 import InitColorSchemeScript from '@mui/material/InitColorSchemeScript';
 import type { Metadata } from 'next';
-import { RootProvider } from './provider';
+import AppProvider from './provider';
 
 export const metadata: Metadata = {
   title: 'RNG App',
@@ -19,7 +19,7 @@ export default async function RootLayout({
       <body>
         <InitColorSchemeScript attribute="class" />
         <RNGAuthContextProvider user={sessionUser}>
-          <RootProvider>{children}</RootProvider>
+          <AppProvider>{children}</AppProvider>
         </RNGAuthContextProvider>
       </body>
     </html>

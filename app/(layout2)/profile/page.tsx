@@ -1,6 +1,4 @@
 'use client';
-
-import { deleteAccountAction } from '@/features/auth/auth.actions';
 import { useRNGAuth } from '@/features/auth/components/AuthContext';
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';
@@ -69,9 +67,7 @@ export default function ProfilePage() {
               photoURL: user.photoUrl || null,
               email: user.email || '',
             }}
-            onSubmit={(data) => {
-              console.log(data);
-            }}
+            onSubmit={(data) => {}}
             submitLabel={'Save Changes'}
             requireChanges={true} // Only enable save if dirty
           />
@@ -122,11 +118,11 @@ export default function ProfilePage() {
           description="This action cannot be undone. Please enter your password to confirm deletion."
           confirmLabel="Delete Permanently"
           onConfirm={async () => {
-            const res = await deleteAccountAction();
-            if (res?.serverError) {
-              throw new Error(res.serverError.message || 'Failed to delete account');
-            }
-            // Manual client-side redirect to avoid server-action redirect race conditions
+            // const res = await deleteAccountAction();
+            // if (res?.serverError) {
+            //   throw new Error(res.serverError.message || 'Failed to delete account');
+            // }
+            // // Manual client-side redirect to avoid server-action redirect race conditions
             enqueueSnackbar('Account deleted successfully', { variant: 'success' });
             setDeleteModalOpen(false);
             router.push('/login');

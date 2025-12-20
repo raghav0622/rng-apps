@@ -3,10 +3,64 @@ import 'server-only';
 import { auth, firestore } from '@/lib/firebase/admin';
 import { Result } from '@/lib/types';
 import { UserRoleInOrg } from '../enums';
-import { CreateUserInDatabase, User } from './auth.model';
+import { CreateUserInDatabase, Session, User } from './auth.model';
 
 export class AuthRepository {
   private usersCollection = firestore().collection('users');
+
+  // --- SESSION MANAGEMENT ---
+
+  private getSessionsCollection(uid: string) {
+    return this.usersCollection.doc(uid).collection('sessions');
+  }
+
+  async createSessionRecord(session: Session) {
+    await this.getSessionsCollection(session.uid).doc(session.sessionId).set(session);
+  }
+
+  async deleteSessionRecord(uid: string, sessionId: string) {
+    await this.getSessionsCollection(uid).doc(sessionId).delete();
+  }
+
+  async getUserSessions(uid: string): Promise<Session[]> {
+    const snapshot = await this.getSessionsCollection(uid).orderBy('createdAt', 'desc').get();
+
+    return snapshot.docs.map((doc) => doc.data() as Session);
+  }
+
+  /**
+   * Used for "Invalidate All Sessions"
+   * 1. Revokes Firebase tokens (Auth layer)
+   * 2. Deletes all session records (DB layer)
+   */
+  async revokeAllUserSessions(uid: string) {
+    // 1. Firebase Auth Level Revocation
+    await auth().revokeRefreshTokens(uid);
+
+    // 2. Database Level Cleanup
+    const sessionsRef = this.getSessionsCollection(uid);
+    const snapshot = await sessionsRef.get();
+
+    const batch = firestore().batch();
+    snapshot.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+    await batch.commit();
+  }
+
+  /**
+   * Checks if a session exists in DB and is valid.
+   */
+  async isSessionValid(uid: string, sessionId: string): Promise<boolean> {
+    const doc = await this.getSessionsCollection(uid).doc(sessionId).get();
+    if (!doc.exists) return false;
+    const data = doc.data() as Session;
+
+    // Optional: Check expiry if you want stricter control than the cookie itself
+    if (data.expiresAt.toMillis() < Date.now()) return false;
+
+    return data.isValid;
+  }
 
   async verifyIdToken(idToken: string) {
     return auth().verifyIdToken(idToken);
@@ -56,49 +110,6 @@ export class AuthRepository {
     const data = snap.docs[0].data() as User;
 
     return data;
-  }
-
-  async getUser(uid: string) {
-    const snap = await this.usersCollection.doc(uid).get();
-    if (!snap.exists) return null;
-
-    const data = snap.data();
-    return {
-      uid: snap.id,
-      email: data?.email ?? null,
-      displayName: data?.displayName ?? null,
-      photoURL: data?.photoURL ?? null,
-      // ADDED: Needed for Org Context checks
-      orgId: (data?.orgId as string) ?? null,
-    };
-  }
-
-  async updateUser(uid: string, data: { displayName?: string; photoURL?: string | null }) {
-    const userRef = this.usersCollection.doc(uid);
-
-    const updates: Record<string, any> = { updatedAt: new Date() };
-    if (data.displayName) updates.displayName = data.displayName;
-    if (data.photoURL !== undefined) updates.photoURL = data.photoURL;
-    await userRef.update(updates);
-  }
-
-  /**
-   * Updates the Firebase Auth user record.
-   * This ensures the next time an ID token is minted, it contains the new name/photo.
-   */
-  async updateAuthUser(uid: string, data: { displayName: string; photoURL?: string | null }) {
-    await auth().updateUser(uid, {
-      displayName: data.displayName,
-      photoURL: data.photoURL || null,
-    });
-  }
-
-  async deleteFirestoreUser(uid: string) {
-    await this.usersCollection.doc(uid).delete();
-  }
-
-  async deleteAuthUser(uid: string) {
-    await auth().deleteUser(uid);
   }
 
   async verifySessionCookie(sessionCookie: string) {

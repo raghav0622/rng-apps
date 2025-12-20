@@ -1,14 +1,13 @@
-// features/auth/auth.service.ts
-import { storageRepository } from '@/features/storage/storage.repository';
-import { extractPathFromUrl } from '@/features/storage/storage.utils';
-import { AUTH_SESSION_COOKIE_NAME } from '@/lib/constants';
-import { AppErrorCode, CustomError } from '@/lib/errors';
-import { auth } from '@/lib/firebase/admin';
-import { Result } from '@/lib/types';
-import { cookies } from 'next/headers';
 import 'server-only';
+
+import { AUTH_SESSION_COOKIE_NAME, SESSION_ID_COOKIE_NAME } from '@/lib/constants';
+import { AppErrorCode, CustomError } from '@/lib/errors';
+import { AdminFirestore, auth } from '@/lib/firebase/admin';
+import { Result } from '@/lib/types';
+import { cookies, headers } from 'next/headers';
+import { v4 as uuidv4 } from 'uuid';
 import { UserRoleInOrg } from '../enums';
-import { SignupInput } from './auth.model';
+import { Session, SignupInput } from './auth.model';
 import { authRepository } from './auth.repository';
 
 export class AuthService {
@@ -66,12 +65,43 @@ export class AuthService {
 
   static async createSession(idToken: string): Promise<Result<void>> {
     try {
-      await authRepository.verifyIdToken(idToken);
-      const expiresIn = 60 * 60 * 24 * 5 * 1000;
+      const decodedToken = await authRepository.verifyIdToken(idToken);
+      const uid = decodedToken.uid;
+
+      // 1. Create Firebase Session Cookie (The Auth Token)
+      const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
       const authSessionCookie = await authRepository.createSessionCookie(idToken, expiresIn);
 
+      // 2. Create Database Session Record
+      const sessionId = uuidv4();
+      const headersList = await headers();
+      const ip = headersList.get('x-forwarded-for') || 'unknown';
+      const userAgent = headersList.get('user-agent') || 'unknown';
+
+      await authRepository.createSessionRecord({
+        sessionId,
+        uid,
+        createdAt: AdminFirestore.Timestamp.now(),
+        expiresAt: AdminFirestore.Timestamp.fromMillis(Date.now() + expiresIn),
+        ip,
+        userAgent,
+        isValid: true,
+      });
+
+      // 3. Set Cookies
       const cookieStore = await cookies();
+
+      // The Firebase Auth Cookie
       cookieStore.set(AUTH_SESSION_COOKIE_NAME, authSessionCookie, {
+        maxAge: expiresIn,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        path: '/',
+        sameSite: 'lax',
+      });
+
+      // The DB Tracking Cookie
+      cookieStore.set(SESSION_ID_COOKIE_NAME, sessionId, {
         maxAge: expiresIn,
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
@@ -81,7 +111,6 @@ export class AuthService {
 
       return { success: true, data: undefined };
     } catch (error) {
-      console.error('Create Session Error:', error);
       if (error instanceof CustomError) throw error;
       throw new CustomError(AppErrorCode.UNAUTHENTICATED, 'Failed to create secure session.');
     }
@@ -89,78 +118,50 @@ export class AuthService {
 
   static async logout(): Promise<Result<void>> {
     const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get(AUTH_SESSION_COOKIE_NAME)?.value;
+    const sessionId = cookieStore.get(SESSION_ID_COOKIE_NAME)?.value;
+
+    if (sessionCookie && sessionId) {
+      try {
+        // Verify cookie to get UID so we know which subcollection to access
+        // Use verification with checkRevoked: false just to get the UID safely
+        const claims = await authRepository.verifySessionCookie(sessionCookie);
+        await authRepository.deleteSessionRecord(claims.uid, sessionId);
+      } catch (e) {
+        // Token might be expired already, proceed to clear cookies
+      }
+    }
+
     cookieStore.delete(AUTH_SESSION_COOKIE_NAME);
-    cookieStore.delete('org_session_token'); // Clean up tenant cookie if exists
+    cookieStore.delete(SESSION_ID_COOKIE_NAME);
+
     return { success: true, data: undefined };
   }
 
-  static async updateProfile(
-    userId: string,
-    data: { displayName: string; photoURL?: string | null },
-  ): Promise<Result<void>> {
+  static async revokeAllSessions(userId: string): Promise<Result<void>> {
     try {
-      const currentUser = await authRepository.getUser(userId);
-
-      // 1. Update Source of Truth (Firestore)
-      await authRepository.updateUser(userId, {
-        displayName: data.displayName,
-        photoURL: data.photoURL,
-      });
-
-      // 2. Update Auth User (Syncs to Token/Cookie claims for next refresh)
-      await authRepository.updateAuthUser(userId, {
-        displayName: data.displayName,
-        photoURL: data.photoURL,
-      });
-
-      // 3. CLEANUP: Only delete old avatar if the DB updates succeeded
-      if (
-        currentUser?.photoURL &&
-        data.photoURL !== undefined &&
-        currentUser.photoURL !== data.photoURL
-      ) {
-        const oldPath = extractPathFromUrl(currentUser.photoURL);
-        if (oldPath) {
-          // Fire and forget cleanup, but logged
-          storageRepository
-            .deleteFile(oldPath)
-            .catch((err) => console.warn(`Failed to cleanup old avatar: ${oldPath}`, err));
-        }
-      }
-
+      await authRepository.revokeAllUserSessions(userId);
       return { success: true, data: undefined };
     } catch (error) {
-      console.error('Update Profile Service Error:', error);
-      throw new CustomError(AppErrorCode.DB_ERROR, 'Failed to update profile information.');
+      throw new CustomError(AppErrorCode.DB_ERROR, 'Failed to revoke sessions');
     }
   }
 
-  static async deleteAccount(userId: string): Promise<Result<void>> {
+  static async getActiveSessions(userId: string): Promise<Result<Session[]>> {
     try {
-      const currentUser = await authRepository.getUser(userId);
+      const sessions = await authRepository.getUserSessions(userId);
+      return { success: true, data: sessions };
+    } catch (error) {
+      throw new CustomError(AppErrorCode.DB_ERROR, 'Failed to get sessions');
+    }
+  }
 
-      // Delete from Firestore first
-      await authRepository.deleteFirestoreUser(userId);
-
-      // Delete from Firebase Auth
-      await authRepository.deleteAuthUser(userId);
-
-      // Cleanup Storage
-      if (currentUser?.photoURL) {
-        const path = extractPathFromUrl(currentUser.photoURL);
-        if (path) {
-          await storageRepository
-            .deleteFile(path)
-            .catch((e) => console.warn('Failed to delete avatar', e));
-        }
-      }
-
-      // Finally logout
-      await this.logout();
+  static async revokeSession(userId: string, sessionId: string): Promise<Result<void>> {
+    try {
+      await authRepository.deleteSessionRecord(userId, sessionId);
       return { success: true, data: undefined };
     } catch (error) {
-      console.error('Delete Account Error:', error);
-      throw new CustomError(AppErrorCode.UNKNOWN, 'Failed to delete account completely.');
+      throw new CustomError(AppErrorCode.DB_ERROR, 'Failed to revoke session');
     }
   }
 }

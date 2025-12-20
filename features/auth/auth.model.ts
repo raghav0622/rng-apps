@@ -79,3 +79,21 @@ export const ResetPasswordSchema = z
   });
 
 export type ResetPasswordInput = z.infer<typeof ResetPasswordSchema>;
+
+// --- SESSION SCHEMAS ---
+
+export const SessionSchema = z.object({
+  sessionId: z.string(),
+  uid: z.string(),
+  createdAt: z.any(), // Firestore Timestamp
+  expiresAt: z.any(), // Firestore Timestamp
+  ip: z.string().optional(),
+  userAgent: z.string().optional(),
+  isValid: z.boolean(),
+});
+
+export type Session = z.infer<typeof SessionSchema>;
+
+export const CreateSessionSchema = z.object({
+  idToken: z.string(),
+});

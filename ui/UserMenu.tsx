@@ -152,7 +152,7 @@ function AuthenticatedUserMenu({ user, anchorEl, open, onClick, onClose }: Authe
           },
         }}
       >
-        <MenuItem component={Link} href="/dashboard/profile">
+        <MenuItem component={Link} href="/profile">
           <ListItemIcon>
             <Avatar
               sx={{

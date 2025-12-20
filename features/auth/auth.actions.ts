@@ -4,13 +4,9 @@
 import { actionClient, authActionClient } from '@/lib/safe-action';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
-import { SignupSchema } from './auth.model';
-import { authRepository } from './auth.repository';
+import { CreateSessionSchema, SignupSchema } from './auth.model';
 import { AuthService } from './auth.service';
 
-const SessionSchema = z.object({
-  idToken: z.string(),
-});
 export const signinAction = actionClient
   .metadata({ name: 'auth.signin' })
   .inputSchema(z.object({ email: z.email() }))
@@ -27,7 +23,7 @@ export const signupAction = actionClient
 
 export const createSessionAction = actionClient
   .metadata({ name: 'auth.createSession' })
-  .inputSchema(SessionSchema)
+  .inputSchema(CreateSessionSchema)
   .action(async ({ parsedInput }) => {
     return await AuthService.createSession(parsedInput.idToken);
   });
@@ -37,30 +33,23 @@ export const logoutAction = actionClient.metadata({ name: 'auth.logout' }).actio
   redirect('/login');
 });
 
-// FIX: Schema must allow null for photoURL to support removal
-const UpdateProfileSchema = z.object({
-  displayName: z.string().min(2),
-  photoURL: z.string().nullable().optional(),
-});
+export const revokeAllSessionsAction = authActionClient
+  .metadata({ name: 'auth.revokeAllSessions' })
+  .action(async ({ ctx }) => {
+    await AuthService.revokeAllSessions(ctx.userId);
+    // Optionally redirect to login or show success message
+    // If you redirect, the current user will be logged out immediately
+  });
 
-export const updateProfileAction = authActionClient
-  .metadata({ name: 'auth.updateProfile' })
-  .schema(UpdateProfileSchema)
+export const getSessionsAction = authActionClient
+  .metadata({ name: 'auth.getSessions' })
+  .action(async ({ ctx }) => {
+    return await AuthService.getActiveSessions(ctx.userId);
+  });
+
+export const revokeSessionAction = authActionClient
+  .metadata({ name: 'auth.revokeSession' })
+  .inputSchema(z.object({ sessionId: z.string() }))
   .action(async ({ ctx, parsedInput }) => {
-    return await AuthService.updateProfile(ctx.userId, parsedInput);
-  });
-
-export const deleteAccountAction = authActionClient
-  .metadata({ name: 'auth.deleteAccount' })
-  .action(async ({ ctx }) => {
-    // FIX: Do not redirect here. Return the result so the client can handle navigation.
-    // Redirecting here throws an error ('NEXT_REDIRECT') which is caught by the
-    // ConfirmPasswordModal as a "failure" (incorrect password).
-    return await AuthService.deleteAccount(ctx.userId);
-  });
-
-export const getProfileAction = authActionClient
-  .metadata({ name: 'auth.getProfile' })
-  .action(async ({ ctx }) => {
-    return await authRepository.getUser(ctx.userId);
+    return await AuthService.revokeSession(ctx.userId, parsedInput.sessionId);
   });

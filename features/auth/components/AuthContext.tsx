@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, Dispatch, SetStateAction, useContext, useState } from 'react';
+import { createContext, Dispatch, SetStateAction, useContext, useEffect, useState } from 'react';
 import { UserInSession } from '../auth.model';
 
 const RNGAuthContext = createContext<{
@@ -18,6 +18,10 @@ export function RNGAuthContextProvider({
   user: UserInSession | null;
 }) {
   const [state, setState] = useState(user);
+
+  useEffect(() => {
+    setState(user);
+  }, [user]);
 
   return (
     <RNGAuthContext.Provider value={{ user: state, setUser: setState }}>

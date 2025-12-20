@@ -40,6 +40,7 @@
     "react-hook-form": "^7.68.0",
     "react-imask": "^7.6.1",
     "react-number-format": "^5.4.4",
+    "uuid": "^13.0.0",
     "zod": "^4.2.1",
     "zod-form-data": "^3.0.1"
   },
@@ -53,6 +54,7 @@
     "@types/node": "^20.19.27",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^5.1.2",
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",

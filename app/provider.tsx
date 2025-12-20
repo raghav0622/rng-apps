@@ -1,22 +1,18 @@
 'use client';
 
-import { AuthProvider } from '@/features/auth/components/AuthContext';
-import { SessionUser } from '@/features/auth/session';
 import { LayoutContextProvider } from '@/ui/layout/LayoutContext';
 import theme from '@/ui/theme';
 import { Close as CloseIcon } from '@mui/icons-material';
-import { CssBaseline, IconButton, ThemeProvider } from '@mui/material';
+import { Box, CssBaseline, IconButton, ThemeProvider } from '@mui/material';
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
 import { SnackbarKey, SnackbarProvider } from 'notistack';
 import { useRef } from 'react';
 
 interface RootProviderProps {
   children: React.ReactNode;
-  sessionUser: SessionUser | null;
 }
 
-export function RootProvider({ children, sessionUser }: RootProviderProps) {
-  // Ref to access notistack methods (like closeSnackbar)
+export function RootProvider({ children }: RootProviderProps) {
   const snackbarRef = useRef<SnackbarProvider>(null);
 
   return (
@@ -38,9 +34,18 @@ export function RootProvider({ children, sessionUser }: RootProviderProps) {
             </IconButton>
           )}
         >
-          <AuthProvider initialUser={sessionUser}>
-            <LayoutContextProvider>{children}</LayoutContextProvider>
-          </AuthProvider>
+          <LayoutContextProvider>
+            <Box
+              sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                minHeight: '100vh',
+                bgcolor: 'background.default',
+              }}
+            >
+              {children}
+            </Box>
+          </LayoutContextProvider>
         </SnackbarProvider>
       </ThemeProvider>
     </AppRouterCacheProvider>

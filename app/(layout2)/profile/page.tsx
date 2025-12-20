@@ -1,7 +1,7 @@
 'use client';
 
 import { deleteAccountAction } from '@/features/auth/auth.actions';
-import { useProfileManager } from '@/features/auth/hooks/useProfileManager';
+import { useRNGAuth } from '@/features/auth/components/AuthContext';
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';
 import { Alert, Box, Button, Card, CardContent, CardHeader, Stack } from '@mui/material';
@@ -49,8 +49,7 @@ const profileFormConfig = defineForm<typeof ProfileSchema>((f) => [
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user, updateProfileData, isUpdating } = useProfileManager();
-
+  const { user } = useRNGAuth();
   const [isPasswordModalOpen, setPasswordModalOpen] = useState(false);
   const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
   const { enqueueSnackbar } = useSnackbar();
@@ -58,7 +57,7 @@ export default function ProfilePage() {
   if (!user) return null;
 
   return (
-    <Stack spacing={4} maxWidth="md" mx="auto">
+    <Stack spacing={4}>
       <Card>
         <CardHeader title="User Profile" subheader="Manage your public profile information" />
         <CardContent>
@@ -67,11 +66,13 @@ export default function ProfilePage() {
             uiSchema={profileFormConfig}
             defaultValues={{
               displayName: user.displayName || '',
-              photoURL: user.photoURL || null,
+              photoURL: user.photoUrl || null,
               email: user.email || '',
             }}
-            onSubmit={updateProfileData}
-            submitLabel={isUpdating ? 'Saving...' : 'Save Changes'}
+            onSubmit={(data) => {
+              console.log(data);
+            }}
+            submitLabel={'Save Changes'}
             requireChanges={true} // Only enable save if dirty
           />
         </CardContent>

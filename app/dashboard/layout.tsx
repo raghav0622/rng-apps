@@ -1,6 +1,20 @@
 'use client';
-import DashboardLayoutP from '@/ui/layout/DashboardLayout';
+
+import AppContent from '@/ui/layout/AppContent';
+import AppDrawer from '@/ui/layout/AppDrawer';
+import AppHeader from '@/ui/layout/AppHeader';
+import DrawerContent from './drawer-content';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  return <DashboardLayoutP>{children}</DashboardLayoutP>;
+  return (
+    <>
+      <AppHeader />
+
+      <AppDrawer>
+        <DrawerContent />
+      </AppDrawer>
+
+      <AppContent>{children}</AppContent>
+    </>
+  );
 }

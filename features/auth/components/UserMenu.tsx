@@ -1,9 +1,8 @@
 // ui/layout/UserMenu.tsx
 'use client';
 
-import { logoutAction } from '@/features/auth/auth.actions';
-import { useAuth } from '@/features/auth/components/AuthContext';
-import { SessionUser } from '@/features/auth/session';
+import { UserInSession } from '@/features/auth/auth.model';
+import { useRNGAuth } from '@/features/auth/components/AuthContext';
 import { Logout, Person } from '@mui/icons-material';
 import {
   Avatar,
@@ -12,7 +11,6 @@ import {
   ListItemIcon,
   Menu,
   MenuItem,
-  Skeleton,
   Stack,
   Tooltip,
   Typography,
@@ -38,11 +36,8 @@ const getInitials = (displayName: string | null | undefined, email: string | nul
 };
 
 export function UserMenu() {
-  const { user, loading: isLoading } = useAuth();
+  const { user } = useRNGAuth();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-
-  // Optimistic UI: We might be technically "logged in" but performing the logout action
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const open = Boolean(anchorEl);
 
@@ -54,17 +49,6 @@ export function UserMenu() {
     setAnchorEl(null);
   };
 
-  const handleLogout = async () => {
-    setIsLoggingOut(true);
-    handleClose();
-    await logoutAction();
-  };
-
-  // 1. Loading State
-  if (isLoading || isLoggingOut) {
-    return <Skeleton variant="circular" width={32} height={32} animation="wave" />;
-  }
-
   // 2. Unauthenticated State (Should ideally be handled by layout, but safe guard here)
   if (!user) return null;
 
@@ -75,30 +59,21 @@ export function UserMenu() {
       open={open}
       onClick={handleClick}
       onClose={handleClose}
-      onLogout={handleLogout}
     />
   );
 }
 
 // Split component for cleaner rendering
 interface AuthenticatedMenuProps {
-  user: SessionUser;
+  user: UserInSession;
   anchorEl: HTMLElement | null;
   open: boolean;
   onClick: (e: React.MouseEvent<HTMLElement>) => void;
   onClose: () => void;
-  onLogout: () => void;
 }
 
-function AuthenticatedUserMenu({
-  user,
-  anchorEl,
-  open,
-  onClick,
-  onClose,
-  onLogout,
-}: AuthenticatedMenuProps) {
-  const hasPhoto = Boolean(user.photoURL);
+function AuthenticatedUserMenu({ user, anchorEl, open, onClick, onClose }: AuthenticatedMenuProps) {
+  const hasPhoto = Boolean(user.photoUrl);
   const initials = useMemo(
     () => getInitials(user.displayName, user.email),
     [user.displayName, user.email],
@@ -130,7 +105,7 @@ function AuthenticatedUserMenu({
             ) : (
               <Image
                 alt="User Avatar"
-                src={user.photoURL || ''}
+                src={user.photoUrl || ''}
                 fill // makes the image fill the parent
                 sizes="100vw"
                 style={{ objectFit: 'cover' }} // controls cropping and scaling
@@ -196,7 +171,7 @@ function AuthenticatedUserMenu({
               ) : (
                 <Image
                   alt="User Avatar"
-                  src={user.photoURL || ''}
+                  src={user.photoUrl || ''}
                   fill // makes the image fill the parent
                   sizes="100vw"
                   style={{ objectFit: 'cover' }} // controls cropping and scaling
@@ -209,7 +184,7 @@ function AuthenticatedUserMenu({
             <Typography variant="subtitle2">{user.email}</Typography>
           </Stack>
         </MenuItem>
-        <MenuItem component={Link} href="/dashboard/profile">
+        <MenuItem component={Link} href="/profile">
           <ListItemIcon>
             <Person fontSize="small" />
           </ListItemIcon>

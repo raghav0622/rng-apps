@@ -65,6 +65,7 @@ export default function ForgotPasswordPage() {
             name: 'email',
             type: 'text',
             label: 'Email Address',
+            autoFocus: true,
           },
         ]}
       />

@@ -28,18 +28,19 @@ const Main = styled('main', {
   }),
 }));
 
-export const AppContent: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const AppContent: React.FC<{ children: React.ReactNode; drawerDisabled?: boolean }> = ({
+  children,
+  drawerDisabled = false,
+}) => {
   const { drawerWidth, drawerOpen, mobile } = useLayoutContext();
 
   return (
-    <Main open={!mobile && drawerOpen} drawerWidth={drawerWidth}>
+    <Main open={drawerDisabled ? false : !mobile && drawerOpen} drawerWidth={drawerWidth}>
       {/* Spacer to push content below fixed header */}
       <Toolbar variant="dense" />
-      <Box
-        sx={{ display: 'flex', flexDirection: 'column', gap: 3, maxWidth: '1600px', mx: 'auto' }}
-      >
-        {children}
-      </Box>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>{children}</Box>
     </Main>
   );
 };
+
+export default AppContent;

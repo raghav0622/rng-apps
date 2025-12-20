@@ -102,6 +102,7 @@ function ResetPasswordContent() {
             name: 'password',
             type: 'password',
             label: 'New Password',
+            autoFocus: true,
           },
           {
             name: 'confirmPassword',

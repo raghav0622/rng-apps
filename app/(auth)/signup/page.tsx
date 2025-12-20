@@ -1,38 +1,12 @@
 'use client';
-
-import { createSessionAction, signupAction } from '@/features/auth/auth.actions';
-import { SignupInput, SignupSchema } from '@/features/auth/auth.model';
-import { clientAuth } from '@/lib/firebase/client';
+import { SignupSchema } from '@/features/auth/auth.model';
+import { useSignup } from '@/features/auth/hooks/useSignup';
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { Box, Link as MuiLink, Typography } from '@mui/material';
-import { signInWithCustomToken } from 'firebase/auth';
-import { useAction } from 'next-safe-action/hooks';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useSnackbar } from 'notistack';
 
 export default function SignupPage() {
-  const { enqueueSnackbar } = useSnackbar();
-  const { executeAsync, isExecuting, hasErrored } = useAction(signupAction);
-  const { executeAsync: createSession } = useAction(createSessionAction);
-  const router = useRouter();
-  const handleSubmit = async (data: SignupInput) => {
-    const customToken = await executeAsync(data);
-
-    if (customToken.data?.success) {
-      const customTokens = await signInWithCustomToken(clientAuth, customToken.data.data);
-
-      const idToken = (await customTokens.user.getIdTokenResult()).token;
-
-      await createSession({
-        idToken,
-      });
-    }
-
-    enqueueSnackbar('Account created successfully!', { variant: 'success' });
-
-    router.refresh();
-  };
+  const handleSubmit = useSignup();
 
   return (
     <>
@@ -42,12 +16,14 @@ export default function SignupPage() {
         onSubmit={handleSubmit}
         title="Create Account"
         description="Get started with RNG App"
-        submitLabel={isExecuting ? 'Creating Account...' : 'Sign Up'}
+        submitingLablel={'Creating Account...'}
+        submitLabel="Sign Up"
         uiSchema={[
           {
             name: 'displayName',
             type: 'text',
             label: 'Full Name',
+            autoFocus: true,
           },
           {
             name: 'email',

@@ -1,7 +1,7 @@
 'use client';
 
 import { logoutAction } from '@/features/auth/auth.actions';
-import { Box, CircularProgress, Container, Typography } from '@mui/material';
+import { LoadingSpinner } from '@/ui/LoadingSpinner';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef } from 'react';
 // Replace with your actual logout server action or firebase utility
@@ -38,28 +38,5 @@ export default function LogoutPage() {
     performLogout();
   }, [router]);
 
-  return (
-    <Container maxWidth="sm">
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 3,
-        }}
-      >
-        <CircularProgress size={60} thickness={4} color="primary" />
-
-        <Box sx={{ textAlign: 'center' }}>
-          <Typography variant="h5" component="h1" gutterBottom fontWeight="600">
-            Logging you out...
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Please wait while we clear your session.
-          </Typography>
-        </Box>
-      </Box>
-    </Container>
-  );
+  return <LoadingSpinner message="Logging Out..." />;
 }

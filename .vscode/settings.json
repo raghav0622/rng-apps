@@ -12,7 +12,8 @@
     ".prettierrc": true,
     "next-env.d.ts": true,
     ".vscode": true,
-    "public": true
+    "public": true,
+    "rng-form": true
   },
   "hide-files.files": [
     "node_modules",

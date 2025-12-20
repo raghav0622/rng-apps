@@ -12,6 +12,26 @@ import { SignupInput } from './auth.model';
 import { authRepository } from './auth.repository';
 
 export class AuthService {
+  static async signin({ email }: { email: string }): Promise<Result<string>> {
+    try {
+      const userProfile = await authRepository.getUserByEmail(email);
+
+      const customToken = await auth().createCustomToken(userProfile.uid, {
+        onboarded: userProfile.onboarded,
+        orgRole: userProfile.orgRole,
+        orgId: userProfile.orgId || undefined,
+        displayName: userProfile.displayName,
+      });
+
+      return {
+        success: true,
+        data: customToken,
+      };
+    } catch (error: any) {
+      if (error instanceof CustomError) throw error;
+      throw new CustomError(AppErrorCode.UNAUTHENTICATED, error.message);
+    }
+  }
   static async signup({ displayName, email, password }: SignupInput): Promise<Result<string>> {
     try {
       const userCredential = await auth().createUser({
@@ -25,7 +45,7 @@ export class AuthService {
         displayName: userCredential.displayName,
         onboarded: false,
         orgRole: UserRoleInOrg.NOT_IN_ORG,
-        orgId: '',
+        orgId: undefined,
       });
 
       await authRepository.signUpUser({
@@ -39,7 +59,8 @@ export class AuthService {
         data: customToken,
       };
     } catch (error: any) {
-      throw error;
+      if (error instanceof CustomError) throw error;
+      throw new CustomError(AppErrorCode.UNAUTHENTICATED, error.message);
     }
   }
 
@@ -57,6 +78,7 @@ export class AuthService {
         path: '/',
         sameSite: 'lax',
       });
+
       return { success: true, data: undefined };
     } catch (error) {
       console.error('Create Session Error:', error);

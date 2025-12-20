@@ -1,29 +1,15 @@
 'use client';
 
+import { clientAuth } from '@/lib/firebase/client';
+import { FormError } from '@/rng-form';
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';
 import { Close } from '@mui/icons-material'; // Added Import
 import { Dialog, DialogContent, DialogTitle, IconButton } from '@mui/material'; // Added Import
-import { getApp, getApps, initializeApp } from 'firebase/app';
-import { getAuth, signInWithEmailAndPassword, updatePassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, updatePassword } from 'firebase/auth';
 import { useSnackbar } from 'notistack';
 import { z } from 'zod';
-import { useAuth } from './AuthContext';
-
-// Ensure Firebase is initialized
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
-
-function getClientAuth() {
-  const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-  return getAuth(app);
-}
+import { useRNGAuth } from './AuthContext';
 
 const ChangePasswordSchema = z
   .object({
@@ -48,7 +34,7 @@ interface ChangePasswordModalProps {
 }
 
 export function ChangePasswordModal({ open, onClose }: ChangePasswordModalProps) {
-  const { user } = useAuth();
+  const { user } = useRNGAuth();
   const { enqueueSnackbar } = useSnackbar();
 
   return (
@@ -78,10 +64,8 @@ export function ChangePasswordModal({ open, onClose }: ChangePasswordModalProps)
             if (!user?.email) return;
 
             try {
-              const auth = getClientAuth();
-
               const userCredential = await signInWithEmailAndPassword(
-                auth,
+                clientAuth,
                 user.email,
                 values.currentPassword,
               );
@@ -95,7 +79,7 @@ export function ChangePasswordModal({ open, onClose }: ChangePasswordModalProps)
                 error.code === 'auth/invalid-credential'
                   ? 'Incorrect current password'
                   : error.message;
-              enqueueSnackbar(msg, { variant: 'error' });
+              throw new FormError(msg);
             }
           }}
         />

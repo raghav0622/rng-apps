@@ -11,6 +11,12 @@ import { AuthService } from './auth.service';
 const SessionSchema = z.object({
   idToken: z.string(),
 });
+export const signinAction = actionClient
+  .metadata({ name: 'auth.signin' })
+  .inputSchema(z.object({ email: z.email() }))
+  .action(async ({ parsedInput }) => {
+    return await AuthService.signin(parsedInput);
+  });
 
 export const signupAction = actionClient
   .metadata({ name: 'auth.signup' })

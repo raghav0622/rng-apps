@@ -49,56 +49,13 @@ export class AuthRepository {
     }
   }
 
-  async ensureUserExists(
-    uid: string,
-    defaults: {
-      email: string;
-      displayName?: string;
-      photoURL?: string | null;
-    },
-    updates: {
-      lastLoginAt: Date;
-      displayName?: string;
-    },
-  ): Promise<void> {
-    const userRef = this.usersCollection.doc(uid);
-    const now = new Date();
+  async getUserByEmail(email: string) {
+    const snap = await this.usersCollection.where('email', '==', email).get();
+    if (snap.empty) throw new Error('User Profile not found');
 
-    const snapshot = await userRef.get();
+    const data = snap.docs[0].data() as User;
 
-    if (!snapshot.exists) {
-      await userRef.set({
-        email: defaults.email,
-        displayName: updates.displayName || defaults.displayName || '',
-        photoURL: defaults.photoURL || null,
-        createdAt: now,
-        updatedAt: now,
-        deletedAt: null,
-        lastLoginAt: updates.lastLoginAt,
-      });
-    } else {
-      const finalUpdates: Record<string, any> = {
-        updatedAt: now,
-        lastLoginAt: updates.lastLoginAt,
-      };
-
-      const currentData = snapshot.data();
-
-      // Sync Display Name: Use explicit update, OR fallback to token default if DB is different
-      if (updates.displayName) {
-        finalUpdates.displayName = updates.displayName;
-      } else if (defaults.displayName && currentData?.displayName !== defaults.displayName) {
-        finalUpdates.displayName = defaults.displayName;
-      }
-
-      // Sync Photo URL: If token has a photo and DB is different/missing, sync it.
-      // This ensures Auth source-of-truth propagates to DB on login.
-      if (defaults.photoURL !== undefined && currentData?.photoURL !== defaults.photoURL) {
-        finalUpdates.photoURL = defaults.photoURL;
-      }
-
-      await userRef.update(finalUpdates);
-    }
+    return data;
   }
 
   async getUser(uid: string) {

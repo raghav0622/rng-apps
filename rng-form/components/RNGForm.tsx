@@ -27,6 +27,7 @@ interface RNGFormProps<S extends FormSchema> {
   description?: string;
   descriptionProps?: TypographyProps;
   submitLabel?: string;
+  submitingLablel?: string;
   readOnly?: boolean;
   /** Hides the default submit button. Useful for Wizards or custom layouts. */
   hideSubmitButton?: boolean;
@@ -49,6 +50,7 @@ export function RNGForm<S extends FormSchema>({
   titleProps,
   description,
   descriptionProps,
+  submitingLablel = 'Submiting....',
 }: RNGFormProps<S>) {
   const [submissionError, setSubmissionError] = useState<string | null>(null);
 
@@ -127,7 +129,7 @@ export function RNGForm<S extends FormSchema>({
                   size="large"
                   disabled={isSubmitDisabled}
                 >
-                  {submitLabel}
+                  {isSubmitting ? submitingLablel : submitLabel}
                 </Button>
               </Box>
             )}

@@ -4,19 +4,26 @@
 import { actionClient, authActionClient } from '@/lib/safe-action';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
+import { SignupSchema } from './auth.model';
 import { authRepository } from './auth.repository';
 import { AuthService } from './auth.service';
 
 const SessionSchema = z.object({
   idToken: z.string(),
-  fullName: z.string().optional(),
 });
+
+export const signupAction = actionClient
+  .metadata({ name: 'auth.signup' })
+  .inputSchema(SignupSchema)
+  .action(async ({ parsedInput }) => {
+    return await AuthService.signup(parsedInput);
+  });
 
 export const createSessionAction = actionClient
   .metadata({ name: 'auth.createSession' })
-  .schema(SessionSchema)
-  .action(async ({ parsedInput: { idToken, fullName } }) => {
-    return await AuthService.createSession(idToken, fullName);
+  .inputSchema(SessionSchema)
+  .action(async ({ parsedInput }) => {
+    return await AuthService.createSession(parsedInput.idToken);
   });
 
 export const logoutAction = actionClient.metadata({ name: 'auth.logout' }).action(async () => {

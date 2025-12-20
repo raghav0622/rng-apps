@@ -1,68 +1,51 @@
 'use client';
 
-import { createSessionAction } from '@/features/auth/auth.actions';
+import { createSessionAction, signupAction } from '@/features/auth/auth.actions';
 import { SignupInput, SignupSchema } from '@/features/auth/auth.model';
 import { clientAuth } from '@/lib/firebase/client';
 import { RNGForm } from '@/rng-form/components/RNGForm';
-import { DEFAULT_LOGIN_REDIRECT } from '@/routes';
 import { Box, Link as MuiLink, Typography } from '@mui/material';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { signInWithCustomToken } from 'firebase/auth';
 import { useAction } from 'next-safe-action/hooks';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSnackbar } from 'notistack';
 
 export default function SignupPage() {
-  const router = useRouter();
   const { enqueueSnackbar } = useSnackbar();
-  const { executeAsync, isExecuting } = useAction(createSessionAction);
-
+  const { executeAsync, isExecuting, hasErrored } = useAction(signupAction);
+  const { executeAsync: createSession } = useAction(createSessionAction);
+  const router = useRouter();
   const handleSubmit = async (data: SignupInput) => {
-    try {
-      // 1. Create User in Firebase Auth
-      const userCredential = await createUserWithEmailAndPassword(
-        clientAuth,
-        data.email,
-        data.password,
-      );
+    const customToken = await executeAsync(data);
 
-      // 2. Update Display Name in Firebase Auth (Best practice, though we sync manually too)
-      await updateProfile(userCredential.user, { displayName: data.fullName });
+    if (customToken.data?.success) {
+      const customTokens = await signInWithCustomToken(clientAuth, customToken.data.data);
 
-      const idToken = await userCredential.user.getIdToken();
+      const idToken = (await customTokens.user.getIdTokenResult()).token;
 
-      // 3. Create Session AND Sync Profile
-      // FIX: Pass fullName explicitly to ensure Firestore gets it immediately
-      const result = await executeAsync({
+      await createSession({
         idToken,
-        fullName: data.fullName,
       });
-
-      if (result?.data?.success) {
-        enqueueSnackbar('Account created successfully!', { variant: 'success' });
-        window.location.href = DEFAULT_LOGIN_REDIRECT;
-      }
-    } catch (error: any) {
-      const msg =
-        error.code === 'auth/email-already-in-use'
-          ? 'That email is already in use.'
-          : error.message;
-      enqueueSnackbar(msg, { variant: 'error' });
     }
+
+    enqueueSnackbar('Account created successfully!', { variant: 'success' });
+
+    router.refresh();
   };
 
   return (
     <>
       <RNGForm
         schema={SignupSchema}
-        defaultValues={{ email: '', password: '', fullName: '' }}
+        defaultValues={{ email: '', password: '', displayName: '' }}
         onSubmit={handleSubmit}
         title="Create Account"
         description="Get started with RNG App"
         submitLabel={isExecuting ? 'Creating Account...' : 'Sign Up'}
         uiSchema={[
           {
-            name: 'fullName',
+            name: 'displayName',
             type: 'text',
             label: 'Full Name',
           },

@@ -2,8 +2,8 @@ import { createSafeActionClient, DEFAULT_SERVER_ERROR_MESSAGE } from 'next-safe-
 import { cookies } from 'next/headers';
 import 'server-only';
 import { z } from 'zod';
+import { UserRoleInOrg } from '../features/enums';
 import { AUTH_SESSION_COOKIE_NAME, ORG_SESSION_COOKIE_NAME } from './constants';
-import { UserRole } from './enums';
 import { AppError, AppErrorCode, CustomError } from './errors';
 import { auth, firestore } from './firebase/admin';
 import { logError, logInfo } from './logger';
@@ -122,7 +122,7 @@ export const orgActionClient = authActionClient.use(async ({ next, ctx }) => {
   }
 
   const memberData = memberSnap.data();
-  const role = memberData?.role as UserRole;
+  const role = memberData?.role as UserRoleInOrg;
 
   return next({
     ctx: {
@@ -140,7 +140,7 @@ export const orgActionClient = authActionClient.use(async ({ next, ctx }) => {
  * Utility to enforce permissions dynamically inside the action handler
  * if strict middleware isn't enough (e.g., conditional permissions).
  */
-export function requirePermission(role: UserRole, requiredRole: UserRole[]) {
+export function requirePermission(role: UserRoleInOrg, requiredRole: UserRoleInOrg[]) {
   if (!requiredRole.includes(role)) {
     throw new CustomError(
       AppErrorCode.PERMISSION_DENIED,

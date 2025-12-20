@@ -1,4 +1,4 @@
-import { UserRole } from './enums';
+import { UserRoleInOrg } from '../features/enums';
 import { AppErrorCode, CustomError } from './errors';
 import { OrgContext } from './types';
 
@@ -11,8 +11,8 @@ export const policies = {
   /**
    * RBAC: Ensure user has one of the required roles.
    */
-  hasRole: (ctx: OrgContext, requiredRoles: UserRole[]) => {
-    if (!requiredRoles.includes(ctx.role as UserRole)) {
+  hasRole: (ctx: OrgContext, requiredRoles: UserRoleInOrg[]) => {
+    if (!requiredRoles.includes(ctx.role as UserRoleInOrg)) {
       throw new CustomError(
         AppErrorCode.PERMISSION_DENIED,
         `Role ${ctx.role} is not authorized. Required: ${requiredRoles.join(', ')}`,
@@ -26,7 +26,7 @@ export const policies = {
    * (Placeholder logic - requires resource lookup in actual usage)
    */
   isOwnerOrAdmin: (ctx: OrgContext, resourceOwnerId: string) => {
-    if (ctx.role === UserRole.ADMIN) return true;
+    if (ctx.role === UserRoleInOrg.ADMIN) return true;
     if (ctx.userId === resourceOwnerId) return true;
 
     throw new CustomError(

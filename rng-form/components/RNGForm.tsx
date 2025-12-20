@@ -1,6 +1,14 @@
 'use client';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Alert, Box, Button, Stack, Typography, TypographyProps } from '@mui/material';
+import {
+  Alert,
+  Box,
+  Button,
+  LinearProgress,
+  Stack,
+  Typography,
+  TypographyProps,
+} from '@mui/material';
 import { useState } from 'react';
 import { FormProvider, SubmitHandler, useForm, UseFormProps } from 'react-hook-form';
 import { z } from 'zod';
@@ -47,7 +55,7 @@ export function RNGForm<S extends FormSchema>({
   const methods = useForm<z.infer<S>>({
     // We cast to any because hook-form resolver types are sometimes slightly mismatched
     // with strict Zod inference, though it works at runtime.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     resolver: zodResolver(schema) as any,
     defaultValues,
     mode: 'onBlur',
@@ -72,7 +80,6 @@ export function RNGForm<S extends FormSchema>({
       if (error instanceof FormError) {
         // Handle targeted field errors
         if (error.path) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           methods.setError(error.path as any, { message: error.message });
         } else {
           // Handle general form errors
@@ -95,6 +102,7 @@ export function RNGForm<S extends FormSchema>({
       <FormProvider {...methods}>
         <form onSubmit={methods.handleSubmit(handleFormSubmit)} noValidate>
           <Stack spacing={3}>
+            {isSubmitting && <LinearProgress />}
             {title && (
               <Typography variant="h5" gutterBottom {...titleProps}>
                 {title}
@@ -119,7 +127,7 @@ export function RNGForm<S extends FormSchema>({
                   size="large"
                   disabled={isSubmitDisabled}
                 >
-                  {isSubmitting ? 'Submitting...' : submitLabel}
+                  {submitLabel}
                 </Button>
               </Box>
             )}

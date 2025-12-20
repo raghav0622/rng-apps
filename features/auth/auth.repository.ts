@@ -1,6 +1,9 @@
 import 'server-only';
 
 import { auth, firestore } from '@/lib/firebase/admin';
+import { Result } from '@/lib/types';
+import { UserRoleInOrg } from '../enums';
+import { CreateUserInDatabase, User } from './auth.model';
 
 export class AuthRepository {
   private usersCollection = firestore().collection('users');
@@ -11,6 +14,39 @@ export class AuthRepository {
 
   async createSessionCookie(idToken: string, expiresIn: number) {
     return auth().createSessionCookie(idToken, { expiresIn });
+  }
+
+  async signUpUser(params: CreateUserInDatabase): Promise<Result<User>> {
+    const userRef = this.usersCollection.doc(params.uid);
+    const now = new Date();
+
+    const snapshot = await userRef.get();
+
+    if (snapshot.exists) {
+      throw new Error('User already exists');
+    } else {
+      const userData: User = {
+        createdAt: now,
+        updatedAt: now,
+        displayName: params.displayName,
+        photoUrl: '',
+        email: params.email,
+        emailVerified: false,
+        onboarded: false,
+        orgRole: UserRoleInOrg.NOT_IN_ORG,
+        uid: params.uid,
+        orgId: undefined,
+        lastLoginAt: now,
+        deletedAt: undefined,
+      };
+
+      await userRef.set(userData as User);
+
+      return {
+        success: true,
+        data: userData,
+      };
+    }
   }
 
   async ensureUserExists(

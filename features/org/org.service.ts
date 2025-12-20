@@ -1,6 +1,6 @@
 import { AuditAction } from '@/features/audit/audit.model';
 import { auditRepository } from '@/features/audit/audit.repository';
-import { UserRole } from '@/lib/enums';
+import { UserRoleInOrg } from '@/features/enums';
 import { AppErrorCode, CustomError } from '@/lib/errors';
 import { firestore } from '@/lib/firebase/admin';
 import { logInfo } from '@/lib/logger';
@@ -58,7 +58,7 @@ export class OrgService {
         t.set(memberRef, {
           userId,
           orgId: newOrgId,
-          role: UserRole.OWNER,
+          role: UserRoleInOrg.OWNER,
           joinedAt: new Date(),
         });
 

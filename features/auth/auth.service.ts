@@ -3,48 +3,60 @@ import { storageRepository } from '@/features/storage/storage.repository';
 import { extractPathFromUrl } from '@/features/storage/storage.utils';
 import { AUTH_SESSION_COOKIE_NAME } from '@/lib/constants';
 import { AppErrorCode, CustomError } from '@/lib/errors';
+import { auth } from '@/lib/firebase/admin';
 import { Result } from '@/lib/types';
 import { cookies } from 'next/headers';
 import 'server-only';
+import { UserRoleInOrg } from '../enums';
+import { SignupInput } from './auth.model';
 import { authRepository } from './auth.repository';
 
 export class AuthService {
-  static async createSession(idToken: string, fullName?: string): Promise<Result<void>> {
+  static async signup({ displayName, email, password }: SignupInput): Promise<Result<string>> {
     try {
-      const decodedToken = await authRepository.verifyIdToken(idToken);
-      const { uid, email, name, picture } = decodedToken;
+      const userCredential = await auth().createUser({
+        email,
+        password,
+        displayName,
+        emailVerified: false,
+      });
 
-      if (!email) {
-        throw new CustomError(AppErrorCode.VALIDATION_ERROR, 'Email is required for sign-up.');
-      }
+      const customToken = await auth().createCustomToken(userCredential.uid, {
+        displayName: userCredential.displayName,
+        onboarded: false,
+        orgRole: UserRoleInOrg.NOT_IN_ORG,
+        orgId: '',
+      });
 
-      // Create session cookie (5 days)
+      await authRepository.signUpUser({
+        uid: userCredential.uid,
+        email,
+        displayName,
+      });
+
+      return {
+        success: true,
+        data: customToken,
+      };
+    } catch (error: any) {
+      throw error;
+    }
+  }
+
+  static async createSession(idToken: string): Promise<Result<void>> {
+    try {
+      await authRepository.verifyIdToken(idToken);
       const expiresIn = 60 * 60 * 24 * 5 * 1000;
-      const sessionCookie = await authRepository.createSessionCookie(idToken, expiresIn);
-
-      // Sync user data to Firestore (Source of Truth)
-      await authRepository.ensureUserExists(
-        uid,
-        {
-          email,
-          displayName: name,
-          photoURL: picture,
-        },
-        {
-          lastLoginAt: new Date(),
-          displayName: fullName,
-        },
-      );
+      const authSessionCookie = await authRepository.createSessionCookie(idToken, expiresIn);
 
       const cookieStore = await cookies();
-      cookieStore.set(AUTH_SESSION_COOKIE_NAME, sessionCookie, {
+      cookieStore.set(AUTH_SESSION_COOKIE_NAME, authSessionCookie, {
         maxAge: expiresIn,
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         path: '/',
         sameSite: 'lax',
       });
-
       return { success: true, data: undefined };
     } catch (error) {
       console.error('Create Session Error:', error);

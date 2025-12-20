@@ -1,7 +1,7 @@
 // lib/enums.ts
-export enum UserRole {
+export enum UserRoleInOrg {
   OWNER = 'OWNER',
   ADMIN = 'ADMIN',
   MEMBER = 'MEMBER',
-  SYSTEM_USER = 'SYSTEM_USER',
+  NOT_IN_ORG = 'NOT_IN_ORG',
 }

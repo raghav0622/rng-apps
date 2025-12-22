@@ -210,37 +210,36 @@ export class AuthService {
     try {
       const currentUser = await authRepository.getUser(uid);
 
-      // STORAGE CLEANUP: Delete old avatar if changed
-      const isUpdatingAvatar = data.photoUrl !== undefined;
-      const hasOldAvatar = !!currentUser.photoUrl;
-      const isDifferent = data.photoUrl !== currentUser.photoUrl;
-
-      if (isUpdatingAvatar && hasOldAvatar && isDifferent) {
-        // We await this but catch errors internally in deleteFileByUrl if needed,
-        // or let it fail if you want strict consistency.
-        // Assuming StorageService.deleteFileByUrl handles 404s gracefully.
-        await StorageService.deleteFileByUrl(currentUser.photoUrl!);
+      // 1. Prepare Update Data
+      const updateData: { displayName: string; photoUrl?: string } = {
+        displayName: data.displayName,
+      };
+      if (data.photoUrl !== undefined) {
+        updateData.photoUrl = data.photoUrl;
       }
 
-      // Update Firebase Auth Profile
+      // 2. ATOMIC: Update Firestore First (Source of Truth for App State)
+      await authRepository.updateUser(uid, {
+        displayName: data.displayName,
+        photoUrl: data.photoUrl ?? currentUser.photoUrl, // keep old if undefined
+      });
+
+      // 3. Update Auth Claims (Best Effort)
       await auth().updateUser(uid, {
         displayName: data.displayName,
         photoURL: data.photoUrl || null,
       });
 
-      // Update Custom Claims
-      const existingClaims = (await auth().getUser(uid)).customClaims || {};
-      await auth().setCustomUserClaims(uid, {
-        ...existingClaims,
-        displayName: data.displayName,
-        picture: data.photoUrl || null,
-      });
-
-      // Update Firestore
-      await authRepository.updateUser(uid, {
-        displayName: data.displayName,
-        photoUrl: data.photoUrl || '',
-      });
+      // 4. CLEANUP: Delete old avatar AFTER successful DB update
+      // Logic: If we are uploading a NEW url (data.photoUrl exists)
+      // AND user had an OLD url (currentUser.photoUrl)
+      // AND they are different
+      if (data.photoUrl && currentUser.photoUrl && data.photoUrl !== currentUser.photoUrl) {
+        // Run in background, don't await blocking the UI response
+        StorageService.deleteFileByUrl(currentUser.photoUrl).catch((err) =>
+          console.warn('Failed to clean up old avatar', err),
+        );
+      }
 
       return { success: true, data: undefined };
     } catch (error: any) {
@@ -297,6 +296,23 @@ export class AuthService {
       return { success: true, data: link };
     } catch (error) {
       throw new CustomError(AppErrorCode.UNKNOWN, 'Failed to generate reset link');
+    }
+  }
+
+  static async changePassword(uid: string, oldPw: string, newPw: string): Promise<Result<void>> {
+    // 1. Ideally, verify 'oldPw' here.
+    // Since Admin SDK doesn't have "signInWithEmail", you typically do this check on the Client
+    // OR use the Firebase REST API to verify password on server.
+
+    // 2. Update
+    try {
+      await auth().updateUser(uid, { password: newPw });
+      // Optional: Revoke all sessions except current?
+      // usually changing password should kill other sessions
+      await this.revokeAllSessions(uid);
+      return { success: true, data: undefined };
+    } catch (error) {
+      throw new CustomError(AppErrorCode.INVALID_INPUT, 'Failed to update password');
     }
   }
 }

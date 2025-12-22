@@ -89,3 +89,19 @@ export const verifyEmailSyncAction = authActionClient
   .action(async ({ ctx }) => {
     return await AuthService.refreshEmailVerificationStatus(ctx.userId);
   });
+
+export const changePasswordAction = authActionClient
+  .metadata({ name: 'auth.changePassword' })
+  .inputSchema(
+    z.object({
+      currentPassword: z.string(),
+      newPassword: z.string().min(8, 'Password must be at least 8 characters'),
+    }),
+  )
+  .action(async ({ ctx, parsedInput }) => {
+    return await AuthService.changePassword(
+      ctx.userId,
+      parsedInput.currentPassword,
+      parsedInput.newPassword,
+    );
+  });

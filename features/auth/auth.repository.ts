@@ -89,18 +89,26 @@ export class AuthRepository {
     try {
       await auth().revokeRefreshTokens(uid);
     } catch (e) {
-      // Ignore if user not found in Auth
+      // User might be deleted in Auth already
     }
 
     const sessionsRef = this.getSessionsCollection(uid);
     const snapshot = await sessionsRef.get();
     if (snapshot.empty) return;
 
-    const batch = firestore().batch();
-    snapshot.docs.forEach((doc) => {
-      batch.delete(doc.ref);
-    });
-    await batch.commit();
+    // DRY: Chunking utility
+    const chunkArray = <T>(arr: T[], size: number) =>
+      Array.from({ length: Math.ceil(arr.length / size) }, (v, i) =>
+        arr.slice(i * size, i * size + size),
+      );
+
+    const chunks = chunkArray(snapshot.docs, 400); // Safe margin below 500
+
+    for (const chunk of chunks) {
+      const batch = firestore().batch();
+      chunk.forEach((doc) => batch.delete(doc.ref));
+      await batch.commit();
+    }
   }
 
   // ... (isSessionValid, verifyIdToken, createSessionCookie, signUpUser, getUserByEmail - Unchanged)

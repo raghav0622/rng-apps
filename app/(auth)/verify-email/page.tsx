@@ -13,9 +13,8 @@ import { Suspense, useEffect, useState } from 'react';
 function VerifyEmailContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-
-  // "oobCode" is the one-time code Firebase appends to the URL
   const oobCode = searchParams.get('oobCode');
+
   const { runAction: syncVerification } = useRNGServerAction(verifyEmailSyncAction);
   const [status, setStatus] = useState<'verifying' | 'success' | 'error'>('verifying');
   const [errorMessage, setErrorMessage] = useState('');
@@ -23,35 +22,33 @@ function VerifyEmailContent() {
   useEffect(() => {
     if (!oobCode) {
       setStatus('error');
-      setErrorMessage('Invalid verification link. Code is missing.');
+      setErrorMessage('Invalid verification link.');
       return;
     }
 
-    // Attempt to verify the code
+    // 1. Verify the code with Firebase
     applyActionCode(clientAuth, oobCode)
       .then(async () => {
         setStatus('success');
 
-        // Reload client user to see changes in Client SDK immediately
-        await clientAuth.currentUser?.reload();
+        // 2. If logged in on THIS browser, force an SDK reload
+        if (clientAuth.currentUser) {
+          await clientAuth.currentUser.reload();
+        }
 
-        // TELL SERVER TO SYNC DATABASE
-        // If this fails (e.g. user is on mobile and not logged in),
-        // we ignore it. The "I've Verified" button or next login will sync it.
+        // 3. Try to sync DB.
+        // This will fail if the user is not logged in (e.g. diff browser).
+        // That is OK! The session.ts self-healing will fix it when they return to the app.
         try {
           await syncVerification();
-        } catch (error) {
-          console.log('Cross-device verification: DB will sync on next login.');
+        } catch (e) {
+          console.log('Sync skipped: User not logged in on this device.');
         }
       })
       .catch((error) => {
-        console.error('Verification failed:', error);
-        let msg = 'Failed to verify email. The link may be expired or already used.';
-        if (error.code === 'auth/invalid-action-code') {
-          msg = 'Invalid or expired verification code.';
-        }
+        console.error('Verification failed', error);
         setStatus('error');
-        setErrorMessage(msg);
+        setErrorMessage('This link is invalid or has expired.');
       });
   }, [oobCode, syncVerification]);
 
@@ -67,14 +64,14 @@ function VerifyEmailContent() {
   if (status === 'error') {
     return (
       <Box sx={{ textAlign: 'center', p: 3 }}>
-        <Alert severity="error" sx={{ mb: 3, justifyContent: 'center' }}>
+        <Alert severity="error" sx={{ mb: 3 }}>
           Verification Failed
         </Alert>
-        <Typography paragraph color="text.secondary">
+        <Typography color="text.secondary" paragraph>
           {errorMessage}
         </Typography>
         <Button variant="contained" component={Link} href="/login">
-          Go to Login
+          Back to Login
         </Button>
       </Box>
     );
@@ -82,14 +79,14 @@ function VerifyEmailContent() {
 
   return (
     <Box sx={{ textAlign: 'center', p: 3 }}>
-      <Alert severity="success" sx={{ mb: 3, justifyContent: 'center' }}>
+      <Alert severity="success" sx={{ mb: 3 }}>
         Email Verified Successfully!
       </Alert>
       <Typography paragraph>
-        Your account is now verified. You can access all features of the application.
+        You can now return to your original tab or device to continue.
       </Typography>
       <Button variant="contained" component={Link} href="/dashboard">
-        Continue to Dashboard
+        Go to Dashboard
       </Button>
     </Box>
   );
@@ -97,13 +94,7 @@ function VerifyEmailContent() {
 
 export default function VerifyEmailPage() {
   return (
-    <Suspense
-      fallback={
-        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-          <CircularProgress />
-        </Box>
-      }
-    >
+    <Suspense fallback={<CircularProgress />}>
       <VerifyEmailContent />
     </Suspense>
   );

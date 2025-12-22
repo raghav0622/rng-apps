@@ -101,7 +101,27 @@ export const changePasswordAction = authActionClient
   .action(async ({ ctx, parsedInput }) => {
     return await AuthService.changePassword(
       ctx.userId,
+      ctx.email || '',
       parsedInput.currentPassword,
       parsedInput.newPassword,
     );
+  });
+
+export const verifyEmailAction = actionClient
+  .metadata({ name: 'auth.verifyEmail' })
+  .inputSchema(z.object({ oobCode: z.string() }))
+  .action(async ({ parsedInput }) => {
+    return await AuthService.verifyEmail(parsedInput.oobCode);
+  });
+
+export const confirmPasswordResetAction = actionClient
+  .metadata({ name: 'auth.confirmPasswordReset' })
+  .inputSchema(
+    z.object({
+      oobCode: z.string(),
+      newPassword: z.string().min(6),
+    }),
+  )
+  .action(async ({ parsedInput }) => {
+    return await AuthService.confirmPasswordReset(parsedInput.oobCode, parsedInput.newPassword);
   });

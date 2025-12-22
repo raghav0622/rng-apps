@@ -1,15 +1,14 @@
 'use client';
 
-import { clientAuth } from '@/lib/firebase/client';
+import { useRNGServerAction } from '@/lib/use-rng-action';
 import { FormError } from '@/rng-form';
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';
 import { Close } from '@mui/icons-material'; // Added Import
 import { Dialog, DialogContent, DialogTitle, IconButton } from '@mui/material'; // Added Import
-import { signInWithEmailAndPassword, updatePassword } from 'firebase/auth';
 import { useSnackbar } from 'notistack';
 import { z } from 'zod';
-import { useRNGAuth } from './AuthContext';
+import { changePasswordAction } from '../auth.actions';
 
 const ChangePasswordSchema = z
   .object({
@@ -34,7 +33,7 @@ interface ChangePasswordModalProps {
 }
 
 export function ChangePasswordModal({ open, onClose }: ChangePasswordModalProps) {
-  const { user } = useRNGAuth();
+  const { runAction: changePassword } = useRNGServerAction(changePasswordAction);
   const { enqueueSnackbar } = useSnackbar();
 
   return (
@@ -61,17 +60,11 @@ export function ChangePasswordModal({ open, onClose }: ChangePasswordModalProps)
           defaultValues={{ currentPassword: '', newPassword: '', confirmPassword: '' }}
           submitLabel="Update Password"
           onSubmit={async (values) => {
-            if (!user?.email) return;
-
             try {
-              const userCredential = await signInWithEmailAndPassword(
-                clientAuth,
-                user.email,
-                values.currentPassword,
-              );
-
-              await updatePassword(userCredential.user, values.newPassword);
-
+              await changePassword({
+                currentPassword: values.currentPassword,
+                newPassword: values.newPassword,
+              });
               enqueueSnackbar('Password updated successfully', { variant: 'success' });
               onClose();
             } catch (error: any) {

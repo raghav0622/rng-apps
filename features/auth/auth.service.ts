@@ -8,24 +8,98 @@ import { AdminFirestore, auth } from '@/lib/firebase/admin';
 import { Result } from '@/lib/types';
 import { cookies, headers } from 'next/headers';
 import { v4 as uuidv4 } from 'uuid';
-import { UserRoleInOrg } from '../enums';
 import { Session, SignupInput } from './auth.model';
 import { authRepository } from './auth.repository';
 
+// CENTRALIZED COOKIE CONFIGURATION
+const SESSION_DURATION_MS = 60 * 60 * 24 * 5 * 1000; // 5 Days
+
+const getCookieOptions = () => ({
+  maxAge: SESSION_DURATION_MS / 1000,
+  expires: new Date(Date.now() + SESSION_DURATION_MS),
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  path: '/',
+  sameSite: 'lax' as const,
+});
+
 export class AuthService {
   /**
+   * Helper: Call Firebase REST API
+   */
+  private static async callAuthApi(endpoint: string, body: object) {
+    const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+    if (!apiKey) throw new Error('Missing NEXT_PUBLIC_FIREBASE_API_KEY');
+
+    const response = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:${endpoint}?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      },
+    );
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new CustomError(AppErrorCode.INVALID_INPUT, data.error?.message || 'Auth API Error');
+    }
+    return data;
+  }
+
+  static async verifyEmail(oobCode: string): Promise<Result<void>> {
+    try {
+      // https://cloud.google.com/identity-platform/docs/reference/rest/v1/accounts/update
+      await this.callAuthApi('update', { oobCode });
+      return { success: true, data: undefined };
+    } catch (error: any) {
+      if (error instanceof CustomError) throw error;
+      throw new CustomError(AppErrorCode.INVALID_INPUT, 'Invalid or expired verification code');
+    }
+  }
+
+  static async confirmPasswordReset(oobCode: string, newPassword: string): Promise<Result<void>> {
+    try {
+      // https://cloud.google.com/identity-platform/docs/reference/rest/v1/accounts/resetPassword
+      await this.callAuthApi('resetPassword', { oobCode, newPassword });
+      return { success: true, data: undefined };
+    } catch (error: any) {
+      if (error instanceof CustomError) throw error;
+      throw new CustomError(AppErrorCode.INVALID_INPUT, 'Invalid or expired reset code');
+    }
+  }
+
+  /**
+   * Helper: Verify password using Firebase REST API (Admin SDK cannot do this)
+   */
+  private static async verifyPassword(email: string, password: string): Promise<boolean> {
+    const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+    if (!apiKey) throw new Error('Missing NEXT_PUBLIC_FIREBASE_API_KEY');
+
+    const response = await fetch(
+      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, returnSecureToken: true }),
+      },
+    );
+
+    const data = await response.json();
+    if (!response.ok || data.error) return false;
+    return true;
+  }
+
+  /**
    * Generates a custom token for a user.
+   * REFACTOR: Removed mutable custom claims. Only UID is essential.
    */
   static async signin({ email }: { email: string }): Promise<Result<string>> {
     try {
       const userProfile = await authRepository.getUserByEmail(email);
 
-      const customToken = await auth().createCustomToken(userProfile.uid, {
-        onboarded: userProfile.onboarded,
-        orgRole: userProfile.orgRole,
-        orgId: userProfile.orgId || undefined,
-        displayName: userProfile.displayName,
-      });
+      // Only create token with UID. No stale profile data in claims.
+      const customToken = await auth().createCustomToken(userProfile.uid);
 
       return { success: true, data: customToken };
     } catch (error: any) {
@@ -36,6 +110,7 @@ export class AuthService {
 
   /**
    * Creates a new user in Firebase Auth and Firestore.
+   * REFACTOR: Removed mutable custom claims.
    */
   static async signup({ displayName, email, password }: SignupInput): Promise<Result<string>> {
     try {
@@ -46,17 +121,7 @@ export class AuthService {
         emailVerified: false,
       });
 
-      const defaultRole = UserRoleInOrg.NOT_IN_ORG;
-
-      // Set initial claims
-      await auth().setCustomUserClaims(userCredential.uid, {
-        displayName: displayName,
-        onboarded: false,
-        orgRole: defaultRole,
-        orgId: undefined,
-      });
-
-      // Create DB Record
+      // Create DB Record (Source of Truth)
       await authRepository.signUpUser({
         uid: userCredential.uid,
         email,
@@ -64,12 +129,8 @@ export class AuthService {
       });
 
       // Generate token for immediate client-side sign-in
-      const customToken = await auth().createCustomToken(userCredential.uid, {
-        displayName: displayName,
-        onboarded: false,
-        orgRole: defaultRole,
-        orgId: undefined,
-      });
+      // No custom claims needed. Client will rely on DB for profile info.
+      const customToken = await auth().createCustomToken(userCredential.uid);
 
       return { success: true, data: customToken };
     } catch (error: any) {
@@ -86,44 +147,40 @@ export class AuthService {
       const decodedToken = await authRepository.verifyIdToken(idToken);
       const uid = decodedToken.uid;
 
-      // 5 Days Session
-      const expiresIn = 60 * 60 * 24 * 5 * 1000;
-      const authSessionCookie = await authRepository.createSessionCookie(idToken, expiresIn);
+      // Create the Session Cookie
+      const authSessionCookie = await authRepository.createSessionCookie(
+        idToken,
+        SESSION_DURATION_MS,
+      );
       const sessionId = uuidv4();
 
       const headersList = await headers();
-      const ip = headersList.get('x-forwarded-for') || 'unknown';
-      const userAgent = headersList.get('user-agent') || 'unknown';
 
-      // Auto-sync email verification status on login
-      if (decodedToken.email_verified) {
-        authRepository.updateUser(uid, { emailVerified: true }).catch(console.error);
-      }
+      // Parallelize independent operations
+      await Promise.all([
+        // 1. Sync Email Verification (Self-healing)
+        decodedToken.email_verified
+          ? authRepository.updateUser(uid, { emailVerified: true }).catch(console.error)
+          : Promise.resolve(),
 
-      // Store Session Metadata in Firestore
-      await authRepository.createSessionRecord({
-        sessionId,
-        uid,
-        createdAt: AdminFirestore.Timestamp.now(),
-        expiresAt: AdminFirestore.Timestamp.fromMillis(Date.now() + expiresIn),
-        ip,
-        userAgent,
-        isValid: true,
-      });
+        // 2. Create Session Record
+        authRepository.createSessionRecord({
+          sessionId,
+          uid,
+          createdAt: AdminFirestore.Timestamp.now(),
+          expiresAt: AdminFirestore.Timestamp.fromMillis(Date.now() + SESSION_DURATION_MS),
+          ip: headersList.get('x-forwarded-for') || 'unknown',
+          userAgent: headersList.get('user-agent') || 'unknown',
+          isValid: true,
+        }),
+      ]);
 
       // Set Cookies
       const cookieStore = await cookies();
-      const cookieOptions = {
-        maxAge: expiresIn / 1000,
-        expires: new Date(Date.now() + expiresIn),
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        path: '/',
-        sameSite: 'lax' as const,
-      };
+      const options = getCookieOptions();
 
-      cookieStore.set(AUTH_SESSION_COOKIE_NAME, authSessionCookie, cookieOptions);
-      cookieStore.set(SESSION_ID_COOKIE_NAME, sessionId, cookieOptions);
+      cookieStore.set(AUTH_SESSION_COOKIE_NAME, authSessionCookie, options);
+      cookieStore.set(SESSION_ID_COOKIE_NAME, sessionId, options);
 
       return { success: true, data: undefined };
     } catch (error) {
@@ -183,22 +240,18 @@ export class AuthService {
 
   static async refreshEmailVerificationStatus(uid: string): Promise<Result<{ verified: boolean }>> {
     try {
-      // 1. Ask Firebase Auth (The Source of Truth)
       const firebaseUser = await auth().getUser(uid);
       const isVerified = firebaseUser.emailVerified;
 
-      // 2. Sync to Database if needed
       if (isVerified) {
         await authRepository.updateUser(uid, {
           emailVerified: true,
         });
       }
 
-      // 3. RETURN THE STATUS so the client knows what happened
       return { success: true, data: { verified: isVerified } };
     } catch (error) {
       console.error('Sync Error:', error);
-      // Even if sync fails, return false safely
       return { success: true, data: { verified: false } };
     }
   }
@@ -210,32 +263,20 @@ export class AuthService {
     try {
       const currentUser = await authRepository.getUser(uid);
 
-      // 1. Prepare Update Data
-      const updateData: { displayName: string; photoUrl?: string } = {
-        displayName: data.displayName,
-      };
-      if (data.photoUrl !== undefined) {
-        updateData.photoUrl = data.photoUrl;
-      }
-
-      // 2. ATOMIC: Update Firestore First (Source of Truth for App State)
+      // 1. Update Firestore (Source of Truth)
       await authRepository.updateUser(uid, {
         displayName: data.displayName,
-        photoUrl: data.photoUrl ?? currentUser.photoUrl, // keep old if undefined
+        photoUrl: data.photoUrl ?? currentUser.photoUrl,
       });
 
-      // 3. Update Auth Claims (Best Effort)
+      // 2. Update Auth (Best effort for things like emails sent by Firebase)
       await auth().updateUser(uid, {
         displayName: data.displayName,
         photoURL: data.photoUrl || null,
       });
 
-      // 4. CLEANUP: Delete old avatar AFTER successful DB update
-      // Logic: If we are uploading a NEW url (data.photoUrl exists)
-      // AND user had an OLD url (currentUser.photoUrl)
-      // AND they are different
+      // 3. Cleanup old avatar if it changed
       if (data.photoUrl && currentUser.photoUrl && data.photoUrl !== currentUser.photoUrl) {
-        // Run in background, don't await blocking the UI response
         StorageService.deleteFileByUrl(currentUser.photoUrl).catch((err) =>
           console.warn('Failed to clean up old avatar', err),
         );
@@ -250,37 +291,27 @@ export class AuthService {
 
   static async deleteUserAccount(uid: string): Promise<Result<void>> {
     try {
-      // 1. Delete Auth Account FIRST (Prevents new logins/token refreshes)
+      // 1. Delete Auth Account
       try {
         await auth().deleteUser(uid);
       } catch (e: any) {
-        // If user not found, they are already gone. Proceed to cleanup DB.
-        if (e.code !== 'auth/user-not-found') {
-          throw e; // Rethrow other auth errors (e.g. permission)
-        }
+        if (e.code !== 'auth/user-not-found') throw e;
       }
 
-      // 2. Cleanup Storage (Best effort)
+      // 2. Cleanup Storage
       try {
         const currentUser = await authRepository.getUser(uid);
         if (currentUser.photoUrl) {
           await StorageService.deleteFileByUrl(currentUser.photoUrl);
         }
       } catch (e) {
-        console.warn(
-          'Could not fetch user data for storage cleanup (User might be deleted already)',
-          e,
-        );
+        console.warn('Cleanup warning during delete', e);
       }
 
-      // 3. Delete Firestore Data & Sessions
-      try {
-        await authRepository.deleteUserAndSessions(uid);
-      } catch (e) {
-        console.warn('Failed to delete user sessions/doc', e);
-      }
+      // 3. Delete Data
+      await authRepository.deleteUserAndSessions(uid);
 
-      // 4. Force Logout (Clear cookies)
+      // 4. Logout
       await AuthService.logout();
 
       return { success: true, data: undefined };
@@ -299,19 +330,30 @@ export class AuthService {
     }
   }
 
-  static async changePassword(uid: string, oldPw: string, newPw: string): Promise<Result<void>> {
-    // 1. Ideally, verify 'oldPw' here.
-    // Since Admin SDK doesn't have "signInWithEmail", you typically do this check on the Client
-    // OR use the Firebase REST API to verify password on server.
-
-    // 2. Update
+  static async changePassword(
+    uid: string,
+    email: string,
+    oldPw: string,
+    newPw: string,
+  ): Promise<Result<void>> {
     try {
+      // 1. Verify old password using REST API
+      if (!email) throw new CustomError(AppErrorCode.INVALID_INPUT, 'User has no email');
+
+      const isVerified = await this.verifyPassword(email, oldPw);
+      if (!isVerified) {
+        throw new CustomError(AppErrorCode.INVALID_INPUT, 'Incorrect current password');
+      }
+
+      // 2. Update to new password
       await auth().updateUser(uid, { password: newPw });
-      // Optional: Revoke all sessions except current?
-      // usually changing password should kill other sessions
+
+      // 3. Revoke all sessions (Security Best Practice)
       await this.revokeAllSessions(uid);
+
       return { success: true, data: undefined };
-    } catch (error) {
+    } catch (error: any) {
+      if (error instanceof CustomError) throw error;
       throw new CustomError(AppErrorCode.INVALID_INPUT, 'Failed to update password');
     }
   }

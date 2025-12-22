@@ -9,8 +9,7 @@ export const AUTH_ROUTES = new Set([
   '/login',
   '/signup',
   '/forgot-password',
-  '/reset-password',
-  '/verify-email',
+  '/auth-action-handler',
 ]);
 
 export function isAuthRoute(path: string): boolean {

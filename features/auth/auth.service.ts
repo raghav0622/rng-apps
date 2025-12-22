@@ -15,7 +15,6 @@ import { authRepository } from './auth.repository';
 export class AuthService {
   /**
    * Generates a custom token for a user.
-   * Useful if you have a separate API authentication flow.
    */
   static async signin({ email }: { email: string }): Promise<Result<string>> {
     try {
@@ -64,7 +63,7 @@ export class AuthService {
         displayName,
       });
 
-      // Generate token for immediate client-side sign-in if needed
+      // Generate token for immediate client-side sign-in
       const customToken = await auth().createCustomToken(userCredential.uid, {
         displayName: displayName,
         onboarded: false,
@@ -96,8 +95,8 @@ export class AuthService {
       const ip = headersList.get('x-forwarded-for') || 'unknown';
       const userAgent = headersList.get('user-agent') || 'unknown';
 
+      // Auto-sync email verification status on login
       if (decodedToken.email_verified) {
-        // We fire and forget this update to not slow down login
         authRepository.updateUser(uid, { emailVerified: true }).catch(console.error);
       }
 
@@ -210,15 +209,15 @@ export class AuthService {
       const currentUser = await authRepository.getUser(uid);
 
       // STORAGE CLEANUP: Delete old avatar if changed
-      // Condition: New URL provided AND Old URL exists AND they are different
-      if (
-        data.photoUrl !== undefined &&
-        currentUser.photoUrl &&
-        currentUser.photoUrl !== data.photoUrl
-      ) {
-        if (data.photoUrl !== currentUser.photoUrl) {
-          await StorageService.deleteFileByUrl(currentUser.photoUrl);
-        }
+      const isUpdatingAvatar = data.photoUrl !== undefined;
+      const hasOldAvatar = !!currentUser.photoUrl;
+      const isDifferent = data.photoUrl !== currentUser.photoUrl;
+
+      if (isUpdatingAvatar && hasOldAvatar && isDifferent) {
+        // We await this but catch errors internally in deleteFileByUrl if needed,
+        // or let it fail if you want strict consistency.
+        // Assuming StorageService.deleteFileByUrl handles 404s gracefully.
+        await StorageService.deleteFileByUrl(currentUser.photoUrl!);
       }
 
       // Update Firebase Auth Profile
@@ -227,7 +226,7 @@ export class AuthService {
         photoURL: data.photoUrl || null,
       });
 
-      // Update Custom Claims (Note: This won't reflect in the CURRENT session cookie)
+      // Update Custom Claims
       const existingClaims = (await auth().getUser(uid)).customClaims || {};
       await auth().setCustomUserClaims(uid, {
         ...existingClaims,
@@ -250,33 +249,37 @@ export class AuthService {
 
   static async deleteUserAccount(uid: string): Promise<Result<void>> {
     try {
-      // 1. Cleanup Storage
+      // 1. Delete Auth Account FIRST (Prevents new logins/token refreshes)
+      try {
+        await auth().deleteUser(uid);
+      } catch (e: any) {
+        // If user not found, they are already gone. Proceed to cleanup DB.
+        if (e.code !== 'auth/user-not-found') {
+          throw e; // Rethrow other auth errors (e.g. permission)
+        }
+      }
+
+      // 2. Cleanup Storage (Best effort)
       try {
         const currentUser = await authRepository.getUser(uid);
         if (currentUser.photoUrl) {
           await StorageService.deleteFileByUrl(currentUser.photoUrl);
         }
       } catch (e) {
-        console.warn('Could not fetch user for cleanup', e);
+        console.warn(
+          'Could not fetch user data for storage cleanup (User might be deleted already)',
+          e,
+        );
       }
 
-      // 2. Delete Firestore Data & Sessions
+      // 3. Delete Firestore Data & Sessions
       try {
         await authRepository.deleteUserAndSessions(uid);
       } catch (e) {
         console.warn('Failed to delete user sessions/doc', e);
       }
 
-      // 3. Delete Auth Account
-      try {
-        await auth().deleteUser(uid);
-      } catch (e: any) {
-        if (e.code !== 'auth/user-not-found') {
-          throw e;
-        }
-      }
-
-      // 4. Force Logout
+      // 4. Force Logout (Clear cookies)
       await AuthService.logout();
 
       return { success: true, data: undefined };
@@ -286,11 +289,6 @@ export class AuthService {
     }
   }
 
-  /**
-   * Generates a password reset link (Admin SDK).
-   * Typically used if you send emails from the server.
-   * For client-side triggering, use the Client SDK in a hook.
-   */
   static async generatePasswordResetLink(email: string): Promise<Result<string>> {
     try {
       const link = await auth().generatePasswordResetLink(email);

@@ -1,3 +1,4 @@
+// app/(auth)/verify-email/page.tsx
 'use client';
 
 import { verifyEmailSyncAction } from '@/features/auth/auth.actions';
@@ -21,7 +22,6 @@ function VerifyEmailContent() {
 
   useEffect(() => {
     if (!oobCode) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStatus('error');
       setErrorMessage('Invalid verification link. Code is missing.');
       return;
@@ -30,16 +30,19 @@ function VerifyEmailContent() {
     // Attempt to verify the code
     applyActionCode(clientAuth, oobCode)
       .then(async () => {
-        // 1. Client side is happy
         setStatus('success');
 
-        // 2. Reload client user to see changes in Client SDK
+        // Reload client user to see changes in Client SDK immediately
         await clientAuth.currentUser?.reload();
 
-        // 3. TELL SERVER TO SYNC DATABASE
-        // We catch errors silently because if this fails, it's not critical
-        // (the user is verified, just DB is slightly stale until next login)
-        await syncVerification().catch(console.error);
+        // TELL SERVER TO SYNC DATABASE
+        // If this fails (e.g. user is on mobile and not logged in),
+        // we ignore it. The "I've Verified" button or next login will sync it.
+        try {
+          await syncVerification();
+        } catch (error) {
+          console.log('Cross-device verification: DB will sync on next login.');
+        }
       })
       .catch((error) => {
         console.error('Verification failed:', error);

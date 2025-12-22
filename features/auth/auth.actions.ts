@@ -2,6 +2,7 @@
 'use server';
 
 import { actionClient, authActionClient } from '@/lib/safe-action';
+import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { CreateSessionSchema, SignupSchema } from './auth.model';
@@ -52,7 +53,7 @@ export const revokeSessionAction = authActionClient
     return await AuthService.revokeSession(ctx.userId, parsedInput.sessionId);
   });
 
-// --- NEW ACTIONS ---
+// --- UPDATED ACTIONS TO MATCH RESULT TYPE ---
 
 export const updateUserAction = authActionClient
   .metadata({ name: 'auth.updateUser' })
@@ -63,11 +64,22 @@ export const updateUserAction = authActionClient
     }),
   )
   .action(async ({ ctx, parsedInput }) => {
+    // Now returns Result<void>
     await AuthService.updateUserProfile(ctx.userId, parsedInput);
+
+    await AuthService.refreshSession({
+      displayName: parsedInput.displayName,
+      photoUrl: parsedInput.photoUrl,
+    });
+
+    revalidatePath('/', 'layout');
+
+    return { success: true, data: undefined };
   });
 
 export const deleteAccountAction = authActionClient
   .metadata({ name: 'auth.deleteAccount' })
   .action(async ({ ctx }) => {
-    await AuthService.deleteUserAccount(ctx.userId);
+    // Now returns Result<void>
+    return await AuthService.deleteUserAccount(ctx.userId);
   });

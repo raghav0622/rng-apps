@@ -1,5 +1,7 @@
+// features/auth/auth.service.ts
 import 'server-only';
 
+import { StorageService } from '@/features/storage/storage.service';
 import { AUTH_SESSION_COOKIE_NAME, SESSION_ID_COOKIE_NAME } from '@/lib/constants';
 import { AppErrorCode, CustomError } from '@/lib/errors';
 import { AdminFirestore, auth } from '@/lib/firebase/admin';
@@ -7,11 +9,11 @@ import { Result } from '@/lib/types';
 import { cookies, headers } from 'next/headers';
 import { v4 as uuidv4 } from 'uuid';
 import { UserRoleInOrg } from '../enums';
-import { Session, SignupInput } from './auth.model';
+import { Session, SignupInput, UserInSession } from './auth.model';
 import { authRepository } from './auth.repository';
 
 export class AuthService {
-  // ... (Previous methods: signin, signup, createSession, logout, etc. remain unchanged)
+  // ... (signin, signup, createSession, logout, revokeAllSessions, getActiveSessions, revokeSession remain unchanged)
 
   static async signin({ email }: { email: string }): Promise<Result<string>> {
     try {
@@ -135,7 +137,7 @@ export class AuthService {
         const claims = await authRepository.verifySessionCookie(sessionCookie);
         await authRepository.deleteSessionRecord(claims.uid, sessionId);
       } catch (e) {
-        // Ignore
+        // Ignore errors during logout (e.g., if user already deleted)
       }
     }
 
@@ -172,20 +174,29 @@ export class AuthService {
     }
   }
 
-  // --- NEW METHODS ---
+  // --- UPDATED METHODS ---
 
   static async updateUserProfile(
     uid: string,
     data: { displayName: string; photoUrl?: string },
-  ): Promise<void> {
+  ): Promise<Result<void>> {
     try {
-      // 1. Update Firebase Auth Profile (standard claims)
+      const currentUser = await authRepository.getUser(uid);
+
+      // STORAGE CLEANUP: Delete old avatar if changed
+      if (
+        data.photoUrl !== undefined &&
+        currentUser.photoUrl &&
+        currentUser.photoUrl !== data.photoUrl
+      ) {
+        await StorageService.deleteFileByUrl(currentUser.photoUrl);
+      }
+
       await auth().updateUser(uid, {
         displayName: data.displayName,
         photoURL: data.photoUrl || null,
       });
 
-      // 2. Update Custom Claims (so they persist in new tokens)
       const existingClaims = (await auth().getUser(uid)).customClaims || {};
       await auth().setCustomUserClaims(uid, {
         ...existingClaims,
@@ -193,7 +204,6 @@ export class AuthService {
         picture: data.photoUrl || null,
       });
 
-      // 3. Update Firestore DB
       await authRepository.updateUser(uid, {
         displayName: data.displayName,
         photoUrl: data.photoUrl || '',
@@ -201,23 +211,89 @@ export class AuthService {
 
       return { success: true, data: undefined };
     } catch (error: any) {
+      console.error('Update Profile Error:', error);
       throw new CustomError(AppErrorCode.DB_ERROR, 'Failed to update profile');
     }
   }
 
-  static async deleteUserAccount(uid: string): Promise<void> {
+  static async deleteUserAccount(uid: string): Promise<Result<void>> {
     try {
-      // 1. Delete Firestore Data
-      await authRepository.deleteUserAndSessions(uid);
+      // 1. Try to fetch user to clean up avatar (Fail safely if user already gone)
+      try {
+        const currentUser = await authRepository.getUser(uid);
+        if (currentUser.photoUrl) {
+          await StorageService.deleteFileByUrl(currentUser.photoUrl);
+        }
+      } catch (e) {
+        // User might not exist in Firestore, continue to cleanup Auth
+      }
 
-      // 2. Delete Auth Account
-      await auth().deleteUser(uid);
+      // 2. Delete Firestore Data
+      // This internally calls revokeAllUserSessions, which might fail if user invalid, so we wrap it.
+      try {
+        await authRepository.deleteUserAndSessions(uid);
+      } catch (e) {
+        console.warn('Failed to delete user sessions/doc', e);
+      }
 
-      // 3. Clear Cookies
+      // 3. Delete Auth Account
+      try {
+        await auth().deleteUser(uid);
+      } catch (e: any) {
+        // If user not found, they are already deleted.
+        if (e.code !== 'auth/user-not-found') {
+          console.error('Delete Auth User Error', e);
+          throw new CustomError(AppErrorCode.DB_ERROR, 'Failed to delete account');
+        }
+      }
+
+      // 4. Clear Cookies (This is crucial)
       await AuthService.logout();
+
+      return { success: true, data: undefined };
     } catch (error) {
       console.error('Delete Account Error:', error);
       throw new CustomError(AppErrorCode.DB_ERROR, 'Failed to delete account');
     }
+  }
+
+  /**
+   * Updates the current session cookie with new partial data
+   */
+  async refreshSession(updates: Partial<UserInSession>) {
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get(AUTH_SESSION_COOKIE_NAME)?.value;
+
+    if (!sessionCookie) return null;
+
+    // 1. Decrypt existing session
+    const session = await decrypt(sessionCookie);
+
+    if (!session) return null;
+
+    // 2. Merge new data (e.g., new photoUrl)
+    const newSessionPayload = {
+      ...session,
+      ...updates,
+      // Ensure specific fields like 'user' object are updated correctly
+      user: {
+        ...session.user,
+        ...updates,
+      },
+    };
+
+    // 3. Re-encrypt and set the new cookie
+    const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+    const encryptedSession = await encrypt(newSessionPayload);
+
+    cookieStore.set('session', encryptedSession, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      expires: expires,
+      sameSite: 'lax',
+      path: '/',
+    });
+
+    return { success: true, data: newSessionPayload };
   }
 }

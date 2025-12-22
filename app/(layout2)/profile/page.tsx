@@ -1,3 +1,4 @@
+// app/(layout2)/profile/page.tsx
 'use client';
 import { deleteAccountAction, updateUserAction } from '@/features/auth/auth.actions';
 import { useRNGAuth } from '@/features/auth/components/AuthContext';
@@ -12,6 +13,7 @@ import { useSnackbar } from 'notistack';
 import { useState } from 'react';
 import { z } from 'zod';
 
+// ... (Imports and Modal/Schema definitions remain the same)
 const ChangePasswordModal = dynamic(
   () =>
     import('@/features/auth/components/ChangePasswordModal').then((mod) => mod.ChangePasswordModal),
@@ -29,7 +31,6 @@ const ConfirmPasswordModal = dynamic(
 // Schema for the form UI
 const ProfileSchema = z.object({
   displayName: z.string().min(2, 'Name must be at least 2 characters'),
-  // Allow File object for upload, string for existing URL, or null for removal
   photoURL: z.custom<File | string | null>().optional(),
   email: z.string().email('Invalid email address'),
 });
@@ -59,6 +60,8 @@ export default function ProfilePage() {
   const { runAction: updateProfile } = useRNGServerAction(updateUserAction, {
     successMessage: 'Profile updated successfully',
   });
+
+  // Note: we handle success manually for deleteAccount to control the redirect
   const { runAction: deleteAccount } = useRNGServerAction(deleteAccountAction);
   const { runAction: uploadAvatar } = useRNGServerAction(uploadAvatarAction);
 
@@ -80,20 +83,15 @@ export default function ProfilePage() {
             onSubmit={async (data) => {
               let finalPhotoUrl = user.photoUrl;
 
-              // 1. Handle File Upload if a new file is selected
               if (data.photoURL instanceof File) {
-                const formData = new FormData();
-                formData.append('file', data.photoURL);
-                const res = await uploadAvatar(formData);
+                const res = await uploadAvatar({ file: data.photoURL });
                 if (res?.url) {
                   finalPhotoUrl = res.url;
                 }
               } else if (data.photoURL === null) {
-                // Handle deletion if explicitly set to null (optional)
                 finalPhotoUrl = '';
               }
 
-              // 2. Update Profile Data
               await updateProfile({
                 displayName: data.displayName,
                 photoUrl: finalPhotoUrl || undefined,
@@ -151,16 +149,34 @@ export default function ProfilePage() {
           description="This action cannot be undone. Please enter your password to confirm deletion."
           confirmLabel="Delete Permanently"
           onConfirm={async () => {
-            // 1. Call server action to delete account
-            await deleteAccount();
+            try {
+              // 1. Call server action
+              // If this throws "Invalid session", it means we might be partially deleted or token expired
+              await deleteAccount();
 
-            // 2. UI Feedback
-            enqueueSnackbar('Account deleted successfully', { variant: 'success' });
-            setDeleteModalOpen(false);
+              enqueueSnackbar('Account deleted successfully', { variant: 'success' });
+            } catch (error: any) {
+              // If we get an authentication error during delete, it likely means
+              // the user is already in an invalid state (or deleted).
+              // We should treat this as a signal to logout/redirect anyway.
+              if (
+                error?.message?.includes('Invalid session') ||
+                error?.code === 'UNAUTHENTICATED'
+              ) {
+                // Swallow error and proceed to redirect
+              } else {
+                // Show other errors (e.g. DB error)
+                enqueueSnackbar('Failed to delete account. Please try again.', {
+                  variant: 'error',
+                });
+                setDeleteModalOpen(false);
+                return;
+              }
+            }
 
-            // 3. Force redirect to login
-            router.push('/login');
-            router.refresh();
+            // 2. Force hard redirect to clear client state
+            // Do NOT use router.refresh() here as it may trigger protected route checks
+            window.location.href = '/login';
           }}
         />
       )}

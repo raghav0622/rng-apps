@@ -1,92 +1,57 @@
-import { createSafeActionClient, DEFAULT_SERVER_ERROR_MESSAGE } from 'next-safe-action';
+// lib/safe-action.ts
+import { createSafeActionClient } from 'next-safe-action';
 import { cookies } from 'next/headers';
 import 'server-only';
 import { z } from 'zod';
 import { AUTH_SESSION_COOKIE_NAME } from './constants';
 import { AppError, AppErrorCode, CustomError } from './errors';
 import { auth } from './firebase/admin';
-import { logError, logInfo } from './logger';
-import { generateTraceId, getTraceId, withTraceId } from './tracing';
-
-// ----------------------------------------------------------------------------
-// 1. Base Client & Error Handling
-// ----------------------------------------------------------------------------
+import { logError } from './logger';
+import { getTraceId } from './tracing';
 
 export const actionClient = createSafeActionClient({
   handleServerError: (e, utils) => {
     const traceId = getTraceId();
-    const { clientInput, metadata } = utils;
+    // Log the error for debugging
+    logError('Action Error', { traceId, error: e, action: utils.metadata?.name });
 
-    // Log the raw error on the server
-    logError('Action Failed', {
-      traceId,
-      error: e,
-      input: clientInput,
-      action: metadata?.name,
-    });
-
-    // If it's a known CustomError, return it safely
+    // Pass through CustomErrors (like "Invalid session") to the client
     if (e instanceof CustomError) {
       return e.toAppError(traceId);
     }
 
-    // Otherwise return a generic unknown error
     return {
       code: AppErrorCode.UNKNOWN,
-      message: DEFAULT_SERVER_ERROR_MESSAGE,
+      message: 'Something went wrong. Please try again.',
       traceId,
       details: {},
     } as AppError;
   },
-  // Inject Trace ID into the metadata for every action execution
-  defineMetadataSchema: () =>
-    z.object({
-      name: z.string(),
-    }),
-}).use(async ({ next, metadata }) => {
-  // Global Tracing Middleware
-  const traceId = generateTraceId();
-
-  return withTraceId(traceId, async () => {
-    const start = Date.now();
-    logInfo(`Action Started: ${metadata.name}`, { traceId });
-
-    try {
-      const result = await next({ ctx: { traceId } });
-      const duration = Date.now() - start;
-      logInfo(`Action Completed: ${metadata.name}`, { traceId, duration: `${duration}ms` });
-      return result;
-    } catch (e) {
-      const duration = Date.now() - start;
-      logError(`Action Crashed: ${metadata.name}`, { traceId, duration: `${duration}ms` });
-      throw e;
-    }
-  });
+  defineMetadataSchema: () => z.object({ name: z.string() }),
 });
-
-// ----------------------------------------------------------------------------
-// 2. Authentication Middleware
-// ----------------------------------------------------------------------------
 
 export const authActionClient = actionClient.use(async ({ next, ctx }) => {
   const cookieStore = await cookies();
   const sessionToken = cookieStore.get(AUTH_SESSION_COOKIE_NAME)?.value;
 
   if (!sessionToken) {
-    throw new CustomError(AppErrorCode.UNAUTHENTICATED, 'No session found');
+    throw new CustomError(AppErrorCode.UNAUTHENTICATED, 'Session missing. Please log in.');
   }
 
   try {
+    // strict check: true = fails if token is revoked or user deleted
     const decodedToken = await auth().verifySessionCookie(sessionToken, true);
+
     return next({
       ctx: {
         ...ctx,
         userId: decodedToken.uid,
-        email: decodedToken.email,
+        email: decodedToken.email, // Only immutable data from token
       },
     });
   } catch (error) {
-    throw new CustomError(AppErrorCode.UNAUTHENTICATED, 'Invalid session');
+    // Specifically catch revocation/expiration to give a clear error
+    throw new CustomError(AppErrorCode.UNAUTHENTICATED, 'Session expired or invalid.');
   }
 });
 

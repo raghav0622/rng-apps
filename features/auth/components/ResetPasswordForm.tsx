@@ -23,7 +23,7 @@ export function ResetPasswordForm({ oobCode }: { oobCode: string }) {
 
   const { runAction, status, result } = useRNGServerAction(confirmPasswordResetAction, {
     onSuccess: () => {
-      setTimeout(() => router.push('/login'), 200);
+      setTimeout(() => router.push('/login'), 2000);
     },
   });
 

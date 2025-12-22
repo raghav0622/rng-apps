@@ -1,8 +1,10 @@
 // app/(layout2)/profile/page.tsx
 'use client';
+
 import { deleteAccountAction, updateUserAction } from '@/features/auth/auth.actions';
 import { useRNGAuth } from '@/features/auth/components/AuthContext';
 import { uploadAvatarAction } from '@/features/storage/storage.actions';
+import { AppErrorCode } from '@/lib/errors';
 import { useRNGServerAction } from '@/lib/use-rng-action';
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';
@@ -13,7 +15,7 @@ import { useSnackbar } from 'notistack';
 import { useState } from 'react';
 import { z } from 'zod';
 
-// ... (Dynamic imports and Modal definitions remain the same)
+// --- Dynamic Imports for Modals (Code Splitting) ---
 const ChangePasswordModal = dynamic(
   () =>
     import('@/features/auth/components/ChangePasswordModal').then((mod) => mod.ChangePasswordModal),
@@ -28,7 +30,7 @@ const ConfirmPasswordModal = dynamic(
   { ssr: false },
 );
 
-// ... (Schema and Form Config remain the same)
+// --- Schema & Form Definition ---
 const ProfileSchema = z.object({
   displayName: z.string().min(2, 'Name must be at least 2 characters'),
   photoURL: z.custom<File | string | null>().optional(),
@@ -52,25 +54,61 @@ const profileFormConfig = defineForm<typeof ProfileSchema>((f) => [
 export default function ProfilePage() {
   const router = useRouter();
   const { user } = useRNGAuth();
-  const [isPasswordModalOpen, setPasswordModalOpen] = useState(false);
-  const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
   const { enqueueSnackbar } = useSnackbar();
 
-  // FIX: Cast updateUserAction to 'any' to satisfy the strict generic constraints of useRNGServerAction
-  // independent of the use-rng-action.ts file.
-  //@ts-expect-error asdf
-  const { runAction: updateProfile } = useRNGServerAction(updateUserAction, {
-    successMessage: 'Profile updated successfully',
-  });
+  const [isPasswordModalOpen, setPasswordModalOpen] = useState(false);
+  const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
 
-  // Note: we handle success manually for deleteAccount to control the redirect
-  const { runAction: deleteAccount } = useRNGServerAction(deleteAccountAction);
+  // --- Actions ---
+
+  // 1. Update Profile Action with Session Error Handling
+  const { runAction: updateProfile, isExecuting: isUpdating } = useRNGServerAction(
+    //@ts-expect-error yolo
+    updateUserAction,
+    {
+      onSuccess: () => {
+        enqueueSnackbar('Profile updated successfully', { variant: 'success' });
+        router.refresh();
+      },
+      onError: (msg, code) => {
+        if (code === AppErrorCode.UNAUTHENTICATED) {
+          enqueueSnackbar('Session expired. Redirecting to login...', { variant: 'warning' });
+          router.push('/login?reason=session_expired');
+        } else {
+          enqueueSnackbar(msg || 'Failed to update profile', { variant: 'error' });
+        }
+      },
+    },
+  );
+
+  // 2. Upload Avatar Action (Helper)
   const { runAction: uploadAvatar } = useRNGServerAction(uploadAvatarAction);
+
+  // 3. Delete Account Action
+  const { runAction: deleteAccount, isExecuting: isDeleting } = useRNGServerAction(
+    deleteAccountAction,
+    {
+      onSuccess: () => {
+        enqueueSnackbar('Account deleted successfully', { variant: 'success' });
+        window.location.href = '/login'; // Hard redirect to clear client state
+      },
+      onError: (msg, code) => {
+        if (code === AppErrorCode.UNAUTHENTICATED) {
+          // If session is already gone, just redirect
+          window.location.href = '/login';
+        } else {
+          enqueueSnackbar(msg || 'Failed to delete account', { variant: 'error' });
+        }
+        setDeleteModalOpen(false);
+      },
+    },
+  );
 
   if (!user) return null;
 
   return (
     <Stack spacing={4}>
+      {/* --- Profile Update Section --- */}
       <Card>
         <CardHeader title="User Profile" subheader="Manage your public profile information" />
         <CardContent>
@@ -82,35 +120,46 @@ export default function ProfilePage() {
               photoURL: user.photoUrl || null,
               email: user.email || '',
             }}
-            onSubmit={async (data) => {
-              let finalPhotoUrl = user.photoUrl;
-
-              if (data.photoURL instanceof File) {
-                // Upload avatar
-                const res = await uploadAvatar({ file: data.photoURL });
-                if (res?.url) {
-                  finalPhotoUrl = res.url;
-                }
-              } else if (data.photoURL === null) {
-                // Remove avatar
-                finalPhotoUrl = '';
-              }
-
-              // Call the update profile action
-              await updateProfile({
-                displayName: data.displayName,
-                photoUrl: finalPhotoUrl || undefined,
-              });
-
-              router.refresh();
-            }}
-            submitLabel={'Save Changes'}
+            submitLabel={isUpdating ? 'Saving...' : 'Save Changes'}
             requireChanges={true}
+            onSubmit={async (data) => {
+              try {
+                let finalPhotoUrl = user.photoUrl;
+
+                // Step 1: Handle File Upload (Atomic Check)
+                if (data.photoURL instanceof File) {
+                  const res = await uploadAvatar({ file: data.photoURL });
+
+                  // Verification: Ensure we got a URL back
+                  if (res?.url) {
+                    finalPhotoUrl = res.url;
+                  } else {
+                    throw new Error('Image upload failed. Please try again.');
+                  }
+                } else if (data.photoURL === null) {
+                  // Explicit removal of avatar
+                  finalPhotoUrl = '';
+                }
+
+                // Step 2: Update User Profile
+                await updateProfile({
+                  displayName: data.displayName,
+                  photoUrl: finalPhotoUrl || undefined,
+                });
+              } catch (error: any) {
+                console.error('Profile Update Error:', error);
+                // The useRNGServerAction handles the main errors, but we catch
+                // upload specific errors here if needed.
+                if (error.message.includes('upload')) {
+                  enqueueSnackbar(error.message, { variant: 'error' });
+                }
+              }
+            }}
           />
         </CardContent>
       </Card>
 
-      {/* ... Security Zone and Modals remain unchanged ... */}
+      {/* --- Security Zone --- */}
       <Card sx={{ borderColor: 'error.main' }}>
         <CardHeader title="Security Zone" subheader="Manage your account security and data" />
         <CardContent>
@@ -127,8 +176,13 @@ export default function ProfilePage() {
                   Change Password
                 </Button>
               </Box>
-              <Button variant="outlined" color="error" onClick={() => setDeleteModalOpen(true)}>
-                Delete Account
+              <Button
+                variant="outlined"
+                color="error"
+                onClick={() => setDeleteModalOpen(true)}
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Deleting...' : 'Delete Account'}
               </Button>
             </Box>
 
@@ -140,6 +194,7 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
 
+      {/* --- Modals --- */}
       {isPasswordModalOpen && (
         <ChangePasswordModal
           open={isPasswordModalOpen}
@@ -155,24 +210,8 @@ export default function ProfilePage() {
           description="This action cannot be undone. Please enter your password to confirm deletion."
           confirmLabel="Delete Permanently"
           onConfirm={async () => {
-            try {
-              await deleteAccount();
-              enqueueSnackbar('Account deleted successfully', { variant: 'success' });
-            } catch (error: any) {
-              if (
-                error?.message?.includes('Invalid session') ||
-                error?.code === 'UNAUTHENTICATED'
-              ) {
-                // Proceed
-              } else {
-                enqueueSnackbar('Failed to delete account. Please try again.', {
-                  variant: 'error',
-                });
-                setDeleteModalOpen(false);
-                return;
-              }
-            }
-            window.location.href = '/login';
+            // This calls the server action which handles DB cleanup
+            await deleteAccount();
           }}
         />
       )}

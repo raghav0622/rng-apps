@@ -19,47 +19,57 @@ type ActionOptions<TInput, TOutput> = {
  * - S: The Zod Schema for input (inferred from action)
  * - O: The Output Data Type (inferred from Result<O>)
  */
-export function useRNGServerAction<
-  S extends z.ZodType<any, any, any> | undefined,
-  O, // <--- 1. Define O as a standalone generic
->(
-  // 2. Force the action's return type to match Result<O>.
-  // This forces TS to infer 'O' directly (e.g., 'string' from 'Result<string>')
+export function useRNGServerAction<S extends z.ZodType<any, any, any> | undefined, O>(
   action: SafeActionFn<any, S, any, any, Result<O>>,
   options: ActionOptions<S extends z.ZodType<any, any, any> ? z.infer<S> : void, O> = {},
 ) {
   const { executeAsync, isExecuting, result, ...rest } = useAction(action);
   const { enqueueSnackbar } = useSnackbar();
 
-  // 3. Explicitly type the return Promise using O
   const runAction = async (
     input: S extends z.ZodType<any, any, any> ? z.infer<S> : void,
-  ): Promise<O> => {
+  ): Promise<O | undefined> => {
+    // Return type might be undefined on error
     const response = await executeAsync(input as any);
 
-    // Layer 1: Server Error
+    // Layer 1: Server Error (e.g., Crash, Timeout, Middleware Error)
     if (response?.serverError) {
       const msg =
         (response.serverError as any)?.message || options.errorMessage || 'Something went wrong';
 
       if (options.onError) {
         options.onError(msg, (response.serverError as any)?.code as AppErrorCode);
-      } else throw new FormError(msg);
+        return; // <--- CRITICAL FIX: Stop execution here
+      } else {
+        throw new FormError(msg);
+      }
     }
 
-    // Layer 2: Application Logic Errors
-    const appResult = response?.data; // Type is automatically Result<O> | undefined
+    // Layer 2: Application Logic Errors (e.g., Validation, DB Error returned as value)
+    const appResult = response?.data;
 
-    if (appResult && !appResult.success) {
+    if (!appResult) {
+      // Guard against completely empty response (rare but possible network failure)
+      const msg = options.errorMessage || 'No response from server';
+      if (options.onError) {
+        options.onError(msg, AppErrorCode.UNKNOWN);
+        return;
+      }
+      throw new FormError(msg);
+    }
+
+    if (!appResult.success) {
       const errorMsg = appResult.error.message || options.errorMessage || 'Operation failed';
 
       if (options.onError) {
         options.onError(errorMsg, appResult.error.code);
-      } else throw new FormError(errorMsg);
+        return; // <--- CRITICAL FIX: Stop execution here
+      } else {
+        throw new FormError(errorMsg);
+      }
     }
 
     // Layer 3: Success Path
-    // 4. Safe cast to SuccessResult<O>
     const successResult = appResult as SuccessResult<O>;
 
     if (options.successMessage) {

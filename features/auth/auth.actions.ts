@@ -58,13 +58,16 @@ export const updateUserAction = authActionClient
   .inputSchema(
     z.object({
       displayName: z.string().min(2),
+      // Allow empty string to signify "Delete Avatar"
       photoUrl: z.string().optional(),
     }),
   )
   .action(async ({ ctx, parsedInput }) => {
-    // Update Auth + DB
     await AuthService.updateUserProfile(ctx.userId, parsedInput);
+
+    // Critical: Revalidate layout to update avatars in header/sidebar
     revalidatePath('/', 'layout');
+
     return { success: true, data: undefined };
   });
 

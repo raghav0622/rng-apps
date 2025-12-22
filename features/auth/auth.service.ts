@@ -238,57 +238,6 @@ export class AuthService {
 
   // --- PROFILE MANAGEMENT ---
 
-  static async refreshEmailVerificationStatus(uid: string): Promise<Result<{ verified: boolean }>> {
-    try {
-      const firebaseUser = await auth().getUser(uid);
-      const isVerified = firebaseUser.emailVerified;
-
-      if (isVerified) {
-        await authRepository.updateUser(uid, {
-          emailVerified: true,
-        });
-      }
-
-      return { success: true, data: { verified: isVerified } };
-    } catch (error) {
-      console.error('Sync Error:', error);
-      return { success: true, data: { verified: false } };
-    }
-  }
-
-  static async updateUserProfile(
-    uid: string,
-    data: { displayName: string; photoUrl?: string },
-  ): Promise<Result<void>> {
-    try {
-      const currentUser = await authRepository.getUser(uid);
-
-      // 1. Update Firestore (Source of Truth)
-      await authRepository.updateUser(uid, {
-        displayName: data.displayName,
-        photoUrl: data.photoUrl ?? currentUser.photoUrl,
-      });
-
-      // 2. Update Auth (Best effort for things like emails sent by Firebase)
-      await auth().updateUser(uid, {
-        displayName: data.displayName,
-        photoURL: data.photoUrl || null,
-      });
-
-      // 3. Cleanup old avatar if it changed
-      if (data.photoUrl && currentUser.photoUrl && data.photoUrl !== currentUser.photoUrl) {
-        StorageService.deleteFileByUrl(currentUser.photoUrl).catch((err) =>
-          console.warn('Failed to clean up old avatar', err),
-        );
-      }
-
-      return { success: true, data: undefined };
-    } catch (error: any) {
-      console.error('Update Profile Error:', error);
-      throw new CustomError(AppErrorCode.DB_ERROR, 'Failed to update profile');
-    }
-  }
-
   static async deleteUserAccount(uid: string): Promise<Result<void>> {
     try {
       // 1. Delete Auth Account
@@ -355,6 +304,68 @@ export class AuthService {
     } catch (error: any) {
       if (error instanceof CustomError) throw error;
       throw new CustomError(AppErrorCode.INVALID_INPUT, 'Failed to update password');
+    }
+  }
+
+  static async refreshEmailVerificationStatus(uid: string): Promise<Result<{ verified: boolean }>> {
+    try {
+      const firebaseUser = await auth().getUser(uid);
+      const isVerified = firebaseUser.emailVerified;
+
+      if (isVerified) {
+        await authRepository.updateUser(uid, { emailVerified: true });
+      }
+
+      return { success: true, data: { verified: isVerified } };
+    } catch (error) {
+      console.error('Sync Error:', error);
+      return { success: true, data: { verified: false } };
+    }
+  }
+
+  static async updateUserProfile(
+    uid: string,
+    data: { displayName: string; photoUrl?: string },
+  ): Promise<Result<void>> {
+    try {
+      const currentUser = await authRepository.getUser(uid);
+
+      // 1. Resolve Effective Values (Logic Fix)
+      // If photoUrl is explicitly provided (string or empty string), use it.
+      // If it's undefined (not sent), preserve the EXISTING value.
+      let finalPhotoUrl = currentUser.photoUrl; // Default to existing
+
+      if (data.photoUrl !== undefined) {
+        finalPhotoUrl = data.photoUrl;
+      }
+
+      // 2. ATOMIC: Update Firestore (Source of Truth)
+      await authRepository.updateUser(uid, {
+        displayName: data.displayName,
+        photoUrl: finalPhotoUrl,
+      });
+
+      // 3. Update Firebase Auth (Identity Sync)
+      // We explicitly set photoURL to the resolved 'finalPhotoUrl'
+      // If finalPhotoUrl is empty string or undefined, we send null to clear it in Auth.
+      await auth().updateUser(uid, {
+        displayName: data.displayName,
+        photoURL: finalPhotoUrl || null,
+      });
+
+      // 4. CLEANUP: Delete old avatar if it changed
+      // Condition: New URL exists AND Old URL exists AND they are different
+      if (data.photoUrl && currentUser.photoUrl && data.photoUrl !== currentUser.photoUrl) {
+        // Run in background
+        StorageService.deleteFileByUrl(currentUser.photoUrl).catch((err) =>
+          console.warn('Failed to clean up old avatar', err),
+        );
+      }
+
+      return { success: true, data: undefined };
+    } catch (error: any) {
+      console.error('Update Profile Error:', error);
+      throw new CustomError(AppErrorCode.DB_ERROR, 'Failed to update profile');
     }
   }
 }

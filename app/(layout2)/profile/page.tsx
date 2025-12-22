@@ -124,35 +124,41 @@ export default function ProfilePage() {
             requireChanges={true}
             onSubmit={async (data) => {
               try {
-                let finalPhotoUrl = user.photoUrl;
+                let finalPhotoUrl: string | undefined = undefined; // Start undefined (no change)
 
-                // Step 1: Handle File Upload (Atomic Check)
+                // Case 1: New File Uploaded
                 if (data.photoURL instanceof File) {
                   const res = await uploadAvatar({ file: data.photoURL });
-
-                  // Verification: Ensure we got a URL back
-                  if (res?.url) {
-                    finalPhotoUrl = res.url;
+                  if (!res?.url) throw new Error('Upload failed');
+                  finalPhotoUrl = res.url;
+                }
+                // Case 2: Explicit Removal (Check for null OR empty string)
+                // The form might return null or "" when you click the "X"
+                else if (data.photoURL === null || data.photoURL === '') {
+                  finalPhotoUrl = ''; // This is our "DELETE" signal
+                }
+                // Case 3: No Change (It's the existing URL string)
+                else if (typeof data.photoURL === 'string') {
+                  // If it matches the user's current url, send undefined to skip processing
+                  if (data.photoURL === user.photoUrl) {
+                    finalPhotoUrl = undefined;
                   } else {
-                    throw new Error('Image upload failed. Please try again.');
+                    finalPhotoUrl = data.photoURL;
                   }
-                } else if (data.photoURL === null) {
-                  // Explicit removal of avatar
-                  finalPhotoUrl = '';
                 }
 
-                // Step 2: Update User Profile
+                // DEBUG: Uncomment to verify what is being sent
+                // console.log('Sending photoUrl:', finalPhotoUrl === '' ? 'EMPTY STRING' : finalPhotoUrl);
+
                 await updateProfile({
                   displayName: data.displayName,
-                  photoUrl: finalPhotoUrl || undefined,
+                  // CRITICAL FIX: Use '??' so that empty string "" is preserved!
+                  // If we used '||', "" would become undefined.
+                  photoUrl: finalPhotoUrl ?? undefined,
                 });
               } catch (error: any) {
-                console.error('Profile Update Error:', error);
-                // The useRNGServerAction handles the main errors, but we catch
-                // upload specific errors here if needed.
-                if (error.message.includes('upload')) {
-                  enqueueSnackbar(error.message, { variant: 'error' });
-                }
+                console.error(error);
+                enqueueSnackbar(error.message, { variant: 'error' });
               }
             }}
           />

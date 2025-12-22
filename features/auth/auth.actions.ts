@@ -1,3 +1,4 @@
+// features/auth/auth.actions.ts
 'use server';
 
 import { actionClient, authActionClient } from '@/lib/safe-action';
@@ -6,11 +7,12 @@ import { z } from 'zod';
 import { CreateSessionSchema, SignupSchema } from './auth.model';
 import { AuthService } from './auth.service';
 
-/**
- * NOTE: 'signinAction' has been removed for security.
- * Client should use `signInWithEmailAndPassword` from firebase/auth.
- * Then call `createSessionAction` with the resulting ID Token.
- */
+export const signinAction = actionClient
+  .metadata({ name: 'auth.signin' })
+  .inputSchema(z.object({ email: z.email() }))
+  .action(async ({ parsedInput }) => {
+    return await AuthService.signin(parsedInput);
+  });
 
 export const signupAction = actionClient
   .metadata({ name: 'auth.signup' })
@@ -48,4 +50,24 @@ export const revokeSessionAction = authActionClient
   .inputSchema(z.object({ sessionId: z.string() }))
   .action(async ({ ctx, parsedInput }) => {
     return await AuthService.revokeSession(ctx.userId, parsedInput.sessionId);
+  });
+
+// --- NEW ACTIONS ---
+
+export const updateUserAction = authActionClient
+  .metadata({ name: 'auth.updateUser' })
+  .inputSchema(
+    z.object({
+      displayName: z.string().min(2),
+      photoUrl: z.string().optional(),
+    }),
+  )
+  .action(async ({ ctx, parsedInput }) => {
+    await AuthService.updateUserProfile(ctx.userId, parsedInput);
+  });
+
+export const deleteAccountAction = authActionClient
+  .metadata({ name: 'auth.deleteAccount' })
+  .action(async ({ ctx }) => {
+    await AuthService.deleteUserAccount(ctx.userId);
   });

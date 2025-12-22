@@ -1,5 +1,8 @@
 'use client';
+import { deleteAccountAction, updateUserAction } from '@/features/auth/auth.actions';
 import { useRNGAuth } from '@/features/auth/components/AuthContext';
+import { uploadAvatarAction } from '@/features/storage/storage.actions';
+import { useRNGServerAction } from '@/lib/use-rng-action';
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';
 import { Alert, Box, Button, Card, CardContent, CardHeader, Stack } from '@mui/material';
@@ -52,6 +55,13 @@ export default function ProfilePage() {
   const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
   const { enqueueSnackbar } = useSnackbar();
 
+  // Server Actions Hooks
+  const { runAction: updateProfile } = useRNGServerAction(updateUserAction, {
+    successMessage: 'Profile updated successfully',
+  });
+  const { runAction: deleteAccount } = useRNGServerAction(deleteAccountAction);
+  const { runAction: uploadAvatar } = useRNGServerAction(uploadAvatarAction);
+
   if (!user) return null;
 
   return (
@@ -67,9 +77,32 @@ export default function ProfilePage() {
               photoURL: user.photoUrl || null,
               email: user.email || '',
             }}
-            onSubmit={(data) => {}}
+            onSubmit={async (data) => {
+              let finalPhotoUrl = user.photoUrl;
+
+              // 1. Handle File Upload if a new file is selected
+              if (data.photoURL instanceof File) {
+                const formData = new FormData();
+                formData.append('file', data.photoURL);
+                const res = await uploadAvatar(formData);
+                if (res?.url) {
+                  finalPhotoUrl = res.url;
+                }
+              } else if (data.photoURL === null) {
+                // Handle deletion if explicitly set to null (optional)
+                finalPhotoUrl = '';
+              }
+
+              // 2. Update Profile Data
+              await updateProfile({
+                displayName: data.displayName,
+                photoUrl: finalPhotoUrl || undefined,
+              });
+
+              router.refresh();
+            }}
             submitLabel={'Save Changes'}
-            requireChanges={true} // Only enable save if dirty
+            requireChanges={true}
           />
         </CardContent>
       </Card>
@@ -118,14 +151,16 @@ export default function ProfilePage() {
           description="This action cannot be undone. Please enter your password to confirm deletion."
           confirmLabel="Delete Permanently"
           onConfirm={async () => {
-            // const res = await deleteAccountAction();
-            // if (res?.serverError) {
-            //   throw new Error(res.serverError.message || 'Failed to delete account');
-            // }
-            // // Manual client-side redirect to avoid server-action redirect race conditions
+            // 1. Call server action to delete account
+            await deleteAccount();
+
+            // 2. UI Feedback
             enqueueSnackbar('Account deleted successfully', { variant: 'success' });
             setDeleteModalOpen(false);
+
+            // 3. Force redirect to login
             router.push('/login');
+            router.refresh();
           }}
         />
       )}

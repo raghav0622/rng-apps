@@ -11,8 +11,8 @@ import { Session, SignupInput } from './auth.model';
 import { authRepository } from './auth.repository';
 
 export class AuthService {
-  // Note: 'signin' static method is effectively replaced by client-side login + createSession
-  // but kept here if you need server-side token generation later.
+  // ... (Previous methods: signin, signup, createSession, logout, etc. remain unchanged)
+
   static async signin({ email }: { email: string }): Promise<Result<string>> {
     try {
       const userProfile = await authRepository.getUserByEmail(email);
@@ -24,7 +24,10 @@ export class AuthService {
         displayName: userProfile.displayName,
       });
 
-      return { success: true, data: customToken };
+      return {
+        success: true,
+        data: customToken,
+      };
     } catch (error: any) {
       if (error instanceof CustomError) throw error;
       throw new CustomError(AppErrorCode.UNAUTHENTICATED, error.message);
@@ -33,7 +36,6 @@ export class AuthService {
 
   static async signup({ displayName, email, password }: SignupInput): Promise<Result<string>> {
     try {
-      // 1. Create Auth User
       const userCredential = await auth().createUser({
         email,
         password,
@@ -43,30 +45,30 @@ export class AuthService {
 
       const defaultRole = UserRoleInOrg.NOT_IN_ORG;
 
-      // 2. Set Custom Claims persistently so they appear in future ID tokens
       await auth().setCustomUserClaims(userCredential.uid, {
         displayName: displayName,
         onboarded: false,
         orgRole: defaultRole,
-        orgId: '',
+        orgId: undefined,
       });
 
-      // 3. Create Custom Token (for immediate initial login)
       const customToken = await auth().createCustomToken(userCredential.uid, {
         displayName: displayName,
         onboarded: false,
         orgRole: defaultRole,
-        orgId: '',
+        orgId: undefined,
       });
 
-      // 4. Create DB Record
       await authRepository.signUpUser({
         uid: userCredential.uid,
         email,
         displayName,
       });
 
-      return { success: true, data: customToken };
+      return {
+        success: true,
+        data: customToken,
+      };
     } catch (error: any) {
       if (error instanceof CustomError) throw error;
       throw new CustomError(AppErrorCode.UNAUTHENTICATED, error.message);
@@ -78,11 +80,9 @@ export class AuthService {
       const decodedToken = await authRepository.verifyIdToken(idToken);
       const uid = decodedToken.uid;
 
-      // Create Firebase Session Cookie
       const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
       const authSessionCookie = await authRepository.createSessionCookie(idToken, expiresIn);
 
-      // Create Database Session Record
       const sessionId = uuidv4();
       const headersList = await headers();
       const ip = headersList.get('x-forwarded-for') || 'unknown';
@@ -98,19 +98,25 @@ export class AuthService {
         isValid: true,
       });
 
-      // Set Cookies
       const cookieStore = await cookies();
-      const options = {
+
+      cookieStore.set(AUTH_SESSION_COOKIE_NAME, authSessionCookie, {
         maxAge: expiresIn / 1000,
         expires: new Date(Date.now() + expiresIn),
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         path: '/',
-        sameSite: 'lax' as const,
-      };
+        sameSite: 'lax',
+      });
 
-      cookieStore.set(AUTH_SESSION_COOKIE_NAME, authSessionCookie, options);
-      cookieStore.set(SESSION_ID_COOKIE_NAME, sessionId, options);
+      cookieStore.set(SESSION_ID_COOKIE_NAME, sessionId, {
+        maxAge: expiresIn / 1000,
+        expires: new Date(Date.now() + expiresIn),
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        path: '/',
+        sameSite: 'lax',
+      });
 
       return { success: true, data: undefined };
     } catch (error) {
@@ -163,6 +169,55 @@ export class AuthService {
       return { success: true, data: undefined };
     } catch (error) {
       throw new CustomError(AppErrorCode.DB_ERROR, 'Failed to revoke session');
+    }
+  }
+
+  // --- NEW METHODS ---
+
+  static async updateUserProfile(
+    uid: string,
+    data: { displayName: string; photoUrl?: string },
+  ): Promise<void> {
+    try {
+      // 1. Update Firebase Auth Profile (standard claims)
+      await auth().updateUser(uid, {
+        displayName: data.displayName,
+        photoURL: data.photoUrl || null,
+      });
+
+      // 2. Update Custom Claims (so they persist in new tokens)
+      const existingClaims = (await auth().getUser(uid)).customClaims || {};
+      await auth().setCustomUserClaims(uid, {
+        ...existingClaims,
+        displayName: data.displayName,
+        picture: data.photoUrl || null,
+      });
+
+      // 3. Update Firestore DB
+      await authRepository.updateUser(uid, {
+        displayName: data.displayName,
+        photoUrl: data.photoUrl || '',
+      });
+
+      return { success: true, data: undefined };
+    } catch (error: any) {
+      throw new CustomError(AppErrorCode.DB_ERROR, 'Failed to update profile');
+    }
+  }
+
+  static async deleteUserAccount(uid: string): Promise<void> {
+    try {
+      // 1. Delete Firestore Data
+      await authRepository.deleteUserAndSessions(uid);
+
+      // 2. Delete Auth Account
+      await auth().deleteUser(uid);
+
+      // 3. Clear Cookies
+      await AuthService.logout();
+    } catch (error) {
+      console.error('Delete Account Error:', error);
+      throw new CustomError(AppErrorCode.DB_ERROR, 'Failed to delete account');
     }
   }
 }

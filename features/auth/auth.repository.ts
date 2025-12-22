@@ -8,39 +8,36 @@ import { CreateUserInDatabase, Session, User } from './auth.model';
 export class AuthRepository {
   private usersCollection = firestore().collection('users');
 
-  // --- SESSION MANAGEMENT ---
-
   private getSessionsCollection(uid: string) {
     return this.usersCollection.doc(uid).collection('sessions');
   }
+
+  // ... (Keep existing methods: createSessionRecord, deleteSessionRecord, getUserSessions, revokeAllUserSessions, isSessionValid, verifyIdToken, createSessionCookie, signUpUser, getUserByEmail, getUser, verifySessionCookie)
 
   async createSessionRecord(session: Session) {
     await this.getSessionsCollection(session.uid).doc(session.sessionId).set(session);
   }
 
   async deleteSessionRecord(uid: string, sessionId: string) {
-    if (!uid || !sessionId) return;
     try {
       await this.getSessionsCollection(uid).doc(sessionId).delete();
-    } catch (error) {
-      console.warn(`Failed to delete session ${sessionId} for user ${uid}`, error);
+    } catch (e) {
+      console.warn('Delete session error', e);
     }
   }
 
   async getUserSessions(uid: string): Promise<Session[]> {
     const snapshot = await this.getSessionsCollection(uid).orderBy('createdAt', 'desc').get();
-
     return snapshot.docs.map((doc) => doc.data() as Session);
   }
 
   async revokeAllUserSessions(uid: string) {
-    // 1. Firebase Auth Level Revocation
-    await auth().revokeRefreshTokens(uid);
+    try {
+      await auth().revokeRefreshTokens(uid);
+    } catch (e) {}
 
-    // 2. Database Level Cleanup
     const sessionsRef = this.getSessionsCollection(uid);
     const snapshot = await sessionsRef.get();
-
     if (snapshot.empty) return;
 
     const batch = firestore().batch();
@@ -54,9 +51,7 @@ export class AuthRepository {
     const doc = await this.getSessionsCollection(uid).doc(sessionId).get();
     if (!doc.exists) return false;
     const data = doc.data() as Session;
-
     if (data.expiresAt.toMillis() < Date.now()) return false;
-
     return data.isValid;
   }
 
@@ -68,12 +63,9 @@ export class AuthRepository {
     return auth().createSessionCookie(idToken, { expiresIn });
   }
 
-  // --- USER MANAGEMENT ---
-
   async signUpUser(params: CreateUserInDatabase): Promise<Result<User>> {
     const userRef = this.usersCollection.doc(params.uid);
     const now = new Date();
-
     const snapshot = await userRef.get();
 
     if (snapshot.exists) {
@@ -96,11 +88,7 @@ export class AuthRepository {
     };
 
     await userRef.set(userData as User);
-
-    return {
-      success: true,
-      data: userData,
-    };
+    return { success: true, data: userData };
   }
 
   async getUserByEmail(email: string) {
@@ -109,9 +97,6 @@ export class AuthRepository {
     return snap.docs[0].data() as User;
   }
 
-  /**
-   * Fetches user by UID directly.
-   */
   async getUser(uid: string): Promise<User> {
     const doc = await this.usersCollection.doc(uid).get();
     if (!doc.exists) throw new Error('User not found');
@@ -120,6 +105,23 @@ export class AuthRepository {
 
   async verifySessionCookie(sessionCookie: string) {
     return auth().verifySessionCookie(sessionCookie, false);
+  }
+
+  // --- NEW REPO METHODS ---
+
+  async updateUser(uid: string, data: Partial<User>) {
+    await this.usersCollection.doc(uid).update({
+      ...data,
+      updatedAt: new Date(),
+    });
+  }
+
+  async deleteUserAndSessions(uid: string) {
+    // 1. Delete Sessions
+    await this.revokeAllUserSessions(uid);
+
+    // 2. Delete User Doc
+    await this.usersCollection.doc(uid).delete();
   }
 }
 

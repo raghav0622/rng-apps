@@ -8,13 +8,16 @@ import { storageRepository } from './storage.repository';
 const MAX_SIZE = 5 * 1024 * 1024;
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
-export const StorageService = {
-  async uploadAvatar(userId: string, input: FormData | File): Promise<Result<{ url: string }>> {
+export class StorageService {
+  static async uploadAvatar(
+    userId: string,
+    input: FormData | File,
+  ): Promise<Result<{ url: string }>> {
     let file: File | null = null;
 
     if (input instanceof FormData) {
       file = input.get('file') as File;
-    } else {
+    } else if (input instanceof File) {
       file = input;
     }
 
@@ -34,16 +37,16 @@ export const StorageService = {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
+
     // Path: users/{uid}/avatar-{timestamp}
-    // Using timestamp ensures CDN caches don't serve old images
     const path = `users/${userId}/avatar-${Date.now()}`;
 
     const url = await storageRepository.uploadFile(path, buffer, file.type);
 
     return { success: true, data: { url } };
-  },
+  }
 
-  async deleteFileByUrl(publicUrl: string): Promise<void> {
+  static async deleteFileByUrl(publicUrl: string): Promise<void> {
     if (!publicUrl) return;
 
     try {
@@ -54,11 +57,13 @@ export const StorageService = {
     } catch (error) {
       console.warn('Failed to extract path or delete file:', error);
     }
-  },
+  }
 
-  extractPathFromUrl(url: string): string | null {
+  /**
+   * Helper: Extracts the storage path from a public URL.
+   */
+  private static extractPathFromUrl(url: string): string | null {
     try {
-      // Handle both standard Google Storage URLs and Firebase Download URLs
       const urlObj = new URL(url);
 
       // Case 1: storage.googleapis.com/BUCKET/PATH
@@ -83,5 +88,5 @@ export const StorageService = {
     } catch (e) {
       return null;
     }
-  },
-};
+  }
+}

@@ -1,4 +1,3 @@
-// features/auth/session.ts
 import 'server-only';
 
 import { AUTH_SESSION_COOKIE_NAME, SESSION_ID_COOKIE_NAME } from '@/lib/constants';
@@ -6,7 +5,10 @@ import { auth } from '@/lib/firebase/admin';
 import { cookies } from 'next/headers';
 import { cache } from 'react';
 import { UserInSession } from './auth.model';
-import { authRepository } from './auth.repository';
+
+// CHANGE: Import the new split repositories
+import { sessionRepository } from './repositories/session.repository';
+import { userRepository } from './repositories/user.repository';
 
 export const getCurrentUser = cache(async () => {
   const cookieStore = await cookies();
@@ -16,30 +18,29 @@ export const getCurrentUser = cache(async () => {
   if (!sessionCookie || !sessionId) return null;
 
   try {
-    // 1. Verify Crypto Signature
-    const decodedClaims = await authRepository.verifySessionCookie(sessionCookie);
+    // 1. Verify Crypto Signature (Use SessionRepo)
+    const decodedClaims = await sessionRepository.verifySessionCookie(sessionCookie);
 
-    // 2. Persistence Check
-    const isValidSession = await authRepository.isSessionValid(decodedClaims.uid, sessionId);
+    // 2. Persistence Check (Use SessionRepo)
+    const isValidSession = await sessionRepository.isSessionValid(decodedClaims.uid, sessionId);
 
     if (!isValidSession) {
       return null;
     }
 
-    // 3. FETCH FRESH DATA FROM DB
-    const user = await authRepository.getUser(decodedClaims.uid);
+    // 3. FETCH FRESH DATA FROM DB (Use UserRepo)
+    const user = await userRepository.getUser(decodedClaims.uid);
 
     // 4. SELF-HEALING: Auto-sync verification status
-    // If DB says "Unverified" but User verified on another device, this fixes it.
     if (!user.emailVerified) {
       try {
         const firebaseUser = await auth().getUser(user.uid);
         if (firebaseUser.emailVerified) {
-          await authRepository.updateUser(user.uid, { emailVerified: true });
-          user.emailVerified = true; // Update local object to reflect change immediately
+          // Use UserRepo to update
+          await userRepository.updateUser(user.uid, { emailVerified: true });
+          user.emailVerified = true;
         }
       } catch (e) {
-        // Ignore auth check errors, fallback to DB state
         console.warn('Background verification sync failed:', e);
       }
     }
@@ -52,7 +53,7 @@ export const getCurrentUser = cache(async () => {
       onboarded: user.onboarded,
       orgRole: user.orgRole,
       orgId: user.orgId || '',
-      emailVerified: user.emailVerified, // Ensure this is included in your UserInSession type
+      emailVerified: user.emailVerified,
     } as UserInSession;
   } catch (error) {
     console.error('getCurrentUser Error:', error);

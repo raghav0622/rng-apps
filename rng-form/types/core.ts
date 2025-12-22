@@ -3,13 +3,22 @@ import { FieldValues, Path, UseFormReturn } from 'react-hook-form';
 import { z } from 'zod';
 
 // Stricter schema definition
-
 export type FormSchema = z.ZodType<any, any, any>;
 
 export type FormContextState<TFieldValues extends FieldValues = FieldValues> = {
   formId: string;
   methods: UseFormReturn<TFieldValues>;
   readOnly?: boolean;
+
+  /** * Global loading state.
+   * Exposed to allow atomic components to disable themselves.
+   */
+  isSubmitting?: boolean;
+
+  /** * Dirty state.
+   * Useful for "Save" buttons to show visual cues.
+   */
+  isDirty?: boolean;
 };
 
 // Base Item Definition used by all fields
@@ -35,14 +44,12 @@ export type BaseFormItem<Schema extends FormSchema> = {
    * @param scope - The values relative to the current nesting (e.g., current array item)
    * @param root - The global form values
    */
-
   renderLogic?: (scope: any, root: z.infer<Schema>) => boolean;
 
   /** * Logic: Return partial props to dynamically override
    * @param scope - The values relative to the current nesting (e.g., current array item)
    * @param root - The global form values
    */
-
   propsLogic?: (scope: any, root: z.infer<Schema>) => Partial<any>;
 
   /** Disable the input */

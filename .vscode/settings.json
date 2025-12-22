@@ -12,7 +12,6 @@
     "next-env.d.ts": true,
     ".vscode": true,
     "public": true,
-    "rng-form": true,
     "app/page.tsx": true,
     "app/loading.tsx": true,
     ".next": true
@@ -25,7 +24,6 @@
     "next-env.d.ts",
     ".vscode",
     "public",
-    "rng-form",
     "app/page.tsx",
     "app/loading.tsx",
     ".next"

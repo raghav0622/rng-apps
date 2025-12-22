@@ -21,7 +21,7 @@ export function useSignup() {
 
   const handleSignup = async (data: SignupInput) => {
     // 1. Create User on Server (DB + Auth) -> Returns Custom Token
-    const customToken = await signUp(data);
+    const customToken = (await signUp(data)) || '';
 
     // 2. Sign in on Client with Custom Token to establish SDK state
     const userCredential = await signInWithCustomToken(clientAuth, customToken);

@@ -11,64 +11,63 @@ import { Session, SignupInput } from './auth.model';
 import { authRepository } from './auth.repository';
 
 export class AuthService {
-  /**
-   * Secure Signup Flow:
-   * 1. Creates Authentication User
-   * 2. Sets Permanent Custom Claims (Role, Org, etc.)
-   * 3. Creates Database Record
-   * 4. Returns Custom Token for immediate client-side auto-login
-   */
-  static async signup({ displayName, email, password }: SignupInput): Promise<Result<string>> {
-    let createdUid: string | undefined;
-
+  // Note: 'signin' static method is effectively replaced by client-side login + createSession
+  // but kept here if you need server-side token generation later.
+  static async signin({ email }: { email: string }): Promise<Result<string>> {
     try {
-      // 1. Create User in Firebase Auth
+      const userProfile = await authRepository.getUserByEmail(email);
+
+      const customToken = await auth().createCustomToken(userProfile.uid, {
+        onboarded: userProfile.onboarded,
+        orgRole: userProfile.orgRole,
+        orgId: userProfile.orgId || undefined,
+        displayName: userProfile.displayName,
+      });
+
+      return { success: true, data: customToken };
+    } catch (error: any) {
+      if (error instanceof CustomError) throw error;
+      throw new CustomError(AppErrorCode.UNAUTHENTICATED, error.message);
+    }
+  }
+
+  static async signup({ displayName, email, password }: SignupInput): Promise<Result<string>> {
+    try {
+      // 1. Create Auth User
       const userCredential = await auth().createUser({
         email,
         password,
         displayName,
         emailVerified: false,
       });
-      createdUid = userCredential.uid;
 
-      // 2. SET PERMANENT CUSTOM CLAIMS
-      // This is the critical fix. Instead of ephemeral claims in a token,
-      // we attach them to the user account permanently.
-      const initialClaims = {
-        displayName: userCredential.displayName,
+      const defaultRole = UserRoleInOrg.NOT_IN_ORG;
+
+      // 2. Set Custom Claims persistently so they appear in future ID tokens
+      await auth().setCustomUserClaims(userCredential.uid, {
+        displayName: displayName,
         onboarded: false,
-        orgRole: UserRoleInOrg.NOT_IN_ORG,
-        orgId: undefined,
-      };
+        orgRole: defaultRole,
+        orgId: '',
+      });
 
-      await auth().setCustomUserClaims(createdUid, initialClaims);
+      // 3. Create Custom Token (for immediate initial login)
+      const customToken = await auth().createCustomToken(userCredential.uid, {
+        displayName: displayName,
+        onboarded: false,
+        orgRole: defaultRole,
+        orgId: '',
+      });
 
-      // 3. Create User in Database
+      // 4. Create DB Record
       await authRepository.signUpUser({
         uid: userCredential.uid,
         email,
         displayName,
       });
 
-      // 4. Create Custom Token for immediate login
-      // (The claims are now redundant here since they are on the user,
-      // but good for consistency during the very first handshake)
-      const customToken = await auth().createCustomToken(createdUid, initialClaims);
-
-      return {
-        success: true,
-        data: customToken,
-      };
+      return { success: true, data: customToken };
     } catch (error: any) {
-      // Rollback: If DB write fails, delete the "ghost" user from Auth
-      if (createdUid) {
-        try {
-          await auth().deleteUser(createdUid);
-        } catch (cleanupError) {
-          console.error('Failed to rollback user creation:', cleanupError);
-        }
-      }
-
       if (error instanceof CustomError) throw error;
       throw new CustomError(AppErrorCode.UNAUTHENTICATED, error.message);
     }
@@ -79,12 +78,11 @@ export class AuthService {
       const decodedToken = await authRepository.verifyIdToken(idToken);
       const uid = decodedToken.uid;
 
-      // 1. Create Firebase Session Cookie
-      // This cookie will automatically inherit the custom claims we set via setCustomUserClaims
+      // Create Firebase Session Cookie
       const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
       const authSessionCookie = await authRepository.createSessionCookie(idToken, expiresIn);
 
-      // 2. Create Database Session Record
+      // Create Database Session Record
       const sessionId = uuidv4();
       const headersList = await headers();
       const ip = headersList.get('x-forwarded-for') || 'unknown';
@@ -100,24 +98,19 @@ export class AuthService {
         isValid: true,
       });
 
-      // 3. Set Cookies
+      // Set Cookies
       const cookieStore = await cookies();
-
-      cookieStore.set(AUTH_SESSION_COOKIE_NAME, authSessionCookie, {
-        maxAge: expiresIn,
+      const options = {
+        maxAge: expiresIn / 1000,
+        expires: new Date(Date.now() + expiresIn),
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         path: '/',
-        sameSite: 'lax',
-      });
+        sameSite: 'lax' as const,
+      };
 
-      cookieStore.set(SESSION_ID_COOKIE_NAME, sessionId, {
-        maxAge: expiresIn,
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        path: '/',
-        sameSite: 'lax',
-      });
+      cookieStore.set(AUTH_SESSION_COOKIE_NAME, authSessionCookie, options);
+      cookieStore.set(SESSION_ID_COOKIE_NAME, sessionId, options);
 
       return { success: true, data: undefined };
     } catch (error) {
@@ -133,11 +126,10 @@ export class AuthService {
 
     if (sessionCookie && sessionId) {
       try {
-        // Fast verification without remote check
-        const claims = await auth().verifySessionCookie(sessionCookie, false);
+        const claims = await authRepository.verifySessionCookie(sessionCookie);
         await authRepository.deleteSessionRecord(claims.uid, sessionId);
       } catch (e) {
-        // Proceed to clear cookies even if verification fails
+        // Ignore
       }
     }
 

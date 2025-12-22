@@ -1,33 +1,43 @@
 'use client';
 
-import { createSessionAction, signinAction } from '@/features/auth/auth.actions';
+import { createSessionAction } from '@/features/auth/auth.actions';
 import { LoginInput } from '@/features/auth/auth.model';
 import { clientAuth } from '@/lib/firebase/client';
 import { useRNGServerAction } from '@/lib/use-rng-action';
 import { FormError } from '@/rng-form';
 import { DEFAULT_LOGIN_REDIRECT } from '@/routes';
-import { signInWithCustomToken, signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 export function useSignin() {
   const router = useRouter();
   const searchParams = useSearchParams();
+
   const { runAction: createSession } = useRNGServerAction(createSessionAction, {
-    successMessage: 'Account Login Successfuly',
+    successMessage: 'Account Login Successful',
   });
-  const { runAction: getCustomSignInToken } = useRNGServerAction(signinAction);
 
   const handleSubmit = async (data: LoginInput) => {
     try {
-      await signInWithEmailAndPassword(clientAuth, data.email, data.password);
-      const customToken = await getCustomSignInToken({ email: data.email });
-      const customTokens = await signInWithCustomToken(clientAuth, customToken);
-      const idToken = (await customTokens.user.getIdTokenResult()).token;
+      // 1. Authenticate with Firebase Client SDK (Verifies Password)
+      const userCredential = await signInWithEmailAndPassword(
+        clientAuth,
+        data.email,
+        data.password,
+      );
+
+      // 2. Get the ID Token to send to the server
+      const idToken = await userCredential.user.getIdToken();
+
+      // 3. Create the HTTP-only Session Cookie
       await createSession({
         idToken,
       });
+
+      // 4. Redirect
       const redirectTo = searchParams.get('redirect_to') || DEFAULT_LOGIN_REDIRECT;
       router.push(redirectTo);
+      router.refresh(); // Ensure server components update immediately
     } catch (error: any) {
       let msg = error.message;
       if (error.code === 'auth/invalid-credential') msg = 'Invalid email or password.';

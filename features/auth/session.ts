@@ -14,30 +14,46 @@ export const getCurrentUser = cache(async () => {
   if (!sessionCookie || !sessionId) return null;
 
   try {
-    // 1. Verify Crypto Signature (Fast, local check)
-    // The claims here are populated from the 'setCustomUserClaims' we did during signup.
+    // 1. Verify Crypto Signature of the Firebase Cookie
     const decodedClaims = await authRepository.verifySessionCookie(sessionCookie);
 
-    // 2. Persistence Check
-    // This DB check handles "is the user deleted?" and "is this session revoked?"
+    // 2. Persistence Check: Does this specific session exist in Firestore?
     const isValidSession = await authRepository.isSessionValid(decodedClaims.uid, sessionId);
 
     if (!isValidSession) {
       return null;
     }
 
-    const data = {
-      displayName: decodedClaims.displayName,
-      email: decodedClaims.email,
-      onboarded: decodedClaims.onboarded,
-      orgRole: decodedClaims.orgRole,
-      uid: decodedClaims.uid,
-      orgId: decodedClaims.orgId,
-      photoUrl: decodedClaims.picture,
-    } as UserInSession;
+    // 3. Data Construction
+    // If the cookie is missing critical custom claims (like orgRole), we MUST fetch from DB.
+    if (!decodedClaims.orgRole) {
+      const user = await authRepository.getUser(decodedClaims.uid);
 
-    return data;
+      return {
+        uid: user.uid,
+        email: user.email,
+        displayName: user.displayName,
+        photoUrl: user.photoUrl || '',
+        onboarded: user.onboarded,
+        orgRole: user.orgRole,
+        // Ensure this defaults to "" if undefined/null
+        orgId: user.orgId || '',
+      } as UserInSession;
+    }
+
+    // Fast Path: If claims exist (e.g. set via Custom Claims), use them.
+    return {
+      uid: decodedClaims.uid,
+      email: decodedClaims.email || '',
+      displayName: decodedClaims.name || decodedClaims.displayName || '',
+      photoUrl: decodedClaims.picture || decodedClaims.photoUrl || '',
+      onboarded: !!decodedClaims.onboarded,
+      orgRole: decodedClaims.orgRole || 'NOT_IN_ORG',
+      // Ensure this defaults to "" if undefined/null
+      orgId: decodedClaims.orgId || '',
+    } as UserInSession;
   } catch (error) {
+    console.error('getCurrentUser Error:', error);
     return null;
   }
 });

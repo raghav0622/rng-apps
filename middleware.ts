@@ -19,28 +19,18 @@ export function middleware(request: NextRequest) {
   if (isProtected && !isAuthenticated) {
     const loginUrl = new URL(LOGIN_ROUTE, nextUrl);
 
-    // Add the current path as a 'redirect_to' param so we can return the user later
-    // We only encode the pathname + search (query params)
+    // Only add redirect_to if it's not already the login page
     const from = nextUrl.pathname + nextUrl.search;
     loginUrl.searchParams.set('redirect_to', from);
 
     return NextResponse.redirect(loginUrl);
   }
 
-  // 3. Allow request to proceed
   return NextResponse.next();
 }
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - images/assets in public folder
-     */
     '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };

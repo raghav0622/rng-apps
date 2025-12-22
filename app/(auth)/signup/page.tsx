@@ -16,7 +16,7 @@ export default function SignupPage() {
         onSubmit={handleSubmit}
         title="Create Account"
         description="Get started with RNG App"
-        submitingLablel={'Creating Account...'}
+        submitingLablel="Creating Account..."
         submitLabel="Sign Up"
         uiSchema={[
           {

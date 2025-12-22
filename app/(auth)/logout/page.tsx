@@ -1,6 +1,6 @@
 'use client';
 
-import { logoutAction } from '@/features/auth/auth.actions';
+import { logoutAction } from '@/features/auth/actions/session.actions';
 import { clientAuth } from '@/lib/firebase/client';
 import { LoadingSpinner } from '@/ui/LoadingSpinner';
 import { signOut } from 'firebase/auth';

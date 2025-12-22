@@ -1,10 +1,10 @@
 'use client';
 
-import { verifyEmailAction } from '@/features/auth/auth.actions';
 import { useRNGServerAction } from '@/lib/use-rng-action';
 import { Alert, Box, Button, Card, CardContent, CircularProgress, Typography } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef } from 'react';
+import { verifyEmailAction } from '../actions/security.actions';
 
 export function VerifyEmailView({ oobCode }: { oobCode: string }) {
   const router = useRouter();

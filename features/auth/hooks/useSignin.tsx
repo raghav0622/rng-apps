@@ -1,6 +1,5 @@
 'use client';
 
-import { createSessionAction } from '@/features/auth/auth.actions';
 import { LoginInput } from '@/features/auth/auth.model';
 import { clientAuth } from '@/lib/firebase/client';
 import { useRNGServerAction } from '@/lib/use-rng-action';
@@ -8,6 +7,7 @@ import { FormError } from '@/rng-form';
 import { DEFAULT_LOGIN_REDIRECT } from '@/routes';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { createSessionAction } from '../actions/session.actions';
 
 export function useSignin() {
   const router = useRouter();

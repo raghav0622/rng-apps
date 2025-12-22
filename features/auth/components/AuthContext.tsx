@@ -3,7 +3,7 @@
 import { clientAuth } from '@/lib/firebase/client';
 import { User as FirebaseUser, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { createContext, Dispatch, SetStateAction, useContext, useEffect, useState } from 'react';
-import { syncUserAction } from '../auth.actions'; // Import the new action
+import { syncUserAction } from '../actions/session.actions';
 import { UserInSession } from '../auth.model';
 
 type AuthContextType = {

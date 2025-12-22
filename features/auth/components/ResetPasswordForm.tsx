@@ -1,12 +1,12 @@
 'use client';
 
-import { confirmPasswordResetAction } from '@/features/auth/auth.actions';
 import { ResetPasswordSchema } from '@/features/auth/auth.model';
 import { useRNGServerAction } from '@/lib/use-rng-action';
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';
 import { Alert, Box, Card, CardContent, CardHeader, Link, Typography } from '@mui/material';
 import { useRouter } from 'next/navigation';
+import { confirmPasswordResetAction } from '../actions/security.actions';
 
 const resetPasswordFormConfig = defineForm<typeof ResetPasswordSchema>((f) => [
   f.password('password', {

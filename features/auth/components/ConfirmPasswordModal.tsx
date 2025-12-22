@@ -7,7 +7,6 @@ import { defineForm } from '@/rng-form/dsl';
 import { Close } from '@mui/icons-material'; // Added Import
 import { Dialog, DialogContent, DialogContentText, DialogTitle, IconButton } from '@mui/material'; // Added Import
 import { signInWithEmailAndPassword } from 'firebase/auth';
-import { useSnackbar } from 'notistack';
 import { z } from 'zod';
 import { useRNGAuth } from './AuthContext';
 
@@ -37,7 +36,6 @@ export function ConfirmPasswordModal({
   confirmLabel = 'Confirm',
 }: ConfirmPasswordModalProps) {
   const { user } = useRNGAuth();
-  const { enqueueSnackbar } = useSnackbar();
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>

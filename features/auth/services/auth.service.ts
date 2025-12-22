@@ -4,56 +4,13 @@ import { Result } from '@/lib/types';
 import 'server-only';
 import { SignupInput } from '../auth.model';
 import { userRepository } from '../repositories/user.repository';
-import { SessionService } from './session.service'; // Needed for revoking sessions
+import { AuthApiProvider } from './auth-api.provider';
+import { SessionService } from './session.service';
 
 export class AuthService {
-  /**
-   * Helper: Call Firebase REST API
-   */
-  private static async callAuthApi(endpoint: string, body: object) {
-    const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-    if (!apiKey) throw new Error('Missing NEXT_PUBLIC_FIREBASE_API_KEY');
-
-    const response = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:${endpoint}?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      },
-    );
-
-    const data = await response.json();
-    if (!response.ok) {
-      throw new CustomError(AppErrorCode.INVALID_INPUT, data.error?.message || 'Auth API Error');
-    }
-    return data;
-  }
-
-  /**
-   * Helper: Verify password using Firebase REST API
-   */
-  private static async verifyPassword(email: string, password: string): Promise<boolean> {
-    const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-    if (!apiKey) throw new Error('Missing NEXT_PUBLIC_FIREBASE_API_KEY');
-
-    const response = await fetch(
-      `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, returnSecureToken: true }),
-      },
-    );
-
-    const data = await response.json();
-    if (!response.ok || data.error) return false;
-    return true;
-  }
-
   static async verifyEmail(oobCode: string): Promise<Result<void>> {
     try {
-      await this.callAuthApi('update', { oobCode });
+      await AuthApiProvider.verifyEmailCode(oobCode);
       return { success: true, data: undefined };
     } catch (error: any) {
       if (error instanceof CustomError) throw error;
@@ -63,7 +20,7 @@ export class AuthService {
 
   static async confirmPasswordReset(oobCode: string, newPassword: string): Promise<Result<void>> {
     try {
-      await this.callAuthApi('resetPassword', { oobCode, newPassword });
+      await AuthApiProvider.resetPassword(oobCode, newPassword);
       return { success: true, data: undefined };
     } catch (error: any) {
       if (error instanceof CustomError) throw error;
@@ -74,6 +31,7 @@ export class AuthService {
   static async signin({ email }: { email: string }): Promise<Result<string>> {
     try {
       const userProfile = await userRepository.getUserByEmail(email);
+      // Generate Custom Token for client-side sign-in
       const customToken = await auth().createCustomToken(userProfile.uid);
       return { success: true, data: customToken };
     } catch (error: any) {
@@ -105,8 +63,6 @@ export class AuthService {
     }
   }
 
-  // --- NEWLY ADDED METHOD ---
-
   static async changePassword(
     uid: string,
     email: string,
@@ -116,14 +72,16 @@ export class AuthService {
     try {
       if (!email) throw new CustomError(AppErrorCode.INVALID_INPUT, 'User has no email');
 
-      const isVerified = await this.verifyPassword(email, oldPw);
+      // 1. Verify old password using Provider
+      const isVerified = await AuthApiProvider.verifyPassword(email, oldPw);
       if (!isVerified) {
         throw new CustomError(AppErrorCode.INVALID_INPUT, 'Incorrect current password');
       }
 
+      // 2. Update password via Admin SDK
       await auth().updateUser(uid, { password: newPw });
 
-      // Revoke all sessions (Security Best Practice)
+      // 3. Security: Revoke all existing sessions
       await SessionService.revokeAllSessions(uid);
 
       return { success: true, data: undefined };

@@ -1,7 +1,6 @@
 // features/auth/components/EmailVerificationBanner.tsx
 'use client';
 
-import { checkVerificationStatusAction } from '@/features/auth/auth.actions';
 import { useSendVerification } from '@/features/auth/hooks/useSendVerification';
 import { clientAuth } from '@/lib/firebase/client';
 import { useRNGServerAction } from '@/lib/use-rng-action';
@@ -9,6 +8,7 @@ import { Alert, Box, Button, CircularProgress, Collapse } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import { useSnackbar } from 'notistack';
 import { useState } from 'react';
+import { checkVerificationStatusAction } from '../actions/security.actions';
 import { useRNGAuth } from './AuthContext';
 
 export function EmailVerificationBanner() {

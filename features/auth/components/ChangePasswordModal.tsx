@@ -8,7 +8,7 @@ import { Close } from '@mui/icons-material'; // Added Import
 import { Dialog, DialogContent, DialogTitle, IconButton } from '@mui/material'; // Added Import
 import { useSnackbar } from 'notistack';
 import { z } from 'zod';
-import { changePasswordAction } from '../auth.actions';
+import { changePasswordAction } from '../actions/security.actions';
 
 const ChangePasswordSchema = z
   .object({

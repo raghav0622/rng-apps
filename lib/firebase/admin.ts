@@ -13,7 +13,6 @@ function initializeAdmin() {
   const privateKey = process.env.FIREBASE_PRIVATE_KEY;
 
   // 1. DETERMINE STORAGE BUCKET
-  // Priority: Server Env Var -> Client Env Var -> Default Fallback
   const storageBucket =
     process.env.FIREBASE_STORAGE_BUCKET ||
     process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
@@ -31,7 +30,8 @@ function initializeAdmin() {
     );
   }
 
-  const formattedPrivateKey = privateKey.replace(/\\n/g, '\n');
+  // FIX: Robust handling for newlines and surrounding quotes often found in Vercel/Env files
+  const formattedPrivateKey = privateKey.replace(/\\n/g, '\n').replace(/"/g, '');
 
   admin.initializeApp({
     credential: admin.credential.cert({
@@ -39,7 +39,6 @@ function initializeAdmin() {
       clientEmail,
       privateKey: formattedPrivateKey,
     }),
-    // 2. INJECT STORAGE BUCKET CONFIGURATION
     storageBucket: storageBucket,
   });
 
@@ -58,25 +57,16 @@ function initializeAdmin() {
 // Initialize immediately
 initializeAdmin();
 
-/**
- * Returns the initialized Firestore instance.
- */
 export const firestore = () => {
   if (!admin.apps.length) initializeAdmin();
   return admin.firestore();
 };
 
-/**
- * Returns the initialized Auth instance.
- */
 export const auth = () => {
   if (!admin.apps.length) initializeAdmin();
   return admin.auth();
 };
 
-/**
- * Returns the initialized Storage instance.
- */
 export const storage = () => {
   if (!admin.apps.length) initializeAdmin();
   return admin.storage();

@@ -25,8 +25,7 @@
     ".vscode",
     "public",
     "app/page.tsx",
-    "app/loading.tsx",
-    ".next"
+    "app/loading.tsx"
   ],
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {

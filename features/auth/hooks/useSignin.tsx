@@ -8,6 +8,7 @@ import { DEFAULT_LOGIN_REDIRECT } from '@/routes';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createSessionAction } from '../actions/session.actions';
+import { mapAuthError } from '../utils/auth-errors';
 
 export function useSignin() {
   const router = useRouter();
@@ -39,14 +40,9 @@ export function useSignin() {
       router.push(redirectTo);
       router.refresh(); // Ensure server components update immediately
     } catch (error: any) {
-      let msg = error.message;
-      if (error.code === 'auth/invalid-credential') msg = 'Invalid email or password.';
-      if (error.code === 'auth/user-not-found') msg = 'Account not found.';
-      if (error.code === 'auth/wrong-password') msg = 'Incorrect password.';
-      if (error.code === 'auth/too-many-requests')
-        msg = 'Too many failed attempts. Try again later.';
-
-      throw new FormError(msg);
+      // Use centralized error mapping
+      const errorMsg = mapAuthError(error.code, error.message);
+      throw new FormError(errorMsg);
     }
   };
 

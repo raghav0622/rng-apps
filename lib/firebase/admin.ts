@@ -2,21 +2,21 @@ import * as admin from 'firebase-admin';
 import 'server-only';
 import { logInfo } from '../logger';
 
-function initializeAdmin() {
-  // Prevent re-initialization if app already exists
-  if (admin.apps.length > 0) {
-    return;
-  }
+interface AdminConfig {
+  projectId: string;
+  clientEmail: string;
+  privateKey: string;
+  storageBucket: string;
+}
 
+const validateEnv = (): AdminConfig => {
   const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || process.env.FIREBASE_PROJECT_ID;
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
   const privateKey = process.env.FIREBASE_PRIVATE_KEY;
-
-  // 1. DETERMINE STORAGE BUCKET
   const storageBucket =
     process.env.FIREBASE_STORAGE_BUCKET ||
     process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
-    (projectId ? `${projectId}.firebasestorage.app` : undefined);
+    (projectId ? `${projectId}.firebasestorage.app` : '');
 
   if (!projectId || !clientEmail || !privateKey) {
     const missing = [];
@@ -30,25 +30,40 @@ function initializeAdmin() {
     );
   }
 
-  // FIX: Robust handling for newlines and surrounding quotes often found in Vercel/Env files
-  const formattedPrivateKey = privateKey.replace(/\\n/g, '\n').replace(/"/g, '');
+  return {
+    projectId,
+    clientEmail,
+    // Robust handling for newlines and surrounding quotes
+    privateKey: privateKey.replace(/\\n/g, '\n').replace(/"/g, ''),
+    storageBucket,
+  };
+};
+
+function initializeAdmin() {
+  // Prevent re-initialization if app already exists
+  if (admin.apps.length > 0) {
+    return;
+  }
+
+  const config = validateEnv();
 
   admin.initializeApp({
     credential: admin.credential.cert({
-      projectId,
-      clientEmail,
-      privateKey: formattedPrivateKey,
+      projectId: config.projectId,
+      clientEmail: config.clientEmail,
+      privateKey: config.privateKey,
     }),
-    storageBucket: storageBucket,
+    storageBucket: config.storageBucket,
   });
 
   admin.firestore().settings({
     ignoreUndefinedProperties: true,
   });
 
-  logInfo(`✅ Firebase Admin initialized for project: ${projectId}`);
-  if (storageBucket) {
-    logInfo(`wm Storage Bucket configured: ${storageBucket}`);
+  logInfo(`✅ Firebase Admin initialized for project: ${config.projectId}`);
+
+  if (config.storageBucket) {
+    logInfo(`wm Storage Bucket configured: ${config.storageBucket}`);
   } else {
     console.warn('⚠️ No Storage Bucket configured. File uploads may fail.');
   }

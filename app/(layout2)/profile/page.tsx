@@ -1,7 +1,7 @@
 // app/(layout2)/profile/page.tsx
 'use client';
 
-import { deleteAccountAction } from '@/features/auth/actions/profile.actions';
+import { deleteAccountAction, updateUserAction } from '@/features/auth/actions/profile.actions';
 import { useRNGAuth } from '@/features/auth/components/AuthContext';
 import { uploadAvatarAction } from '@/features/storage/storage.actions';
 import { AppErrorCode } from '@/lib/errors';

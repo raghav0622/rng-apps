@@ -9,6 +9,7 @@ export enum AppErrorCode {
   ORG_ACCESS_DENIED = 'ORG_ACCESS_DENIED',
   INVALID_INPUT = 'INVALID_INPUT',
   ALREADY_EXISTS = 'ALREADY_EXISTS',
+  UNKNOWN_ERROR = 'UNKNOWN_ERROR',
 }
 
 export interface AppError {

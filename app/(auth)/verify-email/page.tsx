@@ -7,11 +7,10 @@ import { useRNGServerAction } from '@/lib/use-rng-action';
 import { Alert, Box, Button, CircularProgress, Typography } from '@mui/material';
 import { applyActionCode } from 'firebase/auth';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 
 function VerifyEmailContent() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const oobCode = searchParams.get('oobCode');
 
@@ -21,29 +20,24 @@ function VerifyEmailContent() {
 
   useEffect(() => {
     if (!oobCode) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStatus('error');
       setErrorMessage('Invalid verification link.');
       return;
     }
 
-    // 1. Verify the code with Firebase
+    // 1. Verify with Firebase Auth
     applyActionCode(clientAuth, oobCode)
       .then(async () => {
         setStatus('success');
 
-        // 2. If logged in on THIS browser, force an SDK reload
-        if (clientAuth.currentUser) {
-          await clientAuth.currentUser.reload();
-        }
-
-        // 3. Try to sync DB.
-        // This will fail if the user is not logged in (e.g. diff browser).
-        // That is OK! The session.ts self-healing will fix it when they return to the app.
+        // 2. Try to Sync DB (Best Effort)
         try {
-          await syncVerification();
-        } catch (e) {
-          console.log('Sync skipped: User not logged in on this device.');
-        }
+          if (clientAuth.currentUser) {
+            await clientAuth.currentUser.reload();
+            await syncVerification();
+          }
+        } catch (e) {}
       })
       .catch((error) => {
         console.error('Verification failed', error);
@@ -82,9 +76,7 @@ function VerifyEmailContent() {
       <Alert severity="success" sx={{ mb: 3 }}>
         Email Verified Successfully!
       </Alert>
-      <Typography paragraph>
-        You can now return to your original tab or device to continue.
-      </Typography>
+      <Typography paragraph>You can now return to the Dashboard.</Typography>
       <Button variant="contained" component={Link} href="/dashboard">
         Go to Dashboard
       </Button>

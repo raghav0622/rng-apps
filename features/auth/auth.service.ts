@@ -181,23 +181,25 @@ export class AuthService {
 
   // --- PROFILE MANAGEMENT ---
 
-  static async refreshEmailVerificationStatus(uid: string): Promise<Result<void>> {
+  static async refreshEmailVerificationStatus(uid: string): Promise<Result<{ verified: boolean }>> {
     try {
-      // 1. Get the authoritative user record from Firebase Admin
+      // 1. Ask Firebase Auth (The Source of Truth)
       const firebaseUser = await auth().getUser(uid);
+      const isVerified = firebaseUser.emailVerified;
 
-      // 2. If the Auth service says they are verified...
-      if (firebaseUser.emailVerified) {
-        // 3. ... Update the Database
+      // 2. Sync to Database if needed
+      if (isVerified) {
         await authRepository.updateUser(uid, {
           emailVerified: true,
         });
       }
 
-      return { success: true, data: undefined };
+      // 3. RETURN THE STATUS so the client knows what happened
+      return { success: true, data: { verified: isVerified } };
     } catch (error) {
       console.error('Sync Error:', error);
-      throw new CustomError(AppErrorCode.DB_ERROR, 'Failed to sync verification status');
+      // Even if sync fails, return false safely
+      return { success: true, data: { verified: false } };
     }
   }
 

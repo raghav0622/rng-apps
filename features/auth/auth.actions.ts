@@ -74,18 +74,18 @@ export const deleteAccountAction = authActionClient
     return await AuthService.deleteUserAccount(ctx.userId);
   });
 
-export const verifyEmailSyncAction = authActionClient
-  .metadata({ name: 'auth.verifyEmailSync' })
-  .action(async ({ ctx }) => {
-    return await AuthService.refreshEmailVerificationStatus(ctx.userId);
-  });
-
 /**
  * Manually checks if the user is verified in Firebase Auth and syncs it to Firestore.
  * Useful when verification happens on a different device.
  */
 export const checkVerificationStatusAction = authActionClient
   .metadata({ name: 'auth.checkVerificationStatus' })
+  .action(async ({ ctx }) => {
+    return await AuthService.refreshEmailVerificationStatus(ctx.userId);
+  });
+
+export const verifyEmailSyncAction = authActionClient
+  .metadata({ name: 'auth.verifyEmailSync' })
   .action(async ({ ctx }) => {
     return await AuthService.refreshEmailVerificationStatus(ctx.userId);
   });

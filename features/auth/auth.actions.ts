@@ -65,11 +65,9 @@ export const updateUserAction = authActionClient
     // Update Auth + DB
     await AuthService.updateUserProfile(ctx.userId, parsedInput);
 
-    // We do NOT refresh the session cookie here because Firebase Session Cookies are immutable.
-    // Instead, we revalidate the layout so the Server Components fetch the fresh User from DB.
-    revalidatePath('/', 'layout');
+    return await revalidatePath('/', 'layout');
 
-    return { success: true, data: undefined };
+    // return { success: true, data: undefined };
   });
 
 export const deleteAccountAction = authActionClient

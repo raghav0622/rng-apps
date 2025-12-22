@@ -191,7 +191,6 @@ export class AuthService {
         currentUser.photoUrl &&
         currentUser.photoUrl !== data.photoUrl
       ) {
-        // Security check: Ensure we don't delete the NEW file if something weird happened
         if (data.photoUrl !== currentUser.photoUrl) {
           await StorageService.deleteFileByUrl(currentUser.photoUrl);
         }

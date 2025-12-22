@@ -14,43 +14,29 @@ export const getCurrentUser = cache(async () => {
   if (!sessionCookie || !sessionId) return null;
 
   try {
-    // 1. Verify Crypto Signature of the Firebase Cookie
+    // 1. Verify Crypto Signature
     const decodedClaims = await authRepository.verifySessionCookie(sessionCookie);
 
-    // 2. Persistence Check: Does this specific session exist in Firestore?
+    // 2. Persistence Check
     const isValidSession = await authRepository.isSessionValid(decodedClaims.uid, sessionId);
 
     if (!isValidSession) {
       return null;
     }
 
-    // 3. Data Construction
-    // If the cookie is missing critical custom claims (like orgRole), we MUST fetch from DB.
-    if (!decodedClaims.orgRole) {
-      const user = await authRepository.getUser(decodedClaims.uid);
+    // 3. FETCH FRESH DATA [CRITICAL FIX]
+    // We strictly use the DB for profile data because the Cookie is immutable
+    // and becomes stale immediately after a profile update.
+    const user = await authRepository.getUser(decodedClaims.uid);
 
-      return {
-        uid: user.uid,
-        email: user.email,
-        displayName: user.displayName,
-        photoUrl: user.photoUrl || '',
-        onboarded: user.onboarded,
-        orgRole: user.orgRole,
-        // Ensure this defaults to "" if undefined/null
-        orgId: user.orgId || '',
-      } as UserInSession;
-    }
-
-    // Fast Path: If claims exist (e.g. set via Custom Claims), use them.
     return {
-      uid: decodedClaims.uid,
-      email: decodedClaims.email || '',
-      displayName: decodedClaims.name || decodedClaims.displayName || '',
-      photoUrl: decodedClaims.picture || decodedClaims.photoUrl || '',
-      onboarded: !!decodedClaims.onboarded,
-      orgRole: decodedClaims.orgRole || 'NOT_IN_ORG',
-      // Ensure this defaults to "" if undefined/null
-      orgId: decodedClaims.orgId || '',
+      uid: user.uid,
+      email: user.email, // Prefer DB email
+      displayName: user.displayName, // Always fresh from DB
+      photoUrl: user.photoUrl || '', // Always fresh from DB
+      onboarded: user.onboarded,
+      orgRole: user.orgRole,
+      orgId: user.orgId || '',
     } as UserInSession;
   } catch (error) {
     console.error('getCurrentUser Error:', error);

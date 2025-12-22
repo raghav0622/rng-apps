@@ -45,41 +45,6 @@ export class AuthService {
     });
   }
 
-  static async signup({ displayName, email, password }: SignupInput): Promise<Result<string>> {
-    return withErrorHandling(async () => {
-      // 1. Create User in Firebase Auth
-      const userCredential = await auth().createUser({
-        email,
-        password,
-        displayName,
-        emailVerified: false,
-      });
-
-      try {
-        // 2. Create User Profile in Firestore
-        // This is critical. If this fails, we have an "Orphaned Account" in Auth but no DB data.
-        await userRepository.signUpUser({
-          uid: userCredential.uid,
-          email,
-          displayName,
-        });
-
-        // 3. Return Custom Token
-        return await auth().createCustomToken(userCredential.uid);
-      } catch (dbError) {
-        // ROLLBACK: If DB write fails, delete the Auth user to ensure atomicity.
-        console.error(`Signup failed at DB layer for ${email}. Rolling back Auth user.`);
-        await auth()
-          .deleteUser(userCredential.uid)
-          .catch((rollbackErr) => {
-            console.error('CRITICAL: Failed to rollback user creation', rollbackErr);
-          });
-
-        throw dbError; // Re-throw to trigger the standard error handler
-      }
-    });
-  }
-
   static async changePassword(
     uid: string,
     email: string,
@@ -101,5 +66,41 @@ export class AuthService {
       // 3. Security: Revoke all existing sessions to force re-login on all devices
       await SessionService.revokeAllSessions(uid);
     });
+  }
+
+  static async signup(input: SignupInput): Promise<Result<string>> {
+    return withErrorHandling(async () => {
+      // 1. Create Auth User
+      const userCredential = await auth().createUser({
+        email: input.email,
+        password: input.password,
+        displayName: input.displayName,
+        emailVerified: false,
+      });
+
+      // 2. Create DB Profile with Automatic Rollback Support
+      try {
+        await userRepository.signUpUser({
+          uid: userCredential.uid,
+          email: input.email,
+          displayName: input.displayName,
+        });
+      } catch (dbError) {
+        await this.rollbackAuthUser(userCredential.uid);
+        throw dbError;
+      }
+
+      return await auth().createCustomToken(userCredential.uid);
+    });
+  }
+
+  private static async rollbackAuthUser(uid: string) {
+    console.error(`Rolling back user ${uid}`);
+    try {
+      await auth().deleteUser(uid);
+    } catch (e) {
+      console.error('CRITICAL: Rollback failed', e);
+      // Ideally, send this to an error reporting service (Sentry)
+    }
   }
 }

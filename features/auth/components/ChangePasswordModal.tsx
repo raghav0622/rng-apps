@@ -1,14 +1,14 @@
 'use client';
 
+import { changePasswordAction } from '@/features/auth/actions/security.actions';
 import { useRNGServerAction } from '@/lib/use-rng-action';
 import { FormError } from '@/rng-form';
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';
-import { Close } from '@mui/icons-material'; // Added Import
-import { Dialog, DialogContent, DialogTitle, IconButton } from '@mui/material'; // Added Import
+import { AppModal } from '@/ui/modals/AppModal';
 import { useSnackbar } from 'notistack';
+import { ReactElement } from 'react';
 import { z } from 'zod';
-import { changePasswordAction } from '../actions/security.actions';
 
 const ChangePasswordSchema = z
   .object({
@@ -28,32 +28,18 @@ const changePasswordForm = defineForm<typeof ChangePasswordSchema>((f) => [
 ]);
 
 interface ChangePasswordModalProps {
-  open: boolean;
-  onClose: () => void;
+  open?: boolean;
+  onClose?: () => void;
+  trigger?: ReactElement;
 }
 
-export function ChangePasswordModal({ open, onClose }: ChangePasswordModalProps) {
+export function ChangePasswordModal({ open, onClose, trigger }: ChangePasswordModalProps) {
   const { runAction: changePassword } = useRNGServerAction(changePasswordAction);
   const { enqueueSnackbar } = useSnackbar();
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ m: 0, p: 2 }}>
-        Change Password
-        <IconButton
-          aria-label="close"
-          onClick={onClose}
-          sx={{
-            position: 'absolute',
-            right: 8,
-            top: 8,
-            color: (theme) => theme.palette.grey[500],
-          }}
-        >
-          <Close />
-        </IconButton>
-      </DialogTitle>
-      <DialogContent>
+    <AppModal title="Change Password" open={open} onClose={onClose} trigger={trigger} maxWidth="sm">
+      {({ close }) => (
         <RNGForm
           schema={ChangePasswordSchema}
           uiSchema={changePasswordForm}
@@ -66,7 +52,7 @@ export function ChangePasswordModal({ open, onClose }: ChangePasswordModalProps)
                 newPassword: values.newPassword,
               });
               enqueueSnackbar('Password updated successfully', { variant: 'success' });
-              onClose();
+              close();
             } catch (error: any) {
               const msg =
                 error.code === 'auth/invalid-credential'
@@ -76,7 +62,7 @@ export function ChangePasswordModal({ open, onClose }: ChangePasswordModalProps)
             }
           }}
         />
-      </DialogContent>
-    </Dialog>
+      )}
+    </AppModal>
   );
 }

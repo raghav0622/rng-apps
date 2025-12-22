@@ -3,32 +3,17 @@
 
 import { deleteAccountAction, updateUserAction } from '@/features/auth/actions/profile.actions';
 import { useRNGAuth } from '@/features/auth/components/AuthContext';
+import { ChangePasswordModal } from '@/features/auth/components/ChangePasswordModal';
+import { ConfirmPasswordModal } from '@/features/auth/components/ConfirmPasswordModal';
 import { uploadAvatarAction } from '@/features/storage/storage.actions';
 import { AppErrorCode } from '@/lib/errors';
 import { useRNGServerAction } from '@/lib/use-rng-action';
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';
 import { Alert, Box, Button, Card, CardContent, CardHeader, Stack } from '@mui/material';
-import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useSnackbar } from 'notistack';
-import { useState } from 'react';
 import { z } from 'zod';
-
-// --- Dynamic Imports for Modals (Code Splitting) ---
-const ChangePasswordModal = dynamic(
-  () =>
-    import('@/features/auth/components/ChangePasswordModal').then((mod) => mod.ChangePasswordModal),
-  { ssr: false },
-);
-
-const ConfirmPasswordModal = dynamic(
-  () =>
-    import('@/features/auth/components/ConfirmPasswordModal').then(
-      (mod) => mod.ConfirmPasswordModal,
-    ),
-  { ssr: false },
-);
 
 // --- Schema & Form Definition ---
 const ProfileSchema = z.object({
@@ -56,14 +41,11 @@ export default function ProfilePage() {
   const { user } = useRNGAuth();
   const { enqueueSnackbar } = useSnackbar();
 
-  const [isPasswordModalOpen, setPasswordModalOpen] = useState(false);
-  const [isDeleteModalOpen, setDeleteModalOpen] = useState(false);
-
   // --- Actions ---
 
-  // 1. Update Profile Action with Session Error Handling
+  // 1. Update Profile Action
   const { runAction: updateProfile, isExecuting: isUpdating } = useRNGServerAction(
-    //@ts-expect-error yolo
+    //@ts-expect-error Types mismatch on Date objects in Zod (Known Issue)
     updateUserAction,
     {
       onSuccess: () => {
@@ -90,16 +72,10 @@ export default function ProfilePage() {
     {
       onSuccess: () => {
         enqueueSnackbar('Account deleted successfully', { variant: 'success' });
-        window.location.href = '/login'; // Hard redirect to clear client state
+        window.location.href = '/login'; // Hard redirect to ensure clean slate
       },
-      onError: (msg, code) => {
-        if (code === AppErrorCode.UNAUTHENTICATED) {
-          // If session is already gone, just redirect
-          window.location.href = '/login';
-        } else {
-          enqueueSnackbar(msg || 'Failed to delete account', { variant: 'error' });
-        }
-        setDeleteModalOpen(false);
+      onError: (msg) => {
+        enqueueSnackbar(msg || 'Failed to delete account', { variant: 'error' });
       },
     },
   );
@@ -124,36 +100,25 @@ export default function ProfilePage() {
             requireChanges={true}
             onSubmit={async (data) => {
               try {
-                let finalPhotoUrl: string | undefined = undefined; // Start undefined (no change)
+                let finalPhotoUrl: string | undefined = undefined;
 
-                // Case 1: New File Uploaded
+                // Handle File Upload
                 if (data.photoURL instanceof File) {
                   const res = await uploadAvatar({ file: data.photoURL });
                   if (!res?.url) throw new Error('Upload failed');
                   finalPhotoUrl = res.url;
                 }
-                // Case 2: Explicit Removal (Check for null OR empty string)
-                // The form might return null or "" when you click the "X"
+                // Handle Explicit Removal
                 else if (data.photoURL === null || data.photoURL === '') {
-                  finalPhotoUrl = ''; // This is our "DELETE" signal
+                  finalPhotoUrl = '';
                 }
-                // Case 3: No Change (It's the existing URL string)
+                // Handle No Change
                 else if (typeof data.photoURL === 'string') {
-                  // If it matches the user's current url, send undefined to skip processing
-                  if (data.photoURL === user.photoUrl) {
-                    finalPhotoUrl = undefined;
-                  } else {
-                    finalPhotoUrl = data.photoURL;
-                  }
+                  finalPhotoUrl = data.photoURL === user.photoUrl ? undefined : data.photoURL;
                 }
-
-                // DEBUG: Uncomment to verify what is being sent
-                // console.log('Sending photoUrl:', finalPhotoUrl === '' ? 'EMPTY STRING' : finalPhotoUrl);
 
                 await updateProfile({
                   displayName: data.displayName,
-                  // CRITICAL FIX: Use '??' so that empty string "" is preserved!
-                  // If we used '||', "" would become undefined.
                   photoUrl: finalPhotoUrl ?? undefined,
                 });
               } catch (error: any) {
@@ -177,19 +142,23 @@ export default function ProfilePage() {
               flexWrap="wrap"
               gap={2}
             >
-              <Box>
-                <Button variant="outlined" onClick={() => setPasswordModalOpen(true)}>
-                  Change Password
-                </Button>
-              </Box>
-              <Button
-                variant="outlined"
-                color="error"
-                onClick={() => setDeleteModalOpen(true)}
-                disabled={isDeleting}
-              >
-                {isDeleting ? 'Deleting...' : 'Delete Account'}
-              </Button>
+              {/* Change Password Modal with Trigger */}
+              <ChangePasswordModal trigger={<Button variant="outlined">Change Password</Button>} />
+
+              {/* Delete Account Modal with Trigger */}
+              <ConfirmPasswordModal
+                title="Are you sure?"
+                description="This action cannot be undone. Please enter your password to confirm deletion."
+                confirmLabel="Delete Permanently"
+                onConfirm={async () => {
+                  await deleteAccount();
+                }}
+                trigger={
+                  <Button variant="outlined" color="error" disabled={isDeleting}>
+                    {isDeleting ? 'Deleting...' : 'Delete Account'}
+                  </Button>
+                }
+              />
             </Box>
 
             <Alert severity="warning">
@@ -199,28 +168,6 @@ export default function ProfilePage() {
           </Stack>
         </CardContent>
       </Card>
-
-      {/* --- Modals --- */}
-      {isPasswordModalOpen && (
-        <ChangePasswordModal
-          open={isPasswordModalOpen}
-          onClose={() => setPasswordModalOpen(false)}
-        />
-      )}
-
-      {isDeleteModalOpen && (
-        <ConfirmPasswordModal
-          open={isDeleteModalOpen}
-          onClose={() => setDeleteModalOpen(false)}
-          title="Are you sure?"
-          description="This action cannot be undone. Please enter your password to confirm deletion."
-          confirmLabel="Delete Permanently"
-          onConfirm={async () => {
-            // This calls the server action which handles DB cleanup
-            await deleteAccount();
-          }}
-        />
-      )}
     </Stack>
   );
 }

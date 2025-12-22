@@ -11,44 +11,64 @@ import { sessionRepository } from '../repositories/session.repository';
 import { userRepository } from '../repositories/user.repository';
 
 export class SessionService {
+  // Atomic Step 1: Verification
+  private static async verifyAndGetUid(idToken: string) {
+    const decoded = await sessionRepository.verifyIdToken(idToken);
+    return { uid: decoded.uid, emailVerified: decoded.email_verified };
+  }
+
+  // Atomic Step 2: Persistence
+  private static async persistSession(uid: string, userAgent: string, ip: string) {
+    const sessionId = uuidv4();
+    const sessionData: Session = {
+      sessionId,
+      uid,
+      createdAt: AdminFirestore.Timestamp.now(),
+      expiresAt: AdminFirestore.Timestamp.fromMillis(Date.now() + SESSION_DURATION_MS),
+      ip,
+      userAgent,
+      isValid: true,
+    };
+    await sessionRepository.createSessionRecord(sessionData);
+    return sessionId;
+  }
+
+  // Atomic Step 3: Cookie Generation
+  private static async generateCookies(idToken: string, sessionId: string) {
+    const authSessionCookie = await sessionRepository.createSessionCookie(
+      idToken,
+      SESSION_DURATION_MS,
+    );
+    const cookieStore = await cookies();
+    const options = getCookieOptions();
+
+    cookieStore.set(AUTH_SESSION_COOKIE_NAME, authSessionCookie, options);
+    cookieStore.set(SESSION_ID_COOKIE_NAME, sessionId, options);
+  }
+
+  // Orchestrator
   static async createSession(idToken: string): Promise<Result<void>> {
     try {
-      const decodedToken = await sessionRepository.verifyIdToken(idToken);
-      const uid = decodedToken.uid;
-
-      const authSessionCookie = await sessionRepository.createSessionCookie(
-        idToken,
-        SESSION_DURATION_MS,
-      );
-      const sessionId = uuidv4();
       const headersList = await headers();
+      const userAgent = headersList.get('user-agent') || 'unknown';
+      const ip = headersList.get('x-forwarded-for') || 'unknown';
 
-      await Promise.all([
-        decodedToken.email_verified
-          ? userRepository.updateUser(uid, { emailVerified: true }).catch(console.error)
-          : Promise.resolve(),
+      // 1. Verify
+      const { uid, emailVerified } = await this.verifyAndGetUid(idToken);
 
-        sessionRepository.createSessionRecord({
-          sessionId,
-          uid,
-          createdAt: AdminFirestore.Timestamp.now(),
-          expiresAt: AdminFirestore.Timestamp.fromMillis(Date.now() + SESSION_DURATION_MS),
-          ip: headersList.get('x-forwarded-for') || 'unknown',
-          userAgent: headersList.get('user-agent') || 'unknown',
-          isValid: true,
-        }),
-      ]);
+      // 2. Side Effect: Sync Verification Status (Fire and Forget or Await based on strictness)
+      if (emailVerified) {
+        await userRepository.updateUser(uid, { emailVerified: true }).catch(console.error);
+      }
 
-      const cookieStore = await cookies();
-      const options = getCookieOptions();
-
-      cookieStore.set(AUTH_SESSION_COOKIE_NAME, authSessionCookie, options);
-      cookieStore.set(SESSION_ID_COOKIE_NAME, sessionId, options);
+      // 3. Persist & Set Cookies
+      const sessionId = await this.persistSession(uid, userAgent, ip);
+      await this.generateCookies(idToken, sessionId);
 
       return { success: true, data: undefined };
     } catch (error) {
       console.error('Create Session Error:', error);
-      throw new CustomError(AppErrorCode.UNAUTHENTICATED, 'Failed to create secure session.');
+      throw new CustomError(AppErrorCode.UNAUTHENTICATED, 'Failed to establish session.');
     }
   }
 

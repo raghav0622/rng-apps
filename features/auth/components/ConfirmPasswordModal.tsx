@@ -1,14 +1,15 @@
 'use client';
 
+import { useRNGAuth } from '@/features/auth/components/AuthContext';
 import { clientAuth } from '@/lib/firebase/client';
 import { FormError } from '@/rng-form';
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';
-import { Close } from '@mui/icons-material'; // Added Import
-import { Dialog, DialogContent, DialogContentText, DialogTitle, IconButton } from '@mui/material'; // Added Import
+import { AppModal } from '@/ui/modals/AppModal';
+import { DialogContentText } from '@mui/material';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { ReactElement } from 'react';
 import { z } from 'zod';
-import { useRNGAuth } from './AuthContext';
 
 const ConfirmPasswordSchema = z.object({
   password: z.string().min(1, 'Password is required'),
@@ -19,63 +20,52 @@ const confirmPasswordForm = defineForm<typeof ConfirmPasswordSchema>((f) => [
 ]);
 
 interface ConfirmPasswordModalProps {
-  open: boolean;
-  onClose: () => void;
   onConfirm: () => Promise<void>;
   title?: string;
   description?: string;
   confirmLabel?: string;
+  open?: boolean;
+  onClose?: () => void;
+  trigger?: ReactElement;
 }
 
 export function ConfirmPasswordModal({
-  open,
-  onClose,
   onConfirm,
   title = 'Confirm Password',
   description = 'Please enter your password to confirm this action.',
   confirmLabel = 'Confirm',
+  open,
+  onClose,
+  trigger,
 }: ConfirmPasswordModalProps) {
   const { user } = useRNGAuth();
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle sx={{ m: 0, p: 2, pr: 6 }}>
-        {title}
-        <IconButton
-          aria-label="close"
-          onClick={onClose}
-          sx={{
-            position: 'absolute',
-            right: 8,
-            top: 8,
-            color: (theme) => theme.palette.grey[500],
-          }}
-        >
-          <Close />
-        </IconButton>
-      </DialogTitle>
-      <DialogContent>
-        <DialogContentText sx={{ mb: 2 }}>{description}</DialogContentText>
-        <RNGForm
-          schema={ConfirmPasswordSchema}
-          uiSchema={confirmPasswordForm}
-          defaultValues={{ password: '' }}
-          submitLabel={confirmLabel}
-          requireChanges={false}
-          onSubmit={async ({ password }) => {
-            if (!user?.email) return;
+    <AppModal title={title} open={open} onClose={onClose} trigger={trigger} maxWidth="xs">
+      {({ close }) => (
+        <>
+          <DialogContentText sx={{ mb: 2 }}>{description}</DialogContentText>
+          <RNGForm
+            schema={ConfirmPasswordSchema}
+            uiSchema={confirmPasswordForm}
+            defaultValues={{ password: '' }}
+            submitLabel={confirmLabel}
+            requireChanges={false}
+            onSubmit={async ({ password }) => {
+              if (!user?.email) return;
 
-            try {
-              await signInWithEmailAndPassword(clientAuth, user.email, password);
-
-              await onConfirm();
-              onClose();
-            } catch (error: any) {
-              throw new FormError(error.message);
-            }
-          }}
-        />
-      </DialogContent>
-    </Dialog>
+              try {
+                // Re-authenticate user before critical action (e.g., Delete Account)
+                await signInWithEmailAndPassword(clientAuth, user.email, password);
+                await onConfirm();
+                close();
+              } catch (error: any) {
+                throw new FormError(error.message);
+              }
+            }}
+          />
+        </>
+      )}
+    </AppModal>
   );
 }

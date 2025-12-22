@@ -1,26 +1,22 @@
 'use server';
 
+import { CreateSessionSchema, SignupSchema } from '@/features/auth/auth.model';
+import { AuthService } from '@/features/auth/services/auth.service';
+import { SessionService } from '@/features/auth/services/session.service';
 import { auth } from '@/lib/firebase/admin';
+import { checkRateLimit } from '@/lib/rate-limit';
 import { actionClient, authActionClient } from '@/lib/safe-action';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
-import { CreateSessionSchema, SignupSchema } from '../auth.model';
-import { AuthService } from '../services/auth.service';
-import { SessionService } from '../services/session.service';
 
-export const signinAction = actionClient
-  .metadata({ name: 'auth.signin' })
-  .inputSchema(z.object({ email: z.email() }))
-  .action(async ({ parsedInput }) => {
-    // TODO: Add Rate Limiting here
-    return await AuthService.signin(parsedInput);
-  });
+// REMOVED: signinAction (Insecure: allowed logging in with just an email)
 
 export const signupAction = actionClient
   .metadata({ name: 'auth.signup' })
   .inputSchema(SignupSchema)
   .action(async ({ parsedInput }) => {
-    // TODO: Add Rate Limiting here
+    // 🛡️ Security: Prevent brute-force account creation
+    await checkRateLimit();
     return await AuthService.signup(parsedInput);
   });
 
@@ -28,6 +24,9 @@ export const createSessionAction = actionClient
   .metadata({ name: 'auth.createSession' })
   .inputSchema(CreateSessionSchema)
   .action(async ({ parsedInput }) => {
+    // Note: Rate limiting here is less critical as it requires a valid ID token first,
+    // but good for depth defense against token replay attacks.
+    await checkRateLimit();
     return await SessionService.createSession(parsedInput.idToken);
   });
 

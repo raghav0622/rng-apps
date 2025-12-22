@@ -10,6 +10,7 @@ export enum AppErrorCode {
   INVALID_INPUT = 'INVALID_INPUT',
   ALREADY_EXISTS = 'ALREADY_EXISTS',
   UNKNOWN_ERROR = 'UNKNOWN_ERROR',
+  TOO_MANY_REQUESTS = 'TOO_MANY_REQUESTS',
 }
 
 export interface AppError {

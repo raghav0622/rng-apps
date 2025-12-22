@@ -14,12 +14,12 @@ export const getCurrentUser = cache(async () => {
   if (!sessionCookie || !sessionId) return null;
 
   try {
-    // 1. Verify Crypto Signature of the Firebase Cookie
-    // checkRevoked: true checks if the user's tokens were globally revoked via revokeAllSessions
-    const decodedClaims = await authRepository.verifySessionCookie(sessionCookie); // Add checkRevoked logic in repo if desired
+    // 1. Verify Crypto Signature (Fast, local check)
+    // The claims here are populated from the 'setCustomUserClaims' we did during signup.
+    const decodedClaims = await authRepository.verifySessionCookie(sessionCookie);
 
-    // 2. Persistence Check: Does this specific session exist in Firestore?
-    // This handles the case where a user was manually deleted or this specific session was kicked.
+    // 2. Persistence Check
+    // This DB check handles "is the user deleted?" and "is this session revoked?"
     const isValidSession = await authRepository.isSessionValid(decodedClaims.uid, sessionId);
 
     if (!isValidSession) {
@@ -33,7 +33,7 @@ export const getCurrentUser = cache(async () => {
       orgRole: decodedClaims.orgRole,
       uid: decodedClaims.uid,
       orgId: decodedClaims.orgId,
-      photoUrl: decodedClaims.picture, // Note: Firebase standard claim is 'picture', not 'photUrl' usually. Check your custom token logic.
+      photoUrl: decodedClaims.picture,
     } as UserInSession;
 
     return data;

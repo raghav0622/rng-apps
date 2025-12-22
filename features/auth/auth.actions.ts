@@ -1,4 +1,3 @@
-// features/auth/auth.actions.ts
 'use server';
 
 import { actionClient, authActionClient } from '@/lib/safe-action';
@@ -7,12 +6,11 @@ import { z } from 'zod';
 import { CreateSessionSchema, SignupSchema } from './auth.model';
 import { AuthService } from './auth.service';
 
-export const signinAction = actionClient
-  .metadata({ name: 'auth.signin' })
-  .inputSchema(z.object({ email: z.email() }))
-  .action(async ({ parsedInput }) => {
-    return await AuthService.signin(parsedInput);
-  });
+/**
+ * NOTE: 'signinAction' has been removed for security.
+ * Client should use `signInWithEmailAndPassword` from firebase/auth.
+ * Then call `createSessionAction` with the resulting ID Token.
+ */
 
 export const signupAction = actionClient
   .metadata({ name: 'auth.signup' })
@@ -37,8 +35,6 @@ export const revokeAllSessionsAction = authActionClient
   .metadata({ name: 'auth.revokeAllSessions' })
   .action(async ({ ctx }) => {
     await AuthService.revokeAllSessions(ctx.userId);
-    // Optionally redirect to login or show success message
-    // If you redirect, the current user will be logged out immediately
   });
 
 export const getSessionsAction = authActionClient

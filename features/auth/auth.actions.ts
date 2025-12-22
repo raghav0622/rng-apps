@@ -75,3 +75,9 @@ export const deleteAccountAction = authActionClient
   .action(async ({ ctx }) => {
     return await AuthService.deleteUserAccount(ctx.userId);
   });
+
+export const verifyEmailSyncAction = authActionClient
+  .metadata({ name: 'auth.verifyEmailSync' })
+  .action(async ({ ctx }) => {
+    return await AuthService.refreshEmailVerificationStatus(ctx.userId);
+  });

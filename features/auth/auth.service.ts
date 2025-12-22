@@ -96,6 +96,11 @@ export class AuthService {
       const ip = headersList.get('x-forwarded-for') || 'unknown';
       const userAgent = headersList.get('user-agent') || 'unknown';
 
+      if (decodedToken.email_verified) {
+        // We fire and forget this update to not slow down login
+        authRepository.updateUser(uid, { emailVerified: true }).catch(console.error);
+      }
+
       // Store Session Metadata in Firestore
       await authRepository.createSessionRecord({
         sessionId,
@@ -176,6 +181,26 @@ export class AuthService {
   }
 
   // --- PROFILE MANAGEMENT ---
+
+  static async refreshEmailVerificationStatus(uid: string): Promise<Result<void>> {
+    try {
+      // 1. Get the authoritative user record from Firebase Admin
+      const firebaseUser = await auth().getUser(uid);
+
+      // 2. If the Auth service says they are verified...
+      if (firebaseUser.emailVerified) {
+        // 3. ... Update the Database
+        await authRepository.updateUser(uid, {
+          emailVerified: true,
+        });
+      }
+
+      return { success: true, data: undefined };
+    } catch (error) {
+      console.error('Sync Error:', error);
+      throw new CustomError(AppErrorCode.DB_ERROR, 'Failed to sync verification status');
+    }
+  }
 
   static async updateUserProfile(
     uid: string,

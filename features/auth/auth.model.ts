@@ -25,7 +25,6 @@ export type User = z.infer<typeof UserSchema>;
 export const UserInSessionSchema = UserSchema.omit({
   createdAt: true,
   deletedAt: true,
-  emailVerified: true,
   lastLoginAt: true,
   updatedAt: true,
 });

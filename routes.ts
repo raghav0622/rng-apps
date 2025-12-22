@@ -5,7 +5,13 @@ export const LOGIN_ROUTE = '/login';
 export const PUBLIC_ROUTES = new Set<string>([]);
 
 // Routes that are ONLY for unauthenticated users
-export const AUTH_ROUTES = new Set(['/login', '/signup', '/forgot-password', '/reset-password']);
+export const AUTH_ROUTES = new Set([
+  '/login',
+  '/signup',
+  '/forgot-password',
+  '/reset-password',
+  '/verify-email',
+]);
 
 export function isAuthRoute(path: string): boolean {
   return AUTH_ROUTES.has(path);

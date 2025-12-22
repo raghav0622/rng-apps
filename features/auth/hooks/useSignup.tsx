@@ -18,28 +18,24 @@ export function useSignup() {
   });
 
   const handleSignup = async (data: SignupInput) => {
-    // 1. Create User on Server (DB + Auth) -> Returns Custom Token
-    const customToken = (await signUp(data)) || '';
-
-    if (!customToken) {
-      // Error handling is managed by useRNGServerAction's toast, just return
-      return;
-    }
-
     try {
+      // 1. Create User on Server (DB + Auth) -> Returns Custom Token
+      const customToken = await signUp(data);
+
+      if (!customToken) {
+        // Error handling is managed by useRNGServerAction's toast, just return
+        return;
+      }
       // 2. Sign in on Client with Custom Token
       const userCredential = await signInWithCustomToken(clientAuth, customToken);
       const idToken = await userCredential.user.getIdToken();
 
       // 3. Create Session (Cookie)
-      const sessionResult = await createSession({ idToken });
+      await createSession({ idToken });
 
       // Logic Gap Fix: Ensure session creation actually succeeded before redirecting
       // useRNGServerAction usually returns data on success, or null/undefined on error
       // If the action failed, we should rollback the client state.
-      if (!sessionResult) {
-        throw new Error('Failed to establish session');
-      }
 
       router.push(DEFAULT_LOGIN_REDIRECT);
       router.refresh();

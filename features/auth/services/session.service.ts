@@ -66,9 +66,10 @@ export class SessionService {
       await this.generateCookies(idToken, sessionId);
 
       return { success: true, data: undefined };
-    } catch (error) {
+    } catch (error: any) {
       console.error('Create Session Error:', error);
-      throw new CustomError(AppErrorCode.UNAUTHENTICATED, 'Failed to establish session.');
+      // TEMPORARY: Throw the real error message to see it in the UI
+      throw new CustomError(AppErrorCode.UNAUTHENTICATED, error.message);
     }
   }
 

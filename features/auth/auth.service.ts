@@ -9,12 +9,14 @@ import { Result } from '@/lib/types';
 import { cookies, headers } from 'next/headers';
 import { v4 as uuidv4 } from 'uuid';
 import { UserRoleInOrg } from '../enums';
-import { Session, SignupInput, UserInSession } from './auth.model';
+import { Session, SignupInput } from './auth.model';
 import { authRepository } from './auth.repository';
 
 export class AuthService {
-  // ... (signin, signup, createSession, logout, revokeAllSessions, getActiveSessions, revokeSession remain unchanged)
-
+  /**
+   * Generates a custom token for a user.
+   * Useful if you have a separate API authentication flow.
+   */
   static async signin({ email }: { email: string }): Promise<Result<string>> {
     try {
       const userProfile = await authRepository.getUserByEmail(email);
@@ -26,16 +28,16 @@ export class AuthService {
         displayName: userProfile.displayName,
       });
 
-      return {
-        success: true,
-        data: customToken,
-      };
+      return { success: true, data: customToken };
     } catch (error: any) {
       if (error instanceof CustomError) throw error;
       throw new CustomError(AppErrorCode.UNAUTHENTICATED, error.message);
     }
   }
 
+  /**
+   * Creates a new user in Firebase Auth and Firestore.
+   */
   static async signup({ displayName, email, password }: SignupInput): Promise<Result<string>> {
     try {
       const userCredential = await auth().createUser({
@@ -47,6 +49,7 @@ export class AuthService {
 
       const defaultRole = UserRoleInOrg.NOT_IN_ORG;
 
+      // Set initial claims
       await auth().setCustomUserClaims(userCredential.uid, {
         displayName: displayName,
         onboarded: false,
@@ -54,6 +57,14 @@ export class AuthService {
         orgId: undefined,
       });
 
+      // Create DB Record
+      await authRepository.signUpUser({
+        uid: userCredential.uid,
+        email,
+        displayName,
+      });
+
+      // Generate token for immediate client-side sign-in if needed
       const customToken = await auth().createCustomToken(userCredential.uid, {
         displayName: displayName,
         onboarded: false,
@@ -61,35 +72,31 @@ export class AuthService {
         orgId: undefined,
       });
 
-      await authRepository.signUpUser({
-        uid: userCredential.uid,
-        email,
-        displayName,
-      });
-
-      return {
-        success: true,
-        data: customToken,
-      };
+      return { success: true, data: customToken };
     } catch (error: any) {
       if (error instanceof CustomError) throw error;
       throw new CustomError(AppErrorCode.UNAUTHENTICATED, error.message);
     }
   }
 
+  /**
+   * Validates ID Token and creates a Session Cookie.
+   */
   static async createSession(idToken: string): Promise<Result<void>> {
     try {
       const decodedToken = await authRepository.verifyIdToken(idToken);
       const uid = decodedToken.uid;
 
-      const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
+      // 5 Days Session
+      const expiresIn = 60 * 60 * 24 * 5 * 1000;
       const authSessionCookie = await authRepository.createSessionCookie(idToken, expiresIn);
-
       const sessionId = uuidv4();
+
       const headersList = await headers();
       const ip = headersList.get('x-forwarded-for') || 'unknown';
       const userAgent = headersList.get('user-agent') || 'unknown';
 
+      // Store Session Metadata in Firestore
       await authRepository.createSessionRecord({
         sessionId,
         uid,
@@ -100,29 +107,23 @@ export class AuthService {
         isValid: true,
       });
 
+      // Set Cookies
       const cookieStore = await cookies();
-
-      cookieStore.set(AUTH_SESSION_COOKIE_NAME, authSessionCookie, {
+      const cookieOptions = {
         maxAge: expiresIn / 1000,
         expires: new Date(Date.now() + expiresIn),
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         path: '/',
-        sameSite: 'lax',
-      });
+        sameSite: 'lax' as const,
+      };
 
-      cookieStore.set(SESSION_ID_COOKIE_NAME, sessionId, {
-        maxAge: expiresIn / 1000,
-        expires: new Date(Date.now() + expiresIn),
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        path: '/',
-        sameSite: 'lax',
-      });
+      cookieStore.set(AUTH_SESSION_COOKIE_NAME, authSessionCookie, cookieOptions);
+      cookieStore.set(SESSION_ID_COOKIE_NAME, sessionId, cookieOptions);
 
       return { success: true, data: undefined };
     } catch (error) {
-      if (error instanceof CustomError) throw error;
+      console.error('Create Session Error:', error);
       throw new CustomError(AppErrorCode.UNAUTHENTICATED, 'Failed to create secure session.');
     }
   }
@@ -137,7 +138,7 @@ export class AuthService {
         const claims = await authRepository.verifySessionCookie(sessionCookie);
         await authRepository.deleteSessionRecord(claims.uid, sessionId);
       } catch (e) {
-        // Ignore errors during logout (e.g., if user already deleted)
+        // User might already be deleted or cookie invalid
       }
     }
 
@@ -174,7 +175,7 @@ export class AuthService {
     }
   }
 
-  // --- UPDATED METHODS ---
+  // --- PROFILE MANAGEMENT ---
 
   static async updateUserProfile(
     uid: string,
@@ -184,19 +185,25 @@ export class AuthService {
       const currentUser = await authRepository.getUser(uid);
 
       // STORAGE CLEANUP: Delete old avatar if changed
+      // Condition: New URL provided AND Old URL exists AND they are different
       if (
         data.photoUrl !== undefined &&
         currentUser.photoUrl &&
         currentUser.photoUrl !== data.photoUrl
       ) {
-        await StorageService.deleteFileByUrl(currentUser.photoUrl);
+        // Security check: Ensure we don't delete the NEW file if something weird happened
+        if (data.photoUrl !== currentUser.photoUrl) {
+          await StorageService.deleteFileByUrl(currentUser.photoUrl);
+        }
       }
 
+      // Update Firebase Auth Profile
       await auth().updateUser(uid, {
         displayName: data.displayName,
         photoURL: data.photoUrl || null,
       });
 
+      // Update Custom Claims (Note: This won't reflect in the CURRENT session cookie)
       const existingClaims = (await auth().getUser(uid)).customClaims || {};
       await auth().setCustomUserClaims(uid, {
         ...existingClaims,
@@ -204,6 +211,7 @@ export class AuthService {
         picture: data.photoUrl || null,
       });
 
+      // Update Firestore
       await authRepository.updateUser(uid, {
         displayName: data.displayName,
         photoUrl: data.photoUrl || '',
@@ -218,18 +226,17 @@ export class AuthService {
 
   static async deleteUserAccount(uid: string): Promise<Result<void>> {
     try {
-      // 1. Try to fetch user to clean up avatar (Fail safely if user already gone)
+      // 1. Cleanup Storage
       try {
         const currentUser = await authRepository.getUser(uid);
         if (currentUser.photoUrl) {
           await StorageService.deleteFileByUrl(currentUser.photoUrl);
         }
       } catch (e) {
-        // User might not exist in Firestore, continue to cleanup Auth
+        console.warn('Could not fetch user for cleanup', e);
       }
 
-      // 2. Delete Firestore Data
-      // This internally calls revokeAllUserSessions, which might fail if user invalid, so we wrap it.
+      // 2. Delete Firestore Data & Sessions
       try {
         await authRepository.deleteUserAndSessions(uid);
       } catch (e) {
@@ -240,14 +247,12 @@ export class AuthService {
       try {
         await auth().deleteUser(uid);
       } catch (e: any) {
-        // If user not found, they are already deleted.
         if (e.code !== 'auth/user-not-found') {
-          console.error('Delete Auth User Error', e);
-          throw new CustomError(AppErrorCode.DB_ERROR, 'Failed to delete account');
+          throw e;
         }
       }
 
-      // 4. Clear Cookies (This is crucial)
+      // 4. Force Logout
       await AuthService.logout();
 
       return { success: true, data: undefined };
@@ -258,42 +263,16 @@ export class AuthService {
   }
 
   /**
-   * Updates the current session cookie with new partial data
+   * Generates a password reset link (Admin SDK).
+   * Typically used if you send emails from the server.
+   * For client-side triggering, use the Client SDK in a hook.
    */
-  async refreshSession(updates: Partial<UserInSession>) {
-    const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get(AUTH_SESSION_COOKIE_NAME)?.value;
-
-    if (!sessionCookie) return null;
-
-    // 1. Decrypt existing session
-    const session = await decrypt(sessionCookie);
-
-    if (!session) return null;
-
-    // 2. Merge new data (e.g., new photoUrl)
-    const newSessionPayload = {
-      ...session,
-      ...updates,
-      // Ensure specific fields like 'user' object are updated correctly
-      user: {
-        ...session.user,
-        ...updates,
-      },
-    };
-
-    // 3. Re-encrypt and set the new cookie
-    const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-    const encryptedSession = await encrypt(newSessionPayload);
-
-    cookieStore.set('session', encryptedSession, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      expires: expires,
-      sameSite: 'lax',
-      path: '/',
-    });
-
-    return { success: true, data: newSessionPayload };
+  static async generatePasswordResetLink(email: string): Promise<Result<string>> {
+    try {
+      const link = await auth().generatePasswordResetLink(email);
+      return { success: true, data: link };
+    } catch (error) {
+      throw new CustomError(AppErrorCode.UNKNOWN, 'Failed to generate reset link');
+    }
   }
 }

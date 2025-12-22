@@ -53,8 +53,6 @@ export const revokeSessionAction = authActionClient
     return await AuthService.revokeSession(ctx.userId, parsedInput.sessionId);
   });
 
-// --- UPDATED ACTIONS TO MATCH RESULT TYPE ---
-
 export const updateUserAction = authActionClient
   .metadata({ name: 'auth.updateUser' })
   .inputSchema(
@@ -64,14 +62,11 @@ export const updateUserAction = authActionClient
     }),
   )
   .action(async ({ ctx, parsedInput }) => {
-    // Now returns Result<void>
+    // Update Auth + DB
     await AuthService.updateUserProfile(ctx.userId, parsedInput);
 
-    await AuthService.refreshSession({
-      displayName: parsedInput.displayName,
-      photoUrl: parsedInput.photoUrl,
-    });
-
+    // We do NOT refresh the session cookie here because Firebase Session Cookies are immutable.
+    // Instead, we revalidate the layout so the Server Components fetch the fresh User from DB.
     revalidatePath('/', 'layout');
 
     return { success: true, data: undefined };
@@ -80,6 +75,5 @@ export const updateUserAction = authActionClient
 export const deleteAccountAction = authActionClient
   .metadata({ name: 'auth.deleteAccount' })
   .action(async ({ ctx }) => {
-    // Now returns Result<void>
     return await AuthService.deleteUserAccount(ctx.userId);
   });

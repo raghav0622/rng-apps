@@ -2,50 +2,14 @@ import 'server-only';
 
 import { auth, firestore } from '@/lib/firebase/admin';
 import { Result } from '@/lib/types';
+
 import { UserRoleInOrg } from '../enums';
 import { CreateUserInDatabase, Session, User } from './auth.model';
 
 export class AuthRepository {
   private usersCollection = firestore().collection('users');
 
-  private getSessionsCollection(uid: string) {
-    return this.usersCollection.doc(uid).collection('sessions');
-  }
-
   // ... (Keep existing methods: createSessionRecord, deleteSessionRecord, getUserSessions, revokeAllUserSessions, isSessionValid, verifyIdToken, createSessionCookie, signUpUser, getUserByEmail, getUser, verifySessionCookie)
-
-  async createSessionRecord(session: Session) {
-    await this.getSessionsCollection(session.uid).doc(session.sessionId).set(session);
-  }
-
-  async deleteSessionRecord(uid: string, sessionId: string) {
-    try {
-      await this.getSessionsCollection(uid).doc(sessionId).delete();
-    } catch (e) {
-      console.warn('Delete session error', e);
-    }
-  }
-
-  async getUserSessions(uid: string): Promise<Session[]> {
-    const snapshot = await this.getSessionsCollection(uid).orderBy('createdAt', 'desc').get();
-    return snapshot.docs.map((doc) => doc.data() as Session);
-  }
-
-  async revokeAllUserSessions(uid: string) {
-    try {
-      await auth().revokeRefreshTokens(uid);
-    } catch (e) {}
-
-    const sessionsRef = this.getSessionsCollection(uid);
-    const snapshot = await sessionsRef.get();
-    if (snapshot.empty) return;
-
-    const batch = firestore().batch();
-    snapshot.docs.forEach((doc) => {
-      batch.delete(doc.ref);
-    });
-    await batch.commit();
-  }
 
   async isSessionValid(uid: string, sessionId: string): Promise<boolean> {
     const doc = await this.getSessionsCollection(uid).doc(sessionId).get();
@@ -97,6 +61,50 @@ export class AuthRepository {
     return snap.docs[0].data() as User;
   }
 
+  private getSessionsCollection(uid: string) {
+    return this.usersCollection.doc(uid).collection('sessions');
+  }
+
+  // ... (Existing basic methods unchanged: createSessionRecord, deleteSessionRecord, etc.)
+  // I will only list the modified/key methods below for brevity
+
+  async createSessionRecord(session: Session) {
+    await this.getSessionsCollection(session.uid).doc(session.sessionId).set(session);
+  }
+
+  async deleteSessionRecord(uid: string, sessionId: string) {
+    try {
+      await this.getSessionsCollection(uid).doc(sessionId).delete();
+    } catch (e) {
+      console.warn('Delete session error', e);
+    }
+  }
+
+  async getUserSessions(uid: string): Promise<Session[]> {
+    const snapshot = await this.getSessionsCollection(uid).orderBy('createdAt', 'desc').get();
+    return snapshot.docs.map((doc) => doc.data() as Session);
+  }
+
+  async revokeAllUserSessions(uid: string) {
+    try {
+      await auth().revokeRefreshTokens(uid);
+    } catch (e) {
+      // Ignore if user not found in Auth
+    }
+
+    const sessionsRef = this.getSessionsCollection(uid);
+    const snapshot = await sessionsRef.get();
+    if (snapshot.empty) return;
+
+    const batch = firestore().batch();
+    snapshot.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+    await batch.commit();
+  }
+
+  // ... (isSessionValid, verifyIdToken, createSessionCookie, signUpUser, getUserByEmail - Unchanged)
+
   async getUser(uid: string): Promise<User> {
     const doc = await this.usersCollection.doc(uid).get();
     if (!doc.exists) throw new Error('User not found');
@@ -104,10 +112,10 @@ export class AuthRepository {
   }
 
   async verifySessionCookie(sessionCookie: string) {
-    return auth().verifySessionCookie(sessionCookie, false);
+    return auth().verifySessionCookie(sessionCookie, true); // true = checkRevoked
   }
 
-  // --- NEW REPO METHODS ---
+  // --- UPDATED METHODS ---
 
   async updateUser(uid: string, data: Partial<User>) {
     await this.usersCollection.doc(uid).update({
@@ -121,7 +129,11 @@ export class AuthRepository {
     await this.revokeAllUserSessions(uid);
 
     // 2. Delete User Doc
-    await this.usersCollection.doc(uid).delete();
+    try {
+      await this.usersCollection.doc(uid).delete();
+    } catch (e) {
+      console.warn('Failed to delete user doc', e);
+    }
   }
 }
 

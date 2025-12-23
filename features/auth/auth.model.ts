@@ -2,16 +2,10 @@ import { z } from 'zod';
 import { UserRoleInOrg } from '../enums';
 import { AVATAR_ALLOWED_TYPES, AVATAR_MAX_SIZE } from '../storage/storage.config';
 
-// Safe schema for Firestore Timestamp (works with Admin SDK types)
-const TimestampSchema = z.custom<any>((val) => {
-  return typeof val === 'object' && val !== null && 'toMillis' in val;
-});
-
 export const UserSchema = z.object({
   uid: z.string(),
   displayName: z.string(),
   photoUrl: z.string().optional(),
-  avatarPath: z.string().optional(), // Added for robust storage management
   email: z.email(),
   emailVerified: z.boolean(),
 
@@ -21,7 +15,7 @@ export const UserSchema = z.object({
   deletedAt: z.date().optional(),
   updatedAt: z.date().optional(),
 
-  //organization
+  //organnization
   onboarded: z.boolean(),
   orgRole: z.enum(UserRoleInOrg),
   orgId: z.string().optional(),
@@ -56,7 +50,6 @@ export const CreateUserInDatabasSchema = UserSchema.omit({
   orgId: true,
   orgRole: true,
   photoUrl: true,
-  avatarPath: true,
 });
 
 export type CreateUserInDatabase = z.infer<typeof CreateUserInDatabasSchema>;
@@ -106,8 +99,8 @@ export type ForgotPasswordInput = z.infer<typeof ForgotPasswordSchema>;
 export const SessionDbSchema = z.object({
   sessionId: z.string(),
   uid: z.string(),
-  createdAt: TimestampSchema, // Type safe
-  expiresAt: TimestampSchema, // Type safe
+  createdAt: z.any(), // Firestore Timestamp
+  expiresAt: z.any(), // Firestore Timestamp
   ip: z.string().optional(),
   userAgent: z.string().optional(),
   isValid: z.boolean(),

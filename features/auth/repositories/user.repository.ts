@@ -29,6 +29,7 @@ export class UserRepository {
   async signUpUser(params: CreateUserInDatabase): Promise<Result<User>> {
     const userRef = this.usersCollection.doc(params.uid);
 
+    // Use a transaction to ensure we don't overwrite an existing profile accidentally
     return await firestore().runTransaction(async (t) => {
       const doc = await t.get(userRef);
       if (doc.exists) {
@@ -41,7 +42,6 @@ export class UserRepository {
         email: params.email,
         displayName: params.displayName,
         photoUrl: '',
-        avatarPath: '', // Initialize empty
         emailVerified: false,
         onboarded: false,
         orgRole: UserRoleInOrg.NOT_IN_ORG,
@@ -49,7 +49,7 @@ export class UserRepository {
         createdAt: now,
         updatedAt: now,
         lastLoginAt: now,
-        deletedAt: undefined,
+        deletedAt: undefined, // undefined or null
       };
 
       t.set(userRef, userData);
@@ -64,6 +64,7 @@ export class UserRepository {
     });
   }
 
+  // The "Soft" Delete
   async softDeleteUser(uid: string) {
     await this.usersCollection.doc(uid).update({
       deletedAt: new Date(),
@@ -71,6 +72,7 @@ export class UserRepository {
     });
   }
 
+  // The "Hard" Delete (for Rollbacks or GDPR Purges)
   async forceDeleteUser(uid: string) {
     try {
       await this.usersCollection.doc(uid).delete();

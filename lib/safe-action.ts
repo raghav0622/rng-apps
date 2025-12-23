@@ -1,5 +1,5 @@
 import { userRepository } from '@/features/auth/repositories/user.repository';
-import { SessionService } from '@/features/auth/services/session.service';
+import { SessionService } from '@/features/auth/services/session.service'; // Import SessionService
 import { createSafeActionClient } from 'next-safe-action';
 import { cookies } from 'next/headers';
 import 'server-only';
@@ -42,30 +42,21 @@ export const authActionClient = actionClient.use(async ({ next, ctx }) => {
     // 1. Verify Cookie Signature
     const decodedToken = await auth().verifySessionCookie(sessionToken, true);
 
-    // 2. Validate Session & Get Cached User
-    // Optimization: Returns cached user to avoid DB hit
-    const { isValid, cachedUser } = await SessionService.validateSession(
-      decodedToken.uid,
-      sessionId,
-    );
+    // 2. [NEW] Strict Session Check (Redis/DB)
+    // Ensures the session hasn't been revoked remotely
+    const isValidSession = await SessionService.validateSession(decodedToken.uid, sessionId);
 
-    if (!isValid) {
+    if (!isValidSession) {
       throw new CustomError(AppErrorCode.UNAUTHENTICATED, 'Session has been revoked.');
     }
 
-    // 3. Resolve User (Cache -> DB Fallback)
-    let user = cachedUser;
+    // 3. User Check
+    const user = await userRepository.getUserIncludeDeleted(decodedToken.uid);
 
-    // If cache missed (e.g. redis restart), fetch from DB
     if (!user) {
-      const dbUser = await userRepository.getUserIncludeDeleted(decodedToken.uid);
-      if (!dbUser) {
-        throw new CustomError(AppErrorCode.UNAUTHENTICATED, 'User account not found.');
-      }
-      user = dbUser;
+      throw new CustomError(AppErrorCode.UNAUTHENTICATED, 'User account not found.');
     }
 
-    // 4. Check Account Status
     if (user.deletedAt) {
       throw new CustomError(AppErrorCode.ACCOUNT_DISABLED, 'This account has been disabled.');
     }
@@ -74,18 +65,68 @@ export const authActionClient = actionClient.use(async ({ next, ctx }) => {
       ctx: {
         ...ctx,
         userId: decodedToken.uid,
-        email: decodedToken.email || user.email,
+        email: decodedToken.email,
         sessionId: sessionId,
-        // Pass basic role info if needed for permissions
-        orgId: user.orgId,
-        orgRole: user.orgRole,
       },
     });
   } catch (error) {
-    // If known error, throw as is
-    if (error instanceof CustomError) throw error;
-
-    console.error('Auth Middleware Error:', error);
     throw new CustomError(AppErrorCode.UNAUTHENTICATED, 'Session expired or invalid.');
   }
 });
+
+// ----------------------------------------------------------------------------
+// // 3. Organization Middleware (Enforce Single Tenancy)
+// // ----------------------------------------------------------------------------
+
+// export const orgActionClient = authActionClient.use(async ({ next, ctx }) => {
+//   const cookieStore = await cookies();
+//   const { orgId } = cookieStore.get(AUTH_SESSION_COOKIE_NAME)?.value as UserInSession;
+
+//   if (!orgId) {
+//     throw new CustomError(AppErrorCode.ORGANIZATION_REQUIRED, 'No active organization selected');
+//   }
+
+//   // Verify user's membership in this org
+//   // We check the 'members' collection in the org document or a dedicated 'memberships' collection.
+//   // Assuming a subcollection structure: organizations/{orgId}/members/{userId}
+//   const memberSnap = await firestore()
+//     .collection('organizations')
+//     .doc(orgId)
+//     .collection('members')
+//     .doc(ctx.userId)
+//     .get();
+
+//   if (!memberSnap.exists) {
+//     throw new CustomError(
+//       AppErrorCode.ORG_ACCESS_DENIED,
+//       'User is not a member of this organization',
+//     );
+//   }
+
+//   const memberData = memberSnap.data();
+//   const role = memberData?.role as UserRoleInOrg;
+
+//   return next({
+//     ctx: {
+//       ...ctx,
+//       orgId,
+//       role,
+//     },
+//   });
+// });
+
+// // ----------------------------------------------------------------------------
+// // 4. Permissions Utility (To be used inside actions)
+// // ----------------------------------------------------------------------------
+// /**
+//  * Utility to enforce permissions dynamically inside the action handler
+//  * if strict middleware isn't enough (e.g., conditional permissions).
+//  */
+// export function requirePermission(role: UserRoleInOrg, requiredRole: UserRoleInOrg[]) {
+//   if (!requiredRole.includes(role)) {
+//     throw new CustomError(
+//       AppErrorCode.PERMISSION_DENIED,
+//       `Role ${role} lacks required permissions.`,
+//     );
+//   }
+// }

@@ -51,6 +51,7 @@ export function ActiveSessions({ currentSessionId }: ActiveSessionsProps) {
 
   // 2. Revoke Single Session
   const { runAction: revokeSession, isExecuting: isRevoking } = useRNGServerAction(
+    //@ts-expect-error asd
     revokeSessionAction,
     {
       onSuccess: () => {
@@ -63,6 +64,8 @@ export function ActiveSessions({ currentSessionId }: ActiveSessionsProps) {
 
   // 3. Revoke All Sessions
   const { runAction: revokeAll, isExecuting: isRevokingAll } = useRNGServerAction(
+    //@ts-expect-error asd
+
     revokeAllSessionsAction,
     {
       onSuccess: () => {

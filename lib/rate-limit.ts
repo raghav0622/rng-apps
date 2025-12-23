@@ -1,23 +1,14 @@
 import { AppErrorCode, CustomError } from '@/lib/errors';
 import { Ratelimit } from '@upstash/ratelimit';
-import { Redis } from '@upstash/redis';
 import { headers } from 'next/headers';
-
-// 1. Feature Flag / Safety Check
-const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL;
-const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
+import { redis } from './redis';
 
 // Helper to determine if we can actually rate limit
-const isRateLimitEnabled = !!(UPSTASH_URL && UPSTASH_TOKEN);
+const isRateLimitEnabled = !!redis;
 
 let ratelimit: Ratelimit | null = null;
 
 if (isRateLimitEnabled) {
-  const redis = new Redis({
-    url: UPSTASH_URL,
-    token: UPSTASH_TOKEN,
-  });
-
   ratelimit = new Ratelimit({
     redis,
     limiter: Ratelimit.slidingWindow(5, '1 m'),

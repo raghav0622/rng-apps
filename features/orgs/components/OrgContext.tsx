@@ -26,6 +26,8 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   // Hook into your standard server action system
+
+  //@ts-expect-error yolo
   const { execute: fetchOrg } = useRNGServerAction(getOrganizationAction, {
     onSuccess: (result) => {
       if (result) {

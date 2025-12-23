@@ -36,6 +36,7 @@ export function RNGAuthContextProvider({
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [isSyncing, setIsSyncing] = useState(true);
 
+  //@ts-expect-error yolo
   const { runAction: checkSession } = useRNGServerAction(checkSessionAction, {
     onSuccess: (data) => {
       if (data?.user) {

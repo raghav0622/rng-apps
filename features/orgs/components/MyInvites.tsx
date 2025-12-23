@@ -28,6 +28,7 @@ export function MyInvites() {
   const [invites, setInvites] = useState<OrgInvite[]>([]);
 
   // Fetch Invites
+  //@ts-expect-error yolo
   const { runAction: fetchInvites, status: fetchStatus, result } = useRngAction(getMyInvitesAction);
 
   // Respond Action

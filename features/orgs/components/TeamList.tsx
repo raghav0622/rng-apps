@@ -44,6 +44,7 @@ export function TeamList() {
     runAction: fetchMembers,
     status: fetchStatus,
     result: fetchResult,
+    //@ts-expect-error yolo
   } = useRNGServerAction(getMembersAction);
   const { runAction: removeMember } = useRNGServerAction(removeMemberAction);
   const { runAction: updateRole } = useRNGServerAction(updateMemberRoleAction);

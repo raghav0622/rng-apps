@@ -2,11 +2,12 @@ import { AUTH_SESSION_COOKIE_NAME, SESSION_ID_COOKIE_NAME } from '@/lib/constant
 import { getCookieOptions, SESSION_DURATION_MS } from '@/lib/cookie-utils';
 import { AppErrorCode, CustomError } from '@/lib/errors';
 import { AdminFirestore } from '@/lib/firebase/admin';
+import { toMillis } from '@/lib/firebase/utils';
 import { Result } from '@/lib/types';
 import { cookies, headers } from 'next/headers';
 import 'server-only';
 import { v4 as uuidv4 } from 'uuid';
-import { Session } from '../auth.model';
+import { Session, SessionDb } from '../auth.model';
 import { sessionRepository } from '../repositories/session.repository';
 import { userRepository } from '../repositories/user.repository';
 
@@ -19,11 +20,8 @@ export class SessionService {
     const forwardedFor = headersList.get('x-forwarded-for');
 
     if (forwardedFor) {
-      // The first IP in the list is the original client IP
       return forwardedFor.split(',')[0].trim();
     }
-
-    // Fallback for direct connections or dev environments
     return headersList.get('x-real-ip') || 'unknown';
   }
 
@@ -36,7 +34,9 @@ export class SessionService {
   // Atomic Step 2: Persistence
   private static async persistSession(uid: string, userAgent: string, ip: string) {
     const sessionId = uuidv4();
-    const sessionData: Session = {
+
+    // Construct DB Object with Firestore Timestamps
+    const sessionData: SessionDb = {
       sessionId,
       uid,
       createdAt: AdminFirestore.Timestamp.now(),
@@ -45,6 +45,7 @@ export class SessionService {
       userAgent,
       isValid: true,
     };
+
     await sessionRepository.createSessionRecord(sessionData);
     return sessionId;
   }
@@ -72,7 +73,7 @@ export class SessionService {
       // 1. Verify
       const { uid, emailVerified } = await this.verifyAndGetUid(idToken);
 
-      // 2. Side Effect: Sync Verification Status (Fire and Forget)
+      // 2. Side Effect: Sync Verification Status
       if (emailVerified) {
         userRepository.updateUser(uid, { emailVerified: true }).catch(console.error);
       }
@@ -98,7 +99,7 @@ export class SessionService {
         const claims = await sessionRepository.verifySessionCookie(sessionCookie);
         await sessionRepository.deleteSessionRecord(claims.uid, sessionId);
       } catch (e) {
-        // Session likely already invalid/expired
+        // Session likely already invalid
       }
     }
 
@@ -119,9 +120,19 @@ export class SessionService {
 
   static async getActiveSessions(userId: string): Promise<Result<Session[]>> {
     try {
-      const sessions = await sessionRepository.getUserSessions(userId);
-      return { success: true, data: sessions };
+      // 1. Get raw DB records
+      const dbSessions = await sessionRepository.getUserSessions(userId);
+
+      // 2. Transform to Client DTOs (Serialize Timestamps)
+      const clientSessions: Session[] = dbSessions.map((s) => ({
+        ...s,
+        createdAt: toMillis(s.createdAt),
+        expiresAt: toMillis(s.expiresAt),
+      }));
+
+      return { success: true, data: clientSessions };
     } catch (error) {
+      console.error('Get Sessions Error:', error);
       throw new CustomError(AppErrorCode.DB_ERROR, 'Failed to get sessions');
     }
   }

@@ -96,7 +96,7 @@ export type ForgotPasswordInput = z.infer<typeof ForgotPasswordSchema>;
 
 // --- SESSION SCHEMAS ---
 
-export const SessionSchema = z.object({
+export const SessionDbSchema = z.object({
   sessionId: z.string(),
   uid: z.string(),
   createdAt: z.any(), // Firestore Timestamp
@@ -106,7 +106,15 @@ export const SessionSchema = z.object({
   isValid: z.boolean(),
 });
 
-export type Session = z.infer<typeof SessionSchema>;
+// 2. Create a strict Client Schema
+export const SessionClientSchema = SessionDbSchema.extend({
+  createdAt: z.number(), // Epoch milliseconds
+  expiresAt: z.number(), // Epoch milliseconds
+});
+
+export type Session = z.infer<typeof SessionClientSchema>;
+
+export type SessionDb = z.infer<typeof SessionDbSchema>;
 
 export const CreateSessionSchema = z.object({
   idToken: z.string(),

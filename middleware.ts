@@ -2,6 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { AUTH_SESSION_COOKIE_NAME } from './lib/constants';
 import { DEFAULT_LOGIN_REDIRECT, LOGIN_ROUTE, isAuthRoute, isProtectedRoute } from './routes';
 
+const SECURITY_HEADERS = {
+  // HSTS: Force HTTPS for 1 year, include subdomains
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',
+  // Clickjacking protection
+  'X-Frame-Options': 'DENY',
+  // XSS Protection
+  'X-XSS-Protection': '1; mode=block',
+  // Prevent MIME type sniffing
+  'X-Content-Type-Options': 'nosniff',
+  // Referrer Policy
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+};
+
 export function middleware(request: NextRequest) {
   const { nextUrl } = request;
   const sessionToken = request.cookies.get(AUTH_SESSION_COOKIE_NAME)?.value;
@@ -25,20 +38,9 @@ export function middleware(request: NextRequest) {
   // --- Logic 2: Security Headers (Enterprise Grade) ---
   const response = NextResponse.next();
 
-  // HSTS: Force HTTPS for 1 year, include subdomains
-  response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
-
-  // Clickjacking protection
-  response.headers.set('X-Frame-Options', 'DENY');
-
-  // XSS Protection (Old browsers, but good to have)
-  response.headers.set('X-XSS-Protection', '1; mode=block');
-
-  // Prevent MIME type sniffing
-  response.headers.set('X-Content-Type-Options', 'nosniff');
-
-  // Referrer Policy: Don't leak full URLs to external sites
-  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  Object.entries(SECURITY_HEADERS).forEach(([key, value]) => {
+    response.headers.set(key, value);
+  });
 
   return response;
 }

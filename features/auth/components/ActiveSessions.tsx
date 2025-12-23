@@ -28,14 +28,14 @@ import {
   revokeAllSessionsAction,
   revokeSessionAction,
 } from '../actions/session.actions';
-import { Session } from '../auth.model';
+import { SessionDb } from '../auth.model';
 
 interface ActiveSessionsProps {
   currentSessionId?: string;
 }
 
 export function ActiveSessions({ currentSessionId }: ActiveSessionsProps) {
-  const [sessions, setSessions] = useState<Session[]>([]);
+  const [sessions, setSessions] = useState<SessionDb[]>([]);
   const { enqueueSnackbar } = useSnackbar();
 
   // 1. Fetch Sessions

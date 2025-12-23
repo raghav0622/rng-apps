@@ -25,3 +25,18 @@ export function serializeFirestoreData<T>(data: T): T {
 
   return data;
 }
+
+export function toMillis(date: Timestamp | Date | number | undefined | null | any): number {
+  if (!date) return 0;
+
+  // Already a number (Unix timestamp)
+  if (typeof date === 'number') return date;
+
+  // Firestore Timestamp (has toMillis method)
+  if (typeof date.toMillis === 'function') return date.toMillis();
+
+  // JavaScript Date object
+  if (date instanceof Date) return date.getTime();
+
+  return 0;
+}

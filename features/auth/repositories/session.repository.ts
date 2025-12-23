@@ -1,5 +1,6 @@
 import { auth, firestore } from '@/lib/firebase/admin';
-import { Session } from '../auth.model';
+import { toMillis } from '@/lib/firebase/utils';
+import { SessionDb } from '../auth.model';
 
 export class SessionRepository {
   private usersCollection = firestore().collection('users');
@@ -8,13 +9,14 @@ export class SessionRepository {
     return this.usersCollection.doc(uid).collection('sessions');
   }
 
-  async createSessionRecord(session: Session) {
+  async createSessionRecord(session: SessionDb) {
+    // Firestore accepts the object as-is (with Timestamp fields)
     await this.getSessionsCollection(session.uid).doc(session.sessionId).set(session);
   }
 
-  async getSession(uid: string, sessionId: string): Promise<Session | null> {
+  async getSession(uid: string, sessionId: string): Promise<SessionDb | null> {
     const doc = await this.getSessionsCollection(uid).doc(sessionId).get();
-    return doc.exists ? (doc.data() as Session) : null;
+    return doc.exists ? (doc.data() as SessionDb) : null;
   }
 
   async deleteSessionRecord(uid: string, sessionId: string) {
@@ -25,9 +27,13 @@ export class SessionRepository {
     }
   }
 
-  async getUserSessions(uid: string): Promise<Session[]> {
+  /**
+   * Returns raw database records.
+   * Service layer is responsible for converting to Client DTOs.
+   */
+  async getUserSessions(uid: string): Promise<SessionDb[]> {
     const snapshot = await this.getSessionsCollection(uid).orderBy('createdAt', 'desc').get();
-    return snapshot.docs.map((doc) => doc.data() as Session);
+    return snapshot.docs.map((doc) => doc.data() as SessionDb);
   }
 
   async revokeAllUserSessions(uid: string) {
@@ -35,7 +41,7 @@ export class SessionRepository {
     try {
       await auth().revokeRefreshTokens(uid);
     } catch (e) {
-      // User might be deleted in Auth already
+      // User might be deleted in Auth already, ignore
     }
 
     // 2. Delete Firestore Session Records
@@ -43,7 +49,6 @@ export class SessionRepository {
     const snapshot = await sessionsRef.get();
     if (snapshot.empty) return;
 
-    // Batch delete (DRY: standard batching logic could be a shared lib util, but kept here for now)
     const batch = firestore().batch();
     snapshot.docs.forEach((doc) => batch.delete(doc.ref));
     await batch.commit();
@@ -65,10 +70,10 @@ export class SessionRepository {
     const doc = await this.getSessionsCollection(uid).doc(sessionId).get();
     if (!doc.exists) return false;
 
-    const data = doc.data() as Session;
+    const data = doc.data() as SessionDb;
 
     // Check expiration
-    if (data.expiresAt.toMillis() < Date.now()) return false;
+    if (toMillis(data.expiresAt) < Date.now()) return false;
 
     // Check manual invalidation flag
     return data.isValid;

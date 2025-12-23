@@ -1,6 +1,7 @@
 'use client';
 
 import { ProfileSchema } from '@/features/auth/auth.model';
+import { ActiveSessions } from '@/features/auth/components/ActiveSessions';
 import { useRNGAuth } from '@/features/auth/components/AuthContext';
 import { ChangePasswordModal } from '@/features/auth/components/ChangePasswordModal';
 import { ConfirmPasswordModal } from '@/features/auth/components/ConfirmPasswordModal';
@@ -51,6 +52,7 @@ export default function ProfilePage() {
           />
         </CardContent>
       </Card>
+      <ActiveSessions />
 
       {/* --- Security Zone --- */}
       <Card sx={{ borderColor: 'error.main' }}>

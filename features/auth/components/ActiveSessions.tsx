@@ -31,61 +31,65 @@ import {
 import { Session } from '../auth.model';
 
 interface ActiveSessionsProps {
-  currentSessionId?: string; // Optional: Pass from server if available
+  currentSessionId?: string;
 }
 
 export function ActiveSessions({ currentSessionId }: ActiveSessionsProps) {
   const [sessions, setSessions] = useState<Session[]>([]);
   const { enqueueSnackbar } = useSnackbar();
 
-  // 1. Fetch Action
+  // 1. Fetch Sessions
   const { runAction: fetchSessions, isExecuting: isLoading } = useRNGServerAction(
     getSessionsAction,
     {
       onSuccess: (data) => {
         if (data) setSessions(data);
       },
+      errorMessage: 'Failed to load active sessions',
     },
   );
 
-  // 2. Revoke Single
+  // 2. Revoke Single Session
   const { runAction: revokeSession, isExecuting: isRevoking } = useRNGServerAction(
-    //@ts-expect-error ghar ka raj
     revokeSessionAction,
     {
       onSuccess: () => {
-        enqueueSnackbar('Session revoked', { variant: 'success' });
-        fetchSessions();
+        enqueueSnackbar('Session revoked successfully', { variant: 'success' });
+        fetchSessions(); // Refresh list to remove the deleted item
       },
+      errorMessage: 'Failed to revoke session',
     },
   );
 
-  // 3. Revoke All
+  // 3. Revoke All Sessions
   const { runAction: revokeAll, isExecuting: isRevokingAll } = useRNGServerAction(
-    //@ts-expect-error ghar ka raj
     revokeAllSessionsAction,
     {
       onSuccess: () => {
-        enqueueSnackbar('All other sessions signed out', { variant: 'success' });
-        window.location.href = '/login'; // Force re-login
+        enqueueSnackbar('All other sessions have been signed out', { variant: 'success' });
+        // Optional: Redirect to login if the current session was also killed (backend dependent)
+        // window.location.href = '/login';
+        fetchSessions();
       },
+      errorMessage: 'Failed to sign out all devices',
     },
   );
 
   // Initial Fetch
   useEffect(() => {
     fetchSessions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // --- Helpers ---
-  const getDeviceIcon = (ua: string) => {
+  const getDeviceIcon = (ua: string = '') => {
     const lower = ua.toLowerCase();
     if (lower.includes('mobile') || lower.includes('android') || lower.includes('iphone'))
       return <Smartphone />;
     return <Laptop />;
   };
 
-  const getDeviceName = (ua: string) => {
+  const getDeviceName = (ua: string = '') => {
     if (ua.includes('Macintosh')) return 'Mac OS';
     if (ua.includes('Windows')) return 'Windows';
     if (ua.includes('iPhone')) return 'iPhone';
@@ -98,7 +102,7 @@ export function ActiveSessions({ currentSessionId }: ActiveSessionsProps) {
     <Card>
       <CardHeader
         title="Active Sessions"
-        subheader="Manage devices logged into your account"
+        subheader="Manage devices currently logged into your account"
         action={
           sessions.length > 1 && (
             <Button
@@ -106,27 +110,24 @@ export function ActiveSessions({ currentSessionId }: ActiveSessionsProps) {
               size="small"
               variant="outlined"
               onClick={() => {
-                if (window.confirm('Sign out of all devices? You will be redirected to login.')) {
+                if (window.confirm('Are you sure you want to sign out of all devices?')) {
                   revokeAll();
                 }
               }}
-              disabled={isRevokingAll}
+              disabled={isRevokingAll || isLoading}
             >
-              Log out all devices
+              Sign Out All Devices
             </Button>
           )
         }
       />
       <CardContent>
         {isLoading && sessions.length === 0 ? (
-          <LoadingSpinner />
+          <LoadingSpinner message="Loading sessions..." />
         ) : (
-          <List>
+          <List disablePadding>
             {sessions.map((session) => {
               const isCurrent = session.sessionId === currentSessionId;
-
-              // If we don't have currentSessionId prop, we can try to infer
-              // (weak inference) or just not show the "Current" badge.
 
               return (
                 <ListItem
@@ -134,30 +135,31 @@ export function ActiveSessions({ currentSessionId }: ActiveSessionsProps) {
                   divider
                   secondaryAction={
                     !isCurrent && (
-                      <Tooltip title="Revoke Session">
+                      <Tooltip title="Revoke access">
                         <IconButton
                           edge="end"
                           aria-label="delete"
                           onClick={() => revokeSession({ sessionId: session.sessionId })}
                           disabled={isRevoking}
+                          color="error"
                         >
-                          <Delete color="action" />
+                          <Delete />
                         </IconButton>
                       </Tooltip>
                     )
                   }
                 >
                   <ListItemAvatar>
-                    <Avatar sx={{ bgcolor: 'secondary.light' }}>
-                      {getDeviceIcon(session.userAgent || '')}
+                    <Avatar sx={{ bgcolor: 'primary.light', color: 'primary.contrastText' }}>
+                      {getDeviceIcon(session.userAgent)}
                     </Avatar>
                   </ListItemAvatar>
 
                   <ListItemText
                     primary={
                       <Stack direction="row" spacing={1} alignItems="center">
-                        <Typography variant="subtitle2">
-                          {getDeviceName(session.userAgent || '')}
+                        <Typography variant="subtitle2" component="span">
+                          {getDeviceName(session.userAgent)}
                         </Typography>
                         {isCurrent && (
                           <Chip
@@ -165,18 +167,22 @@ export function ActiveSessions({ currentSessionId }: ActiveSessionsProps) {
                             color="success"
                             size="small"
                             variant="outlined"
+                            sx={{ height: 20, fontSize: '0.65rem' }}
                           />
                         )}
                       </Stack>
                     }
                     secondary={
                       <Box component="span" display="block">
-                        <Typography variant="caption" display="block">
-                          IP: {session.ip}
+                        <Typography variant="caption" display="block" color="text.secondary">
+                          IP: {session.ip || 'Unknown'}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          Last Active:{' '}
-                          {new Date(session.createdAt._seconds * 1000).toLocaleString()}
+                        <Typography variant="caption" display="block" color="text.secondary">
+                          {/* CRITICAL FIX: 
+                             We expect 'createdAt' to be a number (milliseconds) now.
+                             Firestore Timestamp conversion happens in the repository layer.
+                          */}
+                          Last Active: {new Date(session.createdAt).toLocaleString()}
                         </Typography>
                       </Box>
                     }
@@ -186,8 +192,8 @@ export function ActiveSessions({ currentSessionId }: ActiveSessionsProps) {
             })}
 
             {sessions.length === 0 && !isLoading && (
-              <Alert severity="info">
-                No active sessions found (This should not happen if you are logged in).
+              <Alert severity="info" variant="outlined">
+                No active sessions found.
               </Alert>
             )}
           </List>

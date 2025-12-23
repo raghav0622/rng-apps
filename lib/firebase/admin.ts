@@ -1,6 +1,6 @@
 import * as admin from 'firebase-admin';
 import 'server-only';
-import { env, getPrivateKey } from '../env';
+import { getServerEnv } from '../env';
 import { logInfo } from '../logger';
 
 function initializeAdmin() {
@@ -8,25 +8,24 @@ function initializeAdmin() {
     return;
   }
 
-  // Use the explicit server-side variables
-  const projectId = env.FIREBASE_PROJECT_ID;
-  const clientEmail = env.FIREBASE_CLIENT_EMAIL;
-  const storageBucket = env.FIREBASE_STORAGE_BUCKET;
+  // 1. Get Strict Server Environment
+  // This will throw if keys are missing, which is what we want on the SERVER.
+  const serverEnv = getServerEnv();
 
   admin.initializeApp({
     credential: admin.credential.cert({
-      projectId,
-      clientEmail,
-      privateKey: getPrivateKey(),
+      projectId: serverEnv.FIREBASE_PROJECT_ID,
+      clientEmail: serverEnv.FIREBASE_CLIENT_EMAIL,
+      privateKey: serverEnv.FIREBASE_PRIVATE_KEY, // Already formatted by getServerEnv
     }),
-    storageBucket,
+    storageBucket: serverEnv.FIREBASE_STORAGE_BUCKET,
   });
 
   admin.firestore().settings({
     ignoreUndefinedProperties: true,
   });
 
-  logInfo(`✅ Firebase Admin initialized: ${projectId}`);
+  logInfo(`✅ Firebase Admin initialized: ${serverEnv.FIREBASE_PROJECT_ID}`);
 }
 
 // Initialize immediately
@@ -51,7 +50,6 @@ export const AdminFirestore = {
   Timestamp: admin.firestore.Timestamp,
   FieldValue: admin.firestore.FieldValue,
 };
-
 // Re-export specific types
 export type Timestamp = admin.firestore.Timestamp;
 export type WriteBatch = admin.firestore.WriteBatch;

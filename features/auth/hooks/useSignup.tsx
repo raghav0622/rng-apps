@@ -30,12 +30,9 @@ export function useSignup() {
       const idToken = await signInCustom(customToken);
 
       // 3. Create Session (Cookie)
-      const sessionResult = await createSession({ idToken });
+      await createSession({ idToken });
 
-      if (sessionResult) {
-        router.push(DEFAULT_LOGIN_REDIRECT);
-        router.refresh();
-      }
+      router.push(DEFAULT_LOGIN_REDIRECT);
     } catch (error) {
       console.error('Signup sequence failed:', error);
       // ROLLBACK: Avoid "Ghost State" on client if server session failed

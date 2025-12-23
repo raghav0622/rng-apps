@@ -46,10 +46,10 @@ export class UserService {
       await SessionService.revokeAllSessions(uid);
 
       // 2. Soft Delete in Firestore (keeps data for recovery/audit)
-      await userRepository.softDeleteUser(uid);
+      await userRepository.forceDeleteUser(uid);
 
       // 3. Disable in Firebase Auth (prevents new logins/token generation)
-      await auth().updateUser(uid, { disabled: true });
+      await auth().deleteUser(uid);
 
       return { success: true, data: undefined };
     } catch (error) {

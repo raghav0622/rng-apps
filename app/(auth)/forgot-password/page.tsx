@@ -2,7 +2,8 @@
 
 import { clientAuth } from '@/lib/firebase/client';
 import { RNGForm } from '@/rng-form/components/RNGForm';
-import { Box, Link as MuiLink, Typography } from '@mui/material';
+import { AuthCard } from '@/ui/auth/AuthCard';
+import { Box, Link as MuiLink } from '@mui/material';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import Link from 'next/link';
 import { useSnackbar } from 'notistack';
@@ -22,8 +23,7 @@ export default function ForgotPasswordPage() {
   const handleSubmit = async (data: ForgotPasswordInput) => {
     try {
       await sendPasswordResetEmail(clientAuth, data.email, {
-        // This URL is where Firebase will redirect the user AFTER they click the email link.
-        url: `${window.location.origin}/reset-password`,
+        url: `${window.location.origin}/auth-action-handler?mode=resetPassword`, // Pointing to the handler correctly
         handleCodeInApp: true,
       });
       setIsSent(true);
@@ -35,30 +35,38 @@ export default function ForgotPasswordPage() {
     }
   };
 
+  // State: Email Sent Success
   if (isSent) {
     return (
-      <Box sx={{ textAlign: 'center' }}>
-        <Typography variant="h5" gutterBottom>
-          Check your email
-        </Typography>
-        <Typography color="text.secondary" paragraph>
-          We sent a link to reset your password. Be sure to check your spam folder.
-        </Typography>
-        <MuiLink component={Link} href="/login" variant="button">
-          Back to Sign In
-        </MuiLink>
-      </Box>
+      <AuthCard
+        title="Check your email"
+        description="We sent a link to reset your password. Be sure to check your spam folder."
+      >
+        <Box sx={{ textAlign: 'center' }}>
+          <MuiLink component={Link} href="/login" variant="button" fontWeight="bold">
+            Back to Sign In
+          </MuiLink>
+        </Box>
+      </AuthCard>
     );
   }
 
+  const Footer = (
+    <MuiLink component={Link} href="/login" variant="body2" underline="hover" fontWeight="500">
+      Back to Sign In
+    </MuiLink>
+  );
+
   return (
-    <>
+    <AuthCard
+      title="Reset Password"
+      description="Enter your email to receive reset instructions"
+      footer={Footer}
+    >
       <RNGForm
         schema={ForgotPasswordSchema}
         defaultValues={{ email: '' }}
         onSubmit={handleSubmit}
-        title="Reset Password"
-        description="Enter your email to receive reset instructions"
         submitLabel="Send Reset Link"
         uiSchema={[
           {
@@ -69,11 +77,6 @@ export default function ForgotPasswordPage() {
           },
         ]}
       />
-      <Box sx={{ mt: 3, textAlign: 'center' }}>
-        <MuiLink component={Link} href="/login" variant="body2">
-          Back to Sign In
-        </MuiLink>
-      </Box>
-    </>
+    </AuthCard>
   );
 }

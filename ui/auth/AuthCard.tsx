@@ -1,5 +1,5 @@
 // ui/auth/AuthCard.tsx
-import { Box, Paper, Typography } from '@mui/material';
+import { Box, Card, Typography } from '@mui/material';
 import { ReactNode } from 'react';
 
 interface AuthCardProps {
@@ -11,25 +11,15 @@ interface AuthCardProps {
 
 export const AuthCard = ({ title, description, children, footer }: AuthCardProps) => {
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        p: 2,
-        bgcolor: 'background.default',
-      }}
-    >
-      <Paper
+    <>
+      <Card
         elevation={0}
         sx={{
           p: 4,
           width: '100%',
           maxWidth: 480,
-          border: '1px solid',
-          borderColor: 'divider',
-          borderRadius: 2,
+          mx: 'auto',
+          boxShadow: (t) => t.shadows[20],
         }}
       >
         <Box sx={{ mb: 4, textAlign: 'center' }}>
@@ -50,7 +40,7 @@ export const AuthCard = ({ title, description, children, footer }: AuthCardProps
             {footer}
           </Box>
         )}
-      </Paper>
-    </Box>
+      </Card>
+    </>
   );
 };

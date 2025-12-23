@@ -2,7 +2,9 @@
 
 import { ResetPasswordForm } from '@/features/auth/components/ResetPasswordForm';
 import { VerifyEmailView } from '@/features/auth/components/VerifyEmailView';
-import { Alert, Card, CardContent } from '@mui/material';
+import { AuthCard } from '@/ui/auth/AuthCard';
+import { Alert, Box, Button, CircularProgress } from '@mui/material';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 
@@ -11,13 +13,20 @@ function AuthActionContent() {
   const mode = searchParams.get('mode');
   const oobCode = searchParams.get('oobCode');
 
+  // Case: Missing Code
   if (!oobCode) {
     return (
-      <Card>
-        <CardContent>
-          <Alert severity="error">Invalid action link. The code is missing.</Alert>
-        </CardContent>
-      </Card>
+      <AuthCard
+        title="Invalid Link"
+        description="This action link is missing required information."
+      >
+        <Alert severity="error">The configuration code (oobCode) is missing from the URL.</Alert>
+        <Box sx={{ mt: 3, textAlign: 'center' }}>
+          <Button component={Link} href="/login" variant="text">
+            Return to Login
+          </Button>
+        </Box>
+      </AuthCard>
     );
   }
 
@@ -28,28 +37,39 @@ function AuthActionContent() {
       return <VerifyEmailView oobCode={oobCode} />;
     case 'recoverEmail':
       return (
-        <Card>
-          <CardContent>
-            <Alert severity="info">
-              Email recovery is not yet implemented. Please contact support.
-            </Alert>
-          </CardContent>
-        </Card>
+        <AuthCard title="Account Recovery" description="Email recovery assistance">
+          <Alert severity="info">
+            Email recovery is not yet implemented. Please contact support.
+          </Alert>
+        </AuthCard>
       );
     default:
       return (
-        <Card>
-          <CardContent>
-            <Alert severity="error">Unknown action mode: {mode}</Alert>
-          </CardContent>
-        </Card>
+        <AuthCard title="Unknown Action" description="We do not recognize this request.">
+          <Alert severity="error">Unknown action mode: {mode}</Alert>
+          <Box sx={{ mt: 3, textAlign: 'center' }}>
+            <Button component={Link} href="/login" variant="text">
+              Return to Login
+            </Button>
+          </Box>
+        </AuthCard>
       );
   }
 }
 
+function LoadingAuthView() {
+  return (
+    <AuthCard title="Loading" description="Please wait...">
+      <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+        <CircularProgress />
+      </Box>
+    </AuthCard>
+  );
+}
+
 export default function AuthActionHandlerPage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<LoadingAuthView />}>
       <AuthActionContent />
     </Suspense>
   );

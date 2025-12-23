@@ -1,4 +1,4 @@
-// lib/safe-action.ts
+import { userRepository } from '@/features/auth/repositories/user.repository';
 import { createSafeActionClient } from 'next-safe-action';
 import { cookies } from 'next/headers';
 import 'server-only';
@@ -39,8 +39,20 @@ export const authActionClient = actionClient.use(async ({ next, ctx }) => {
   }
 
   try {
-    // strict check: true = fails if token is revoked or user deleted
+    // 1. Verify Cookie Signature & Expiration
     const decodedToken = await auth().verifySessionCookie(sessionToken, true);
+
+    // 2. Database Integrity Check (Prevents Banned/Deleted users from acting)
+    // We check this on every action to ensure immediate lockout
+    const user = await userRepository.getUserIncludeDeleted(decodedToken.uid);
+
+    if (!user) {
+      throw new CustomError(AppErrorCode.UNAUTHENTICATED, 'User account not found.');
+    }
+
+    if (user.deletedAt) {
+      throw new CustomError(AppErrorCode.ACCOUNT_DISABLED, 'This account has been disabled.');
+    }
 
     return next({
       ctx: {

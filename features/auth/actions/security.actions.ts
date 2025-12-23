@@ -1,5 +1,6 @@
 'use server';
 
+import { checkRateLimit } from '@/lib/rate-limit';
 import { actionClient, authActionClient } from '@/lib/safe-action';
 import { z } from 'zod';
 import { AuthService } from '../services/auth.service';
@@ -8,12 +9,14 @@ import { UserService } from '../services/user.service';
 export const checkVerificationStatusAction = authActionClient
   .metadata({ name: 'auth.checkVerificationStatus' })
   .action(async ({ ctx }) => {
+    await checkRateLimit();
     return await UserService.refreshEmailVerificationStatus(ctx.userId);
   });
 
 export const verifyEmailSyncAction = authActionClient
   .metadata({ name: 'auth.verifyEmailSync' })
   .action(async ({ ctx }) => {
+    await checkRateLimit();
     return await UserService.refreshEmailVerificationStatus(ctx.userId);
   });
 
@@ -26,6 +29,7 @@ export const changePasswordAction = authActionClient
     }),
   )
   .action(async ({ ctx, parsedInput }) => {
+    await checkRateLimit();
     return await AuthService.changePassword(
       ctx.userId,
       ctx.email || '',
@@ -38,6 +42,7 @@ export const verifyEmailAction = actionClient
   .metadata({ name: 'auth.verifyEmail' })
   .inputSchema(z.object({ oobCode: z.string() }))
   .action(async ({ parsedInput }) => {
+    await checkRateLimit();
     return await AuthService.verifyEmail(parsedInput.oobCode);
   });
 
@@ -50,5 +55,6 @@ export const confirmPasswordResetAction = actionClient
     }),
   )
   .action(async ({ parsedInput }) => {
+    await checkRateLimit();
     return await AuthService.confirmPasswordReset(parsedInput.oobCode, parsedInput.newPassword);
   });

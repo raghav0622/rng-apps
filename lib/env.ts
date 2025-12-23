@@ -26,7 +26,6 @@ const envSchema = z.object({
 });
 
 // 1. Explicitly construct the object.
-// This allows the Next.js compiler to find and replace these values in Client Bundles.
 const envVars = {
   NEXT_PUBLIC_FIREBASE_API_KEY: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -81,6 +80,7 @@ export const getServerEnv = () => {
 
   return {
     ...data,
+    // Robust replacement handling for both \\n (escaped in .env) and \n (actual newline)
     FIREBASE_PRIVATE_KEY: data.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
   };
 };

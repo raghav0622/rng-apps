@@ -1,90 +1,60 @@
-import { StorageService } from '@/features/storage/storage.service';
 import { AppErrorCode, CustomError } from '@/lib/errors';
 import { auth } from '@/lib/firebase/admin';
 import { Result } from '@/lib/types';
 import 'server-only';
-import { sessionRepository } from '../repositories/session.repository';
 import { userRepository } from '../repositories/user.repository';
 import { SessionService } from './session.service';
 
 export class UserService {
   static async updateUserProfile(
     uid: string,
-    data: { displayName: string; photoUrl?: string },
+    data: { displayName?: string; photoUrl?: string },
   ): Promise<Result<void>> {
     try {
-      const currentUser = await userRepository.getUser(uid);
+      await userRepository.updateUser(uid, data);
 
-      let finalPhotoUrl = currentUser.photoUrl;
-      if (data.photoUrl !== undefined) {
-        finalPhotoUrl = data.photoUrl;
-      }
-
-      await userRepository.updateUser(uid, {
-        displayName: data.displayName,
-        photoUrl: finalPhotoUrl,
-      });
-
-      await auth().updateUser(uid, {
-        displayName: data.displayName,
-        photoURL: finalPhotoUrl || null,
-      });
-
-      if (data.photoUrl && currentUser.photoUrl && data.photoUrl !== currentUser.photoUrl) {
-        StorageService.deleteFileByUrl(currentUser.photoUrl).catch((err) =>
-          console.warn('Failed to clean up old avatar', err),
-        );
+      // Sync basic data to Firebase Auth
+      if (data.displayName || data.photoUrl) {
+        await auth().updateUser(uid, {
+          displayName: data.displayName,
+          photoURL: data.photoUrl,
+        });
       }
 
       return { success: true, data: undefined };
     } catch (error) {
-      console.error('Update Profile Error:', error);
       throw new CustomError(AppErrorCode.DB_ERROR, 'Failed to update profile');
+    }
+  }
+
+  static async refreshEmailVerificationStatus(uid: string): Promise<Result<boolean>> {
+    try {
+      const fbUser = await auth().getUser(uid);
+      if (fbUser.emailVerified) {
+        await userRepository.updateUser(uid, { emailVerified: true });
+        return { success: true, data: true };
+      }
+      return { success: true, data: false };
+    } catch (e) {
+      throw new CustomError(AppErrorCode.DB_ERROR, 'Failed to refresh email verification status');
     }
   }
 
   static async deleteUserAccount(uid: string): Promise<Result<void>> {
     try {
-      try {
-        await auth().deleteUser(uid);
-      } catch (e: any) {
-        if (e.code !== 'auth/user-not-found') throw e;
-      }
+      // 1. Revoke all sessions immediately
+      await SessionService.revokeAllSessions(uid);
 
-      try {
-        const currentUser = await userRepository.getUser(uid);
-        if (currentUser.photoUrl) {
-          await StorageService.deleteFileByUrl(currentUser.photoUrl);
-        }
-      } catch (e) {
-        console.warn('Cleanup warning during delete', e);
-      }
+      // 2. Soft Delete in Firestore (keeps data for recovery/audit)
+      await userRepository.softDeleteUser(uid);
 
-      await sessionRepository.revokeAllUserSessions(uid);
-      await userRepository.deleteUser(uid);
-      await SessionService.logout();
+      // 3. Disable in Firebase Auth (prevents new logins/token generation)
+      await auth().updateUser(uid, { disabled: true });
 
       return { success: true, data: undefined };
     } catch (error) {
-      throw new CustomError(AppErrorCode.DB_ERROR, 'Failed to delete account');
-    }
-  }
-
-  // --- NEWLY ADDED METHOD ---
-
-  static async refreshEmailVerificationStatus(uid: string): Promise<Result<{ verified: boolean }>> {
-    try {
-      const firebaseUser = await auth().getUser(uid);
-      const isVerified = firebaseUser.emailVerified;
-
-      if (isVerified) {
-        await userRepository.updateUser(uid, { emailVerified: true });
-      }
-
-      return { success: true, data: { verified: isVerified } };
-    } catch (error) {
-      console.error('Sync Error:', error);
-      return { success: true, data: { verified: false } };
+      console.error('Delete Account Error:', error);
+      throw new CustomError(AppErrorCode.UNKNOWN_ERROR, 'Failed to delete account');
     }
   }
 }

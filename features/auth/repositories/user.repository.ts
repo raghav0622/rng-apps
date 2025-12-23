@@ -9,41 +9,52 @@ export class UserRepository {
   async getUser(uid: string): Promise<User> {
     const doc = await this.usersCollection.doc(uid).get();
     if (!doc.exists) throw new Error('User not found');
-    return doc.data() as User;
+    const user = doc.data() as User;
+    if (user.deletedAt) throw new Error('Account is disabled');
+    return user;
   }
 
-  async getUserByEmail(email: string): Promise<User> {
+  // Used for internal checks where we might need to know if a deleted user exists
+  async getUserIncludeDeleted(uid: string): Promise<User | null> {
+    const doc = await this.usersCollection.doc(uid).get();
+    return doc.exists ? (doc.data() as User) : null;
+  }
+
+  async getUserByEmail(email: string): Promise<User | null> {
     const snap = await this.usersCollection.where('email', '==', email).limit(1).get();
-    if (snap.empty) throw new Error('User Profile not found');
+    if (snap.empty) return null;
     return snap.docs[0].data() as User;
   }
 
   async signUpUser(params: CreateUserInDatabase): Promise<Result<User>> {
     const userRef = this.usersCollection.doc(params.uid);
-    const now = new Date();
-    const snapshot = await userRef.get();
 
-    if (snapshot.exists) {
-      return { success: true, data: snapshot.data() as User };
-    }
+    // Use a transaction to ensure we don't overwrite an existing profile accidentally
+    return await firestore().runTransaction(async (t) => {
+      const doc = await t.get(userRef);
+      if (doc.exists) {
+        return { success: true, data: doc.data() as User };
+      }
 
-    const userData: User = {
-      createdAt: now,
-      updatedAt: now,
-      displayName: params.displayName,
-      photoUrl: '',
-      email: params.email,
-      emailVerified: false,
-      onboarded: false,
-      orgRole: UserRoleInOrg.NOT_IN_ORG,
-      uid: params.uid,
-      orgId: undefined,
-      lastLoginAt: now,
-      deletedAt: undefined,
-    };
+      const now = new Date();
+      const userData: User = {
+        uid: params.uid,
+        email: params.email,
+        displayName: params.displayName,
+        photoUrl: '',
+        emailVerified: false,
+        onboarded: false,
+        orgRole: UserRoleInOrg.NOT_IN_ORG,
+        orgId: undefined,
+        createdAt: now,
+        updatedAt: now,
+        lastLoginAt: now,
+        deletedAt: undefined, // undefined or null
+      };
 
-    await userRef.set(userData);
-    return { success: true, data: userData };
+      t.set(userRef, userData);
+      return { success: true, data: userData };
+    });
   }
 
   async updateUser(uid: string, data: Partial<User>) {
@@ -53,11 +64,21 @@ export class UserRepository {
     });
   }
 
-  async deleteUser(uid: string) {
+  // The "Soft" Delete
+  async softDeleteUser(uid: string) {
+    await this.usersCollection.doc(uid).update({
+      deletedAt: new Date(),
+      updatedAt: new Date(),
+    });
+  }
+
+  // The "Hard" Delete (for Rollbacks or GDPR Purges)
+  async forceDeleteUser(uid: string) {
     try {
       await this.usersCollection.doc(uid).delete();
     } catch (e) {
-      console.warn('Failed to delete user doc', e);
+      console.warn('Failed to force delete user doc', e);
+      throw e;
     }
   }
 }

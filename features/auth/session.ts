@@ -2,11 +2,12 @@ import 'server-only';
 
 import { AUTH_SESSION_COOKIE_NAME, SESSION_ID_COOKIE_NAME } from '@/lib/constants';
 import { auth } from '@/lib/firebase/admin';
+import { toMillis } from '@/lib/firebase/utils';
 import { cookies } from 'next/headers';
 import { cache } from 'react';
 import { UserInSession } from './auth.model';
+import { sessionCache } from './redis-session';
 
-// CHANGE: Import the new split repositories
 import { sessionRepository } from './repositories/session.repository';
 import { userRepository } from './repositories/user.repository';
 
@@ -18,30 +19,49 @@ export const getCurrentUser = cache(async () => {
   if (!sessionCookie || !sessionId) return null;
 
   try {
-    // 1. Verify Crypto Signature (Use SessionRepo)
-    const decodedClaims = await sessionRepository.verifySessionCookie(sessionCookie);
+    let uid: string | null = null;
 
-    // 2. Persistence Check (Use SessionRepo)
-    const isValidSession = await sessionRepository.isSessionValid(decodedClaims.uid, sessionId);
+    // --- LEVEL 1: REDIS CACHE (Fastest) ---
+    const cachedUid = await sessionCache.verify(sessionId);
 
-    if (!isValidSession) {
-      return null;
+    if (cachedUid) {
+      uid = cachedUid;
+    } else {
+      // --- LEVEL 2: FIRESTORE FALLBACK (Slower but Persistent) ---
+      const decodedClaims = await sessionRepository.verifySessionCookie(sessionCookie);
+      const dbSession = await sessionRepository.getSession(decodedClaims.uid, sessionId);
+
+      if (!dbSession || !dbSession.isValid) {
+        return null;
+      }
+
+      const now = Date.now();
+      const expiresAt = toMillis(dbSession.expiresAt);
+
+      if (expiresAt < now) {
+        return null;
+      }
+
+      // RE-HYDRATE REDIS if valid
+      await sessionCache.store(sessionId, decodedClaims.uid, expiresAt);
+      uid = decodedClaims.uid;
     }
 
-    // 3. FETCH FRESH DATA FROM DB (Use UserRepo)
-    const user = await userRepository.getUser(decodedClaims.uid);
+    if (!uid) return null;
 
-    // 4. SELF-HEALING: Auto-sync verification status
+    // --- LEVEL 3: USER PROFILE FETCH ---
+    const user = await userRepository.getUser(uid);
+
+    // Self-Healing: Auto-sync verification
     if (!user.emailVerified) {
       try {
         const firebaseUser = await auth().getUser(user.uid);
         if (firebaseUser.emailVerified) {
-          // Use UserRepo to update
           await userRepository.updateUser(user.uid, { emailVerified: true });
           user.emailVerified = true;
         }
       } catch (e) {
-        console.warn('Background verification sync failed:', e);
+        // ignore
       }
     }
 
@@ -56,7 +76,6 @@ export const getCurrentUser = cache(async () => {
       emailVerified: user.emailVerified,
     } as UserInSession;
   } catch (error) {
-    console.error('getCurrentUser Error:', error);
     return null;
   }
 });

@@ -8,6 +8,7 @@ import { cookies, headers } from 'next/headers';
 import 'server-only';
 import { v4 as uuidv4 } from 'uuid';
 import { Session, SessionDb } from '../auth.model';
+import { sessionCache } from '../redis-session';
 import { sessionRepository } from '../repositories/session.repository';
 import { userRepository } from '../repositories/user.repository';
 
@@ -31,22 +32,29 @@ export class SessionService {
     return { uid: decoded.uid, emailVerified: decoded.email_verified };
   }
 
-  // Atomic Step 2: Persistence
+  // Atomic Step 2: Persistence (Firestore + Redis)
   private static async persistSession(uid: string, userAgent: string, ip: string) {
     const sessionId = uuidv4();
+    const now = Date.now();
+    const expiresAtMs = now + SESSION_DURATION_MS;
 
     // Construct DB Object with Firestore Timestamps
     const sessionData: SessionDb = {
       sessionId,
       uid,
-      createdAt: AdminFirestore.Timestamp.now(),
-      expiresAt: AdminFirestore.Timestamp.fromMillis(Date.now() + SESSION_DURATION_MS),
+      createdAt: AdminFirestore.Timestamp.fromMillis(now),
+      expiresAt: AdminFirestore.Timestamp.fromMillis(expiresAtMs),
       ip,
       userAgent,
       isValid: true,
     };
 
+    // 1. Write to Firestore (System of Record)
     await sessionRepository.createSessionRecord(sessionData);
+
+    // 2. Write to Redis (Hot Cache)
+    await sessionCache.store(sessionId, uid, expiresAtMs);
+
     return sessionId;
   }
 
@@ -94,12 +102,18 @@ export class SessionService {
     const sessionCookie = cookieStore.get(AUTH_SESSION_COOKIE_NAME)?.value;
     const sessionId = cookieStore.get(SESSION_ID_COOKIE_NAME)?.value;
 
-    if (sessionCookie && sessionId) {
-      try {
-        const claims = await sessionRepository.verifySessionCookie(sessionCookie);
-        await sessionRepository.deleteSessionRecord(claims.uid, sessionId);
-      } catch (e) {
-        // Session likely already invalid
+    if (sessionId) {
+      // 1. Remove from Redis immediately
+      await sessionCache.revoke(sessionId);
+
+      // 2. Remove from Firestore (if you want to keep history, mark as invalid instead of deleting)
+      if (sessionCookie) {
+        try {
+          const claims = await sessionRepository.verifySessionCookie(sessionCookie);
+          await sessionRepository.deleteSessionRecord(claims.uid, sessionId);
+        } catch (e) {
+          // ignore
+        }
       }
     }
 
@@ -111,7 +125,16 @@ export class SessionService {
 
   static async revokeAllSessions(userId: string): Promise<Result<void>> {
     try {
+      // 1. Get all active sessions from Firestore to find their IDs
+      const sessions = await sessionRepository.getUserSessions(userId);
+      const sessionIds = sessions.map((s) => s.sessionId);
+
+      // 2. Revoke all from Redis
+      await sessionCache.revokeMultiple(sessionIds);
+
+      // 3. Revoke in Firestore / Firebase Auth
       await sessionRepository.revokeAllUserSessions(userId);
+
       return { success: true, data: undefined };
     } catch (error) {
       throw new CustomError(AppErrorCode.DB_ERROR, 'Failed to revoke sessions');
@@ -120,10 +143,8 @@ export class SessionService {
 
   static async getActiveSessions(userId: string): Promise<Result<Session[]>> {
     try {
-      // 1. Get raw DB records
       const dbSessions = await sessionRepository.getUserSessions(userId);
 
-      // 2. Transform to Client DTOs (Serialize Timestamps)
       const clientSessions: Session[] = dbSessions.map((s) => ({
         ...s,
         createdAt: toMillis(s.createdAt),
@@ -139,7 +160,11 @@ export class SessionService {
 
   static async revokeSession(userId: string, sessionId: string): Promise<Result<void>> {
     try {
+      // 1. Redis
+      await sessionCache.revoke(sessionId);
+      // 2. Firestore
       await sessionRepository.deleteSessionRecord(userId, sessionId);
+
       return { success: true, data: undefined };
     } catch (error) {
       throw new CustomError(AppErrorCode.DB_ERROR, 'Failed to revoke session');

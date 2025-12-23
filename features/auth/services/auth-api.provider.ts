@@ -1,61 +1,51 @@
-import { AppErrorCode, CustomError } from '@/lib/errors';
-
-const API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-const ID_TOOLKIT_URL = 'https://identitytoolkit.googleapis.com/v1/accounts';
-
-if (!API_KEY) {
-  // Warn instead of throw to allow build process to pass if envs aren't loaded yet
-  console.warn('⚠️ Missing NEXT_PUBLIC_FIREBASE_API_KEY. Auth REST operations will fail.');
-}
+import { clientAuth } from '@/lib/firebase/client';
+import {
+  applyActionCode,
+  checkActionCode,
+  confirmPasswordReset,
+  signInWithEmailAndPassword,
+  verifyPasswordResetCode,
+} from 'firebase/auth';
 
 export class AuthApiProvider {
   /**
-   * Generic POST wrapper for Identity Toolkit
+   * Verifies the email code and returns the email address associated with it.
    */
-  private static async post<T>(endpoint: string, body: object): Promise<T> {
-    if (!API_KEY) throw new Error('Missing NEXT_PUBLIC_FIREBASE_API_KEY');
+  static async verifyEmailCode(oobCode: string): Promise<string | null> {
+    // 1. Check the code first to get the metadata (email)
+    const info = await checkActionCode(clientAuth, oobCode);
+    const email = info.data.email || null;
 
-    const response = await fetch(`${ID_TOOLKIT_URL}:${endpoint}?key=${API_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    // 2. Apply the code to actually verify the user in Firebase Auth
+    await applyActionCode(clientAuth, oobCode);
 
-    const data = await response.json();
-    if (!response.ok) {
-      throw new CustomError(AppErrorCode.INVALID_INPUT, data.error?.message || 'Auth API Error');
-    }
-    return data;
+    return email;
   }
 
   /**
-   * Verifies a user's password using the REST API.
-   * Admin SDK cannot do this.
+   * Resets the password and returns the email address of the user.
+   */
+  static async resetPassword(oobCode: string, newPw: string): Promise<string | null> {
+    // 1. Verify the code to get the email address
+    const email = await verifyPasswordResetCode(clientAuth, oobCode);
+
+    // 2. Confirm the password change
+    await confirmPasswordReset(clientAuth, oobCode, newPw);
+
+    return email;
+  }
+
+  /**
+   * Verifies if the provided password is correct for the given email.
+   * Used for sensitive actions like changing passwords.
    */
   static async verifyPassword(email: string, password: string): Promise<boolean> {
     try {
-      await this.post('signInWithPassword', {
-        email,
-        password,
-        returnSecureToken: true,
-      });
+      // Attempt a sign-in to verify credentials without persisting the session
+      await signInWithEmailAndPassword(clientAuth, email, password);
       return true;
-    } catch (error) {
+    } catch (e) {
       return false;
     }
-  }
-
-  /**
-   * Updates OOB (Out of Band) codes for email verification.
-   */
-  static async verifyEmailCode(oobCode: string): Promise<void> {
-    await this.post('update', { oobCode });
-  }
-
-  /**
-   * Resets password using the OOB code.
-   */
-  static async resetPassword(oobCode: string, newPassword: string): Promise<void> {
-    await this.post('resetPassword', { oobCode, newPassword });
   }
 }

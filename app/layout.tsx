@@ -13,12 +13,13 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const sessionUser = await getCurrentUser();
+  const user = await getCurrentUser();
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
         <InitColorSchemeScript attribute="class" />
-        <RNGAuthContextProvider user={sessionUser}>
+        <RNGAuthContextProvider user={user}>
           <AppProvider>{children}</AppProvider>
         </RNGAuthContextProvider>
       </body>

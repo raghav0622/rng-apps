@@ -15,6 +15,10 @@ const links: Array<{
     title: 'Dashboard',
     href: '/dashboard',
   },
+  {
+    title: 'Team',
+    href: '/dashboard/team',
+  },
 ];
 
 export default function DrawerContent() {

@@ -1,6 +1,7 @@
 'use client';
 
 import { LoginInput } from '@/features/auth/auth.model';
+import { useRNGAuth } from '@/features/auth/components/AuthContext'; // <--- Import Auth Context
 import { useRNGServerAction } from '@/lib/use-rng-action';
 import { FormError } from '@/rng-form';
 import { DEFAULT_LOGIN_REDIRECT } from '@/routes';
@@ -13,6 +14,7 @@ export function useSignin() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { signInEmail } = useFirebaseClientAuth();
+  const { refreshSession } = useRNGAuth(); // <--- Get refresh function
 
   const { runAction: createSession } = useRNGServerAction(createSessionAction, {
     successMessage: 'Account Login Successful',
@@ -26,12 +28,14 @@ export function useSignin() {
       // 2. Create the HTTP-only Session Cookie via Server Action
       await createSession({ idToken });
 
-      // 3. Redirect
+      // 3. FORCE REFRESH: Update AuthContext state
+      await refreshSession();
+
+      // 4. Redirect
       const redirectTo = searchParams.get('redirect_to') || DEFAULT_LOGIN_REDIRECT;
       router.push(redirectTo);
-      router.refresh();
+      router.refresh(); // Ensure server components also re-fetch
     } catch (error: any) {
-      // Use centralized error mapping
       const errorMsg = mapAuthError(error.code, error.message);
       throw new FormError(errorMsg);
     }

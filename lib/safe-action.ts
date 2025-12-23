@@ -1,132 +1,145 @@
 import { userRepository } from '@/features/auth/repositories/user.repository';
-import { SessionService } from '@/features/auth/services/session.service'; // Import SessionService
-import { createSafeActionClient } from 'next-safe-action';
+import { SessionService } from '@/features/auth/services/session.service';
+import { UserRoleInOrg } from '@/features/enums';
+import { createSafeActionClient, DEFAULT_SERVER_ERROR_MESSAGE } from 'next-safe-action';
 import { cookies } from 'next/headers';
 import 'server-only';
 import { z } from 'zod';
+import { AppPermission, hasAllPermissions } from './action-policies';
 import { AUTH_SESSION_COOKIE_NAME, SESSION_ID_COOKIE_NAME } from './constants';
 import { AppError, AppErrorCode, CustomError } from './errors';
 import { auth } from './firebase/admin';
 import { logError } from './logger';
+import { checkRateLimit } from './rate-limit';
 import { getTraceId } from './tracing';
 
+// ----------------------------------------------------------------------------
+// 1. Base Action Client (Public / Infrastructure)
+// ----------------------------------------------------------------------------
 export const actionClient = createSafeActionClient({
   handleServerError: (e, utils) => {
     const traceId = getTraceId();
-    logError('Action Error', { traceId, error: e, action: utils.metadata?.name });
+    // Log with high fidelity including the action name and inputs if needed
+    logError('Action Error', {
+      traceId,
+      error: e,
+      action: utils.metadata?.name,
+      clientInput: utils.clientInput,
+    });
 
+    // Pass through known AppErrors
     if (e instanceof CustomError) {
       return e.toAppError(traceId);
     }
 
+    // Obfuscate unknown errors
     return {
       code: AppErrorCode.UNKNOWN,
-      message: 'Something went wrong. Please try again.',
+      message: DEFAULT_SERVER_ERROR_MESSAGE,
       traceId,
       details: {},
     } as AppError;
   },
-  defineMetadataSchema: () => z.object({ name: z.string() }),
-});
-
-export const authActionClient = actionClient.use(async ({ next, ctx }) => {
-  const cookieStore = await cookies();
-  const sessionToken = cookieStore.get(AUTH_SESSION_COOKIE_NAME)?.value;
-  const sessionId = cookieStore.get(SESSION_ID_COOKIE_NAME)?.value;
-
-  if (!sessionToken || !sessionId) {
-    throw new CustomError(AppErrorCode.UNAUTHENTICATED, 'Session missing. Please log in.');
-  }
-
-  try {
-    // 1. Verify Cookie Signature
-    const decodedToken = await auth().verifySessionCookie(sessionToken, true);
-
-    // 2. [NEW] Strict Session Check (Redis/DB)
-    // Ensures the session hasn't been revoked remotely
-    const isValidSession = await SessionService.validateSession(decodedToken.uid, sessionId);
-
-    if (!isValidSession) {
-      throw new CustomError(AppErrorCode.UNAUTHENTICATED, 'Session has been revoked.');
-    }
-
-    // 3. User Check
-    const user = await userRepository.getUserIncludeDeleted(decodedToken.uid);
-
-    if (!user) {
-      throw new CustomError(AppErrorCode.UNAUTHENTICATED, 'User account not found.');
-    }
-
-    if (user.deletedAt) {
-      throw new CustomError(AppErrorCode.ACCOUNT_DISABLED, 'This account has been disabled.');
-    }
-
-    return next({
-      ctx: {
-        ...ctx,
-        userId: decodedToken.uid,
-        email: decodedToken.email,
-        sessionId: sessionId,
-      },
-    });
-  } catch (error) {
-    throw new CustomError(AppErrorCode.UNAUTHENTICATED, 'Session expired or invalid.');
-  }
+  // Define metadata schema to include name and required RBAC permissions
+  defineMetadataSchema: () =>
+    z.object({
+      name: z.string(),
+      permissions: z.array(z.nativeEnum(AppPermission)).optional(),
+    }),
 });
 
 // ----------------------------------------------------------------------------
-// // 3. Organization Middleware (Enforce Single Tenancy)
-// // ----------------------------------------------------------------------------
+// 2. Authenticated Middleware (Session & User Context)
+// ----------------------------------------------------------------------------
+export const authActionClient = actionClient
+  .use(async ({ next }) => {
+    // A. Rate Limiting Strategy (Token Bucket via Redis usually)
+    await checkRateLimit();
+    return next();
+  })
+  .use(async ({ next, ctx, metadata }) => {
+    const cookieStore = await cookies();
+    const sessionToken = cookieStore.get(AUTH_SESSION_COOKIE_NAME)?.value;
+    const sessionId = cookieStore.get(SESSION_ID_COOKIE_NAME)?.value;
 
-// export const orgActionClient = authActionClient.use(async ({ next, ctx }) => {
-//   const cookieStore = await cookies();
-//   const { orgId } = cookieStore.get(AUTH_SESSION_COOKIE_NAME)?.value as UserInSession;
+    if (!sessionToken || !sessionId) {
+      throw new CustomError(AppErrorCode.UNAUTHENTICATED, 'Session missing. Please log in.');
+    }
 
-//   if (!orgId) {
-//     throw new CustomError(AppErrorCode.ORGANIZATION_REQUIRED, 'No active organization selected');
-//   }
+    try {
+      // B. Verify Firebase Token
+      const decodedToken = await auth().verifySessionCookie(sessionToken, true);
 
-//   // Verify user's membership in this org
-//   // We check the 'members' collection in the org document or a dedicated 'memberships' collection.
-//   // Assuming a subcollection structure: organizations/{orgId}/members/{userId}
-//   const memberSnap = await firestore()
-//     .collection('organizations')
-//     .doc(orgId)
-//     .collection('members')
-//     .doc(ctx.userId)
-//     .get();
+      // C. Strict Session Check (Revocation Check)
+      const isValidSession = await SessionService.validateSession(decodedToken.uid, sessionId);
+      if (!isValidSession) {
+        throw new CustomError(AppErrorCode.UNAUTHENTICATED, 'Session has been revoked.');
+      }
 
-//   if (!memberSnap.exists) {
-//     throw new CustomError(
-//       AppErrorCode.ORG_ACCESS_DENIED,
-//       'User is not a member of this organization',
-//     );
-//   }
+      // D. User Context & Existence Check
+      const user = await userRepository.getUserIncludeDeleted(decodedToken.uid);
+      if (!user) {
+        throw new CustomError(AppErrorCode.UNAUTHENTICATED, 'User account not found.');
+      }
+      if (user.deletedAt) {
+        throw new CustomError(AppErrorCode.ACCOUNT_DISABLED, 'This account has been disabled.');
+      }
 
-//   const memberData = memberSnap.data();
-//   const role = memberData?.role as UserRoleInOrg;
+      // E. Resolve Org Context (Single Tenancy)
+      // We explicitly attach orgId and role from the User entity.
+      // This enforces that the user carries their org context with them.
+      const orgId = user.orgId; // string | undefined
+      const orgRole = user.orgRole || UserRoleInOrg.NOT_IN_ORG;
 
-//   return next({
-//     ctx: {
-//       ...ctx,
-//       orgId,
-//       role,
-//     },
-//   });
-// });
+      // F. RBAC Permission Check
+      // If the action metadata requires specific permissions, we check them here.
+      if (metadata.permissions && metadata.permissions.length > 0) {
+        if (!hasAllPermissions(orgRole, metadata.permissions)) {
+          throw new CustomError(
+            AppErrorCode.PERMISSION_DENIED,
+            `Role ${orgRole} lacks required permissions: ${metadata.permissions.join(', ')}`,
+          );
+        }
+      }
 
-// // ----------------------------------------------------------------------------
-// // 4. Permissions Utility (To be used inside actions)
-// // ----------------------------------------------------------------------------
-// /**
-//  * Utility to enforce permissions dynamically inside the action handler
-//  * if strict middleware isn't enough (e.g., conditional permissions).
-//  */
-// export function requirePermission(role: UserRoleInOrg, requiredRole: UserRoleInOrg[]) {
-//   if (!requiredRole.includes(role)) {
-//     throw new CustomError(
-//       AppErrorCode.PERMISSION_DENIED,
-//       `Role ${role} lacks required permissions.`,
-//     );
-//   }
-// }
+      return next({
+        ctx: {
+          ...ctx,
+          userId: decodedToken.uid,
+          email: decodedToken.email,
+          sessionId,
+          orgId,
+          orgRole,
+          user, // Full user object for advanced logic if needed
+        },
+      });
+    } catch (error) {
+      if (error instanceof CustomError) throw error;
+      // Handle Firebase specific errors
+      throw new CustomError(AppErrorCode.UNAUTHENTICATED, 'Session expired or invalid.');
+    }
+  });
+
+// ----------------------------------------------------------------------------
+// 3. Organization Middleware (Strict Tenancy Enforcer)
+// ----------------------------------------------------------------------------
+/**
+ * Use this client for ANY action that reads/writes organization data.
+ * It guarantees that `ctx.orgId` is present and valid.
+ */
+export const orgActionClient = authActionClient.use(async ({ next, ctx }) => {
+  if (!ctx.orgId || ctx.orgRole === UserRoleInOrg.NOT_IN_ORG) {
+    throw new CustomError(
+      AppErrorCode.ORGANIZATION_REQUIRED,
+      'This action requires an active organization context.',
+    );
+  }
+
+  return next({
+    ctx: {
+      ...ctx,
+      orgId: ctx.orgId, // Narrowed type: string (not undefined)
+      role: ctx.orgRole,
+    },
+  });
+});

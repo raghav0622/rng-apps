@@ -2,16 +2,16 @@ import 'server-only';
 
 import { AUTH_SESSION_COOKIE_NAME, SESSION_ID_COOKIE_NAME } from '@/lib/constants';
 import { auth } from '@/lib/firebase/admin';
-import { toMillis } from '@/lib/firebase/utils';
+import { serializeFirestoreData, toMillis } from '@/lib/firebase/utils';
 import { cookies } from 'next/headers';
 import { cache } from 'react';
-import { UserInSession } from './auth.model';
+import { User } from './auth.model'; // Use the full User model
 import { sessionCache } from './redis-session';
 
 import { sessionRepository } from './repositories/session.repository';
 import { userRepository } from './repositories/user.repository';
 
-export const getCurrentUser = cache(async () => {
+export const getCurrentUser = cache(async (): Promise<User | null> => {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get(AUTH_SESSION_COOKIE_NAME)?.value;
   const sessionId = cookieStore.get(SESSION_ID_COOKIE_NAME)?.value;
@@ -27,7 +27,7 @@ export const getCurrentUser = cache(async () => {
     if (cachedUid) {
       uid = cachedUid;
     } else {
-      // --- LEVEL 2: FIRESTORE FALLBACK (Slower but Persistent) ---
+      // --- LEVEL 2: FIRESTORE FALLBACK ---
       const decodedClaims = await sessionRepository.verifySessionCookie(sessionCookie);
       const dbSession = await sessionRepository.getSession(decodedClaims.uid, sessionId);
 
@@ -50,6 +50,7 @@ export const getCurrentUser = cache(async () => {
     if (!uid) return null;
 
     // --- LEVEL 3: USER PROFILE FETCH ---
+    // This already uses sanitizeData internally as per your Repository update
     const user = await userRepository.getUser(uid);
 
     // Self-Healing: Auto-sync verification
@@ -65,16 +66,9 @@ export const getCurrentUser = cache(async () => {
       }
     }
 
-    return {
-      uid: user.uid,
-      email: user.email,
-      displayName: user.displayName,
-      photoUrl: user.photoUrl || '',
-      onboarded: user.onboarded,
-      orgRole: user.orgRole,
-      orgId: user.orgId || '',
-      emailVerified: user.emailVerified,
-    } as UserInSession;
+    // Return the full user object to satisfy TypeScript and Layout requirements
+    // sanitizeData ensures Date/Timestamp compatibility with Client Components
+    return serializeFirestoreData(user);
   } catch (error) {
     return null;
   }

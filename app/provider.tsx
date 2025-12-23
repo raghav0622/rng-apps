@@ -1,10 +1,10 @@
 'use client';
-
 import { LayoutContextProvider } from '@/ui/layout/LayoutContext';
 import theme from '@/ui/theme';
 import { Close as CloseIcon } from '@mui/icons-material';
 import { Box, CssBaseline, IconButton, ThemeProvider } from '@mui/material';
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
+import NextTopLoader from 'nextjs-toploader'; // <--- Import
 import { SnackbarKey, SnackbarProvider } from 'notistack';
 import { useRef } from 'react';
 
@@ -19,6 +19,17 @@ function AppProvider({ children }: AppProviderProps) {
     <AppRouterCacheProvider>
       <ThemeProvider theme={theme}>
         <CssBaseline /> {/* Fixes broken browser default styles */}
+        <NextTopLoader
+          color={theme.palette.primary.main}
+          initialPosition={0.08}
+          crawlSpeed={200}
+          height={3}
+          crawl={true}
+          showSpinner={false} // Clean UX: Bar only, no spinner
+          easing="ease"
+          speed={200}
+          shadow={`0 0 10px ${theme.palette.primary.main},0 0 5px ${theme.palette.primary.main}`}
+        />
         <SnackbarProvider
           ref={snackbarRef}
           maxSnack={3}

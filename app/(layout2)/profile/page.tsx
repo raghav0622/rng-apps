@@ -5,6 +5,7 @@ import { ActiveSessions } from '@/features/auth/components/ActiveSessions';
 import { useRNGAuth } from '@/features/auth/components/AuthContext';
 import { ChangePasswordModal } from '@/features/auth/components/ChangePasswordModal';
 import { ConfirmPasswordModal } from '@/features/auth/components/ConfirmPasswordModal';
+import { EmailVerificationBanner } from '@/features/auth/components/EmailVerificationBanner';
 import { useProfile } from '@/features/auth/hooks/useProfile'; // New Hook
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';
@@ -44,6 +45,7 @@ export default function ProfilePage() {
 
   return (
     <Stack spacing={4}>
+      <EmailVerificationBanner />
       {/* --- Profile Update Section --- */}
       <Card>
         <CardHeader title="User Profile" subheader="Manage your public profile information" />

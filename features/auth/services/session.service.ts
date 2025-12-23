@@ -1,13 +1,13 @@
 import { AUTH_SESSION_COOKIE_NAME, SESSION_ID_COOKIE_NAME } from '@/lib/constants';
 import { getCookieOptions, SESSION_DURATION_MS } from '@/lib/cookie-utils';
 import { AppErrorCode, CustomError } from '@/lib/errors';
-import { AdminFirestore } from '@/lib/firebase/admin';
+import { AdminFirestore, auth } from '@/lib/firebase/admin';
 import { toMillis } from '@/lib/firebase/utils';
 import { Result } from '@/lib/types';
 import { cookies, headers } from 'next/headers';
 import 'server-only';
 import { v4 as uuidv4 } from 'uuid';
-import { Session, SessionDb } from '../auth.model';
+import { Session, SessionDb, User } from '../auth.model';
 import { sessionCache } from '../redis-session';
 import { sessionRepository } from '../repositories/session.repository';
 import { userRepository } from '../repositories/user.repository';
@@ -44,6 +44,26 @@ export class SessionService {
     } catch (error) {
       console.error('Session Validation Error:', error);
       return false;
+    }
+  }
+
+  static async getUserFromSession(): Promise<User | null> {
+    const sessionCookie = (await cookies()).get(AUTH_SESSION_COOKIE_NAME)?.value;
+
+    if (!sessionCookie) return null;
+
+    try {
+      // 1. Verify the session cookie
+      const decodedClaims = await auth().verifySessionCookie(sessionCookie, true);
+
+      // 2. Fetch the FULL user from the repository (which now includes sanitizeData)
+      const user = await userRepository.getUserIncludeDeleted(decodedClaims.uid);
+
+      if (!user || user.deletedAt) return null;
+
+      return user;
+    } catch (error) {
+      return null;
     }
   }
 

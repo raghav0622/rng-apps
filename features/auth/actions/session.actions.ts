@@ -30,15 +30,14 @@ export const logoutAction = actionClient.metadata({ name: 'auth.logout' }).actio
   redirect('/login');
 });
 
-// --- NEW: Heartbeat Action ---
-// Used by the client to poll for session validity
+// --- FIXED: Returns strict Result<{ user: User }> ---
 export const checkSessionAction = authActionClient
   .metadata({ name: 'session.check' })
-  .action(async () => {
-    return { success: true };
+  .action(async ({ ctx }) => {
+    // Correct structure: { success: true, data: { user: ... } }
+    return { success: true, data: { user: ctx.user } };
   });
 
-// --- Updated: Returns currentSessionId ---
 export const getSessionsAction = authActionClient
   .metadata({ name: 'session.getAll' })
   .action(async ({ ctx }) => {

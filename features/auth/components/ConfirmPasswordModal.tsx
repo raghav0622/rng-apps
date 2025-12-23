@@ -1,20 +1,14 @@
 'use client';
 
-import { useRNGAuth } from '@/features/auth/components/AuthContext';
-import { clientAuth } from '@/lib/firebase/client';
-import { FormError } from '@/rng-form';
+import { ConfirmPasswordSchema } from '@/features/auth/auth.model';
+import { useConfirmPassword } from '@/features/auth/hooks/useConfirmPassword';
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';
 import { AppModal } from '@/ui/modals/AppModal';
 import { DialogContentText } from '@mui/material';
-import { signInWithEmailAndPassword } from 'firebase/auth';
 import { ReactElement } from 'react';
-import { z } from 'zod';
 
-const ConfirmPasswordSchema = z.object({
-  password: z.string().min(1, 'Password is required'),
-});
-
+// UI Configuration
 const confirmPasswordForm = defineForm<typeof ConfirmPasswordSchema>((f) => [
   f.password('password', { label: 'Current Password', autoFocus: true }),
 ]);
@@ -38,7 +32,8 @@ export function ConfirmPasswordModal({
   onClose,
   trigger,
 }: ConfirmPasswordModalProps) {
-  const { user } = useRNGAuth();
+  // Hook handles Auth + Logic
+  const { handleConfirm } = useConfirmPassword(onConfirm);
 
   return (
     <AppModal title={title} open={open} onClose={onClose} trigger={trigger} maxWidth="xs">
@@ -51,17 +46,11 @@ export function ConfirmPasswordModal({
             defaultValues={{ password: '' }}
             submitLabel={confirmLabel}
             requireChanges={false}
-            onSubmit={async ({ password }) => {
-              if (!user?.email) return;
-
-              try {
-                // Re-authenticate user before critical action (e.g., Delete Account)
-                await signInWithEmailAndPassword(clientAuth, user.email, password);
-                await onConfirm();
-                close();
-              } catch (error: any) {
-                throw new FormError(error.message);
-              }
+            onSubmit={async (data) => {
+              // 1. Run Logic
+              await handleConfirm(data);
+              // 2. Close Modal on Success
+              close();
             }}
           />
         </>

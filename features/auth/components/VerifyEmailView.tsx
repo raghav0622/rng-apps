@@ -1,62 +1,49 @@
 'use client';
 
-import { useRNGServerAction } from '@/lib/use-rng-action';
 import { AuthCard } from '@/ui/auth/AuthCard';
-import { Alert, Box, Button, CircularProgress, Typography } from '@mui/material';
-import { useRouter } from 'next/navigation';
-import { useEffect, useRef } from 'react';
-import { verifyEmailAction } from '../actions/security.actions';
+import { LoadingSpinner } from '@/ui/LoadingSpinner';
+import { Alert, Box, Button } from '@mui/material';
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { useFirebaseClientAuth } from '../hooks/useFirebaseClientAuth';
 
-export function VerifyEmailView({ oobCode }: { oobCode: string }) {
-  const router = useRouter();
-  const hasExecuted = useRef(false);
-  const { runAction, status, result } = useRNGServerAction(verifyEmailAction);
+interface VerifyEmailViewProps {
+  oobCode: string;
+}
+
+export function VerifyEmailView({ oobCode }: VerifyEmailViewProps) {
+  const { verifyEmailCode } = useFirebaseClientAuth();
+  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
 
   useEffect(() => {
-    if (oobCode && !hasExecuted.current) {
-      hasExecuted.current = true;
-      runAction({ oobCode });
-    }
-  }, [oobCode, runAction]);
+    verifyEmailCode(oobCode)
+      .then(() => setStatus('success'))
+      .catch(() => setStatus('error'));
+  }, [oobCode, verifyEmailCode]);
 
-  if (status === 'executing' || status === 'idle') {
-    return (
-      <AuthCard
-        title="Verifying Email"
-        description="Please wait while we verify your email address."
-      >
-        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', py: 4 }}>
-          <CircularProgress size={40} sx={{ mb: 2 }} />
-          <Typography color="text.secondary">Processing verification...</Typography>
-        </Box>
-      </AuthCard>
-    );
-  }
+  if (status === 'loading') return <LoadingSpinner message="Verifying email..." />;
 
-  if (status === 'hasSucceeded') {
-    return (
-      <AuthCard title="Email Verified" description="Your email has been successfully verified.">
-        <Box sx={{ textAlign: 'center' }}>
-          <Alert severity="success" sx={{ mb: 3 }}>
-            You can now access all features of your account.
-          </Alert>
-          <Button variant="contained" fullWidth size="large" onClick={() => router.push('/login')}>
-            Sign In
-          </Button>
-        </Box>
-      </AuthCard>
-    );
-  }
-
-  // Error State
   return (
-    <AuthCard title="Verification Failed" description="We could not verify your email address.">
-      <Box sx={{ textAlign: 'center' }}>
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {result?.serverError || 'The verification link may have expired or is invalid.'}
+    <AuthCard
+      title={status === 'success' ? 'Email Verified' : 'Verification Failed'}
+      description={
+        status === 'success' ? 'Your account is now verified.' : 'Invalid verification link.'
+      }
+    >
+      {status === 'success' ? (
+        <Alert severity="success">
+          Thank you for verifying your email. You can now access all features.
         </Alert>
-        <Button variant="outlined" fullWidth size="large" onClick={() => router.push('/login')}>
-          Back to Login
+      ) : (
+        <Alert severity="error">
+          This link is invalid or expired. Please request a new verification email from your
+          profile.
+        </Alert>
+      )}
+
+      <Box sx={{ mt: 3, textAlign: 'center' }}>
+        <Button component={Link} href="/dashboard" variant="contained">
+          Go to Dashboard
         </Button>
       </Box>
     </AuthCard>

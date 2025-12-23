@@ -1,68 +1,59 @@
 'use client';
 
-import { changePasswordAction } from '@/features/auth/actions/security.actions';
-import { useRNGServerAction } from '@/lib/use-rng-action';
-import { FormError } from '@/rng-form';
-import { RNGForm } from '@/rng-form/components/RNGForm';
-import { defineForm } from '@/rng-form/dsl';
+import { RNGForm } from '@/rng-form';
 import { AppModal } from '@/ui/modals/AppModal';
 import { useSnackbar } from 'notistack';
-import { ReactElement } from 'react';
 import { z } from 'zod';
+import { useFirebaseClientAuth } from '../hooks/useFirebaseClientAuth';
 
-const ChangePasswordSchema = z
+const ChangePwSchema = z
   .object({
-    currentPassword: z.string().min(6, 'Current password is required'),
-    newPassword: z.string().min(6, 'Password must be at least 6 characters'),
-    confirmPassword: z.string(),
+    newPassword: z.string().min(8, 'Min 8 characters'),
+    confirm: z.string(),
   })
-  .refine((data) => data.newPassword === data.confirmPassword, {
+  .refine((d) => d.newPassword === d.confirm, {
     message: "Passwords don't match",
-    path: ['confirmPassword'],
+    path: ['confirm'],
   });
 
-const changePasswordForm = defineForm<typeof ChangePasswordSchema>((f) => [
-  f.password('currentPassword', { label: 'Current Password', autoFocus: true }),
-  f.password('newPassword', { label: 'New Password' }),
-  f.password('confirmPassword', { label: 'Confirm New Password' }),
-]);
-
 interface ChangePasswordModalProps {
-  open?: boolean;
-  onClose?: () => void;
-  trigger?: ReactElement;
+  open: boolean;
+  onClose: () => void;
 }
 
-export function ChangePasswordModal({ open, onClose, trigger }: ChangePasswordModalProps) {
-  const { runAction: changePassword } = useRNGServerAction(changePasswordAction);
+export function ChangePasswordModal({ open, onClose }: ChangePasswordModalProps) {
+  const { updateUserPassword } = useFirebaseClientAuth();
   const { enqueueSnackbar } = useSnackbar();
 
+  const handleSubmit = async (data: z.infer<typeof ChangePwSchema>) => {
+    try {
+      await updateUserPassword(data.newPassword);
+      enqueueSnackbar('Password updated successfully', { variant: 'success' });
+      onClose();
+    } catch (error: any) {
+      // Handle "Requires Recent Login" error (auth/requires-recent-login)
+      if (error.code === 'auth/requires-recent-login') {
+        enqueueSnackbar('For security, please logout and login again to change your password.', {
+          variant: 'warning',
+        });
+      } else {
+        throw new Error(error.message);
+      }
+    }
+  };
+
   return (
-    <AppModal title="Change Password" open={open} onClose={onClose} trigger={trigger} maxWidth="sm">
-      {({ close }) => (
-        <RNGForm
-          schema={ChangePasswordSchema}
-          uiSchema={changePasswordForm}
-          defaultValues={{ currentPassword: '', newPassword: '', confirmPassword: '' }}
-          submitLabel="Update Password"
-          onSubmit={async (values) => {
-            try {
-              await changePassword({
-                currentPassword: values.currentPassword,
-                newPassword: values.newPassword,
-              });
-              enqueueSnackbar('Password updated successfully', { variant: 'success' });
-              close();
-            } catch (error: any) {
-              const msg =
-                error.code === 'auth/invalid-credential'
-                  ? 'Incorrect current password'
-                  : error.message;
-              throw new FormError(msg);
-            }
-          }}
-        />
-      )}
+    <AppModal open={open} onClose={onClose} title="Change Password">
+      <RNGForm
+        schema={ChangePwSchema}
+        defaultValues={{ newPassword: '', confirm: '' }}
+        onSubmit={handleSubmit}
+        submitLabel="Update Password"
+        uiSchema={[
+          { name: 'newPassword', type: 'password', label: 'New Password' },
+          { name: 'confirm', type: 'password', label: 'Confirm New Password' },
+        ]}
+      />
     </AppModal>
   );
 }

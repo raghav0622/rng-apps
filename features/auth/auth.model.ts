@@ -83,6 +83,14 @@ export const ForgotPasswordSchema = z.object({
   email: z.email('Invalid email address'),
 });
 
+// --- New Schema ---
+export const ConfirmPasswordSchema = z.object({
+  password: z.string().min(1, 'Password is required'),
+});
+
+// --- Types ---
+export type ConfirmPasswordInput = z.infer<typeof ConfirmPasswordSchema>;
+
 export type ForgotPasswordInput = z.infer<typeof ForgotPasswordSchema>;
 
 // --- SESSION SCHEMAS ---

@@ -1,76 +1,41 @@
 'use client';
 
-import { checkVerificationStatusAction } from '@/features/auth/actions/security.actions';
-import { useRNGAuth } from '@/features/auth/components/AuthContext';
-import { useSendVerification } from '@/features/auth/hooks/useSendVerification';
-import { clientAuth } from '@/lib/firebase/client';
-import { useRNGServerAction } from '@/lib/use-rng-action';
-import { AlertBanner } from '@/ui/feedback/AlertBanner';
-import { Box, Button, CircularProgress } from '@mui/material';
-import { useRouter } from 'next/navigation';
+import { Alert, Button } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import { useState } from 'react';
+import { useFirebaseClientAuth } from '../hooks/useFirebaseClientAuth';
 
 export function EmailVerificationBanner() {
-  const { user } = useRNGAuth();
-  const router = useRouter();
+  const { sendVerification, currentUser } = useFirebaseClientAuth();
   const { enqueueSnackbar } = useSnackbar();
-  const { sendVerification, loading: sending } = useSendVerification();
-  const [isVisible, setIsVisible] = useState(true);
+  const [sending, setSending] = useState(false);
 
-  // ACTION: Check Server Status
-  const { runAction: checkStatus, isExecuting: checking } = useRNGServerAction(
-    checkVerificationStatusAction,
-    {
-      onSuccess: (data) => {
-        if (data?.verified) {
-          enqueueSnackbar('Verified! Refreshing...', { variant: 'success' });
-          router.refresh();
-          // Safety Net: Force reload if state doesn't settle
-          setTimeout(() => window.location.reload(), 1000);
-        } else {
-          // Fallback: Check Client SDK locally
-          clientAuth.currentUser?.reload().then(() => {
-            if (clientAuth.currentUser?.emailVerified) {
-              enqueueSnackbar('Verified locally, syncing...', { variant: 'info' });
-            } else {
-              enqueueSnackbar('System still sees you as unverified.', { variant: 'warning' });
-            }
-          });
-        }
-      },
-    },
-  );
+  // Don't show if verified or loading
+  if (!currentUser || currentUser.emailVerified) return null;
 
-  if (!user || user.emailVerified) return null;
+  const handleResend = async () => {
+    setSending(true);
+    try {
+      await sendVerification();
+      enqueueSnackbar('Verification email sent!', { variant: 'success' });
+    } catch (error) {
+      enqueueSnackbar('Failed to send email. Try again later.', { variant: 'error' });
+    } finally {
+      setSending(false);
+    }
+  };
 
   return (
-    <AlertBanner
+    <Alert
       severity="warning"
-      isVisible={isVisible}
-      onDismiss={() => setIsVisible(false)}
       action={
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button
-            color="inherit"
-            size="small"
-            onClick={() => checkStatus()}
-            disabled={checking || sending}
-          >
-            {checking ? <CircularProgress size={20} color="inherit" /> : "I've Verified"}
-          </Button>
-          <Button
-            color="inherit"
-            size="small"
-            onClick={sendVerification}
-            disabled={sending || checking}
-          >
-            {sending ? 'Sending...' : 'Resend Email'}
-          </Button>
-        </Box>
+        <Button color="inherit" size="small" onClick={handleResend} disabled={sending}>
+          {sending ? 'Sending...' : 'Resend Email'}
+        </Button>
       }
+      sx={{ mb: 2 }}
     >
-      Your email is not verified. Check your inbox or click I&apos;ve Verified to refresh.
-    </AlertBanner>
+      Your email is not verified. Please check your inbox.
+    </Alert>
   );
 }

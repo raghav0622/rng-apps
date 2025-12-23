@@ -1,72 +1,82 @@
 'use client';
 
-import { ResetPasswordSchema } from '@/features/auth/auth.model';
-import { useRNGServerAction } from '@/lib/use-rng-action';
-import { RNGForm } from '@/rng-form/components/RNGForm';
-import { defineForm } from '@/rng-form/dsl';
+import { RNGForm } from '@/rng-form';
 import { AuthCard } from '@/ui/auth/AuthCard';
-import { Alert, Link, Typography } from '@mui/material';
+import { LoadingSpinner } from '@/ui/LoadingSpinner';
+import { Box, Button } from '@mui/material';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { confirmPasswordResetAction } from '../actions/security.actions';
+import { useEffect, useState } from 'react';
+import { z } from 'zod';
+import { useFirebaseClientAuth } from '../hooks/useFirebaseClientAuth';
 
-const resetPasswordFormConfig = defineForm<typeof ResetPasswordSchema>((f) => [
-  f.password('password', {
-    label: 'New Password',
-    autoFocus: true,
-  }),
-  f.password('confirmPassword', {
-    label: 'Confirm New Password',
-  }),
-]);
-
-export function ResetPasswordForm({ oobCode }: { oobCode: string }) {
-  const router = useRouter();
-
-  const { runAction, status, result } = useRNGServerAction(confirmPasswordResetAction, {
-    onSuccess: () => {
-      setTimeout(() => router.push('/login'), 2000);
-    },
+const ResetSchema = z
+  .object({
+    password: z.string().min(8, 'Password must be at least 8 characters'),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ['confirmPassword'],
   });
 
-  if (status === 'hasSucceeded') {
+interface ResetPasswordFormProps {
+  oobCode: string;
+}
+
+export function ResetPasswordForm({ oobCode }: ResetPasswordFormProps) {
+  const router = useRouter();
+  const { verifyResetCode, confirmReset } = useFirebaseClientAuth();
+  const [email, setEmail] = useState<string | null>(null);
+  const [isVerifying, setIsVerifying] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    verifyResetCode(oobCode)
+      .then((email) => {
+        setEmail(email);
+        setIsVerifying(false);
+      })
+      .catch(() => {
+        setError('This password reset link is invalid or has expired.');
+        setIsVerifying(false);
+      });
+  }, [oobCode, verifyResetCode]);
+
+  const handleReset = async (data: z.infer<typeof ResetSchema>) => {
+    try {
+      await confirmReset(oobCode, data.password);
+      router.push('/login?message=Password updated successfully');
+    } catch (err: any) {
+      throw new Error(err.message || 'Failed to reset password');
+    }
+  };
+
+  if (isVerifying) return <LoadingSpinner message="Verifying link..." />;
+
+  if (error) {
     return (
-      <AuthCard title="Password Reset" description="Your password has been updated successfully.">
-        <Alert severity="success" sx={{ mb: 2 }}>
-          Redirecting to login...
-        </Alert>
+      <AuthCard title="Invalid Link" description={error}>
+        <Box textAlign="center" mt={2}>
+          <Button component={Link} href="/forgot-password">
+            Request New Link
+          </Button>
+        </Box>
       </AuthCard>
     );
   }
 
-  const Footer = (
-    <Typography variant="body2">
-      Remember your password?{' '}
-      <Link href="/login" underline="hover" fontWeight="500">
-        Sign in
-      </Link>
-    </Typography>
-  );
-
   return (
-    <AuthCard title="Set New Password" description="Enter your new password below" footer={Footer}>
-      {result?.serverError && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {result.serverError}
-        </Alert>
-      )}
-
+    <AuthCard title="Reset Password" description={`Set a new password for ${email}`}>
       <RNGForm
-        schema={ResetPasswordSchema}
-        uiSchema={resetPasswordFormConfig}
+        schema={ResetSchema}
         defaultValues={{ password: '', confirmPassword: '' }}
-        onSubmit={async (data) => {
-          await runAction({
-            oobCode,
-            newPassword: data.password,
-          });
-        }}
-        submitLabel="Reset Password"
-        submitingLablel="Resetting..."
+        onSubmit={handleReset}
+        submitLabel="Change Password"
+        uiSchema={[
+          { name: 'password', type: 'password', label: 'New Password' },
+          { name: 'confirmPassword', type: 'password', label: 'Confirm Password' },
+        ]}
       />
     </AuthCard>
   );

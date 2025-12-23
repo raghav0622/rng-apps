@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { AUTH_SESSION_COOKIE_NAME } from './lib/constants';
+import { AUTH_SESSION_COOKIE_NAME, SESSION_ID_COOKIE_NAME } from './lib/constants';
 import { DEFAULT_LOGIN_REDIRECT, LOGIN_ROUTE, isAuthRoute, isProtectedRoute } from './routes';
 
 const SECURITY_HEADERS = {
@@ -25,6 +25,17 @@ export function middleware(request: NextRequest) {
 
   // --- Logic 1: Route Protection ---
   if (isAuthPage && isAuthenticated) {
+    // 🛑 CRITICAL FIX: Break Infinite Loops / Zombie Sessions 🛑
+    // If the user is redirected to login with a specific reason (e.g., "session_revoked"),
+    // it means the App (Client/Server) determined the session is dead.
+    // We MUST clear the cookies and allow access to the Login page.
+    if (nextUrl.searchParams.has('reason')) {
+      const response = NextResponse.next();
+      response.cookies.delete(AUTH_SESSION_COOKIE_NAME);
+      response.cookies.delete(SESSION_ID_COOKIE_NAME);
+      return response;
+    }
+
     return NextResponse.redirect(new URL(DEFAULT_LOGIN_REDIRECT, nextUrl));
   }
 

@@ -1,18 +1,21 @@
 'use client';
 
+import {
+  checkSessionAction,
+  logoutAction,
+  syncUserAction,
+} from '@/features/auth/actions/session.actions';
+import { UserInSession } from '@/features/auth/auth.model';
 import { clientAuth } from '@/lib/firebase/client';
+import { isProtectedRoute } from '@/routes';
 import { User as FirebaseUser, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
+import { usePathname } from 'next/navigation';
 import { createContext, Dispatch, SetStateAction, useContext, useEffect, useState } from 'react';
-import { syncUserAction } from '../actions/session.actions';
-import { UserInSession } from '../auth.model';
 
 type AuthContextType = {
-  /** Server-side User (from Cookie). Source of Truth for App Logic/Routing */
   user: UserInSession | null;
-  /** Client-side User (from SDK). Source of Truth for Firestore/Storage access */
   firebaseUser: FirebaseUser | null;
   setUser: Dispatch<SetStateAction<UserInSession | null>>;
-  /** True while the client SDK is attempting to sync with the server session */
   isSyncing: boolean;
 };
 
@@ -35,35 +38,70 @@ export function RNGAuthContextProvider({
   const [user, setUser] = useState<UserInSession | null>(serverUser);
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [isSyncing, setIsSyncing] = useState(true);
+  const pathname = usePathname();
 
-  // 1. Sync Server User Prop to State
   useEffect(() => {
     setUser(serverUser);
   }, [serverUser]);
 
-  // 2. Client SDK Synchronization Logic
+  // 1. ZOMBIE SESSION CLEANUP
+  // If server says "No User" but we are on a protected route, force logout.
   useEffect(() => {
-    // Listener for SDK state changes
+    if (serverUser === null && isProtectedRoute(pathname)) {
+      logoutAction().then(() => {
+        window.location.href = '/login?reason=session_revoked';
+      });
+    }
+  }, [serverUser, pathname]);
+
+  // 2. ❤️ HEARTBEAT: Instant Revocation Check ❤️
+  useEffect(() => {
+    // Only poll if we think we are logged in
+    if (!user) return;
+
+    const checkStatus = async () => {
+      // Calls the server action. If session is revoked in DB, middleware throws error.
+      const result = await checkSessionAction();
+
+      // If server error or explicit failure
+      if (result?.serverError || (result?.data && !result.data.success)) {
+        console.warn('Session Heartbeat Failed: Revoked remotely.');
+        window.location.href = '/login?reason=session_revoked_remote';
+      }
+    };
+
+    // A. Check immediately on focus (User switches tabs)
+    const onFocus = () => checkStatus();
+    window.addEventListener('focus', onFocus);
+
+    // B. Check periodically (every 5 seconds)
+    const interval = setInterval(() => {
+      checkStatus();
+    }, 5000);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, [user]);
+
+  // 3. Client SDK Sync
+  useEffect(() => {
     const unsubscribe = onAuthStateChanged(clientAuth, (currentUser) => {
       setFirebaseUser(currentUser);
-
-      // If we have a user, we aren't "syncing" anymore in terms of initial load
       if (currentUser) {
         setIsSyncing(false);
       }
     });
 
     const handleSync = async () => {
-      // SCENARIO: Server says Logged In, but Client SDK says Logged Out
       if (serverUser && !clientAuth.currentUser) {
         setIsSyncing(true);
         const result = await syncUserAction();
 
         if (result?.data?.success && result.data.data) {
-          const customToken = result.data.data;
           try {
-            await signInWithCustomToken(clientAuth, customToken);
-            // 'onAuthStateChanged' will trigger and set firebaseUser + isSyncing(false)
+            await signInWithCustomToken(clientAuth, result.data.data);
           } catch (error) {
             console.error('Client Auto-Login Failed:', error);
             setIsSyncing(false);
@@ -72,7 +110,6 @@ export function RNGAuthContextProvider({
           setIsSyncing(false);
         }
       } else {
-        // SCENARIO: Not logged in on server, or already logged in on client
         setIsSyncing(false);
       }
     };

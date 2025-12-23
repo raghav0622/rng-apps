@@ -9,6 +9,8 @@ import { useProfile } from '@/features/auth/hooks/useProfile'; // New Hook
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';
 import { Alert, Box, Button, Card, CardContent, CardHeader, Stack } from '@mui/material';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 
 // Form Configuration (Visuals only)
 const profileFormConfig = defineForm<typeof ProfileSchema>((f) => [
@@ -27,8 +29,16 @@ const profileFormConfig = defineForm<typeof ProfileSchema>((f) => [
 
 export default function ProfilePage() {
   const { user } = useRNGAuth();
+  const router = useRouter();
   // All business logic is now here
   const { handleUpdateProfile, deleteAccount, isUpdating, isDeleting } = useProfile();
+
+  // FIX: Redirect if user session is lost (e.g. revoked)
+  useEffect(() => {
+    if (!user) {
+      router.push('/login');
+    }
+  }, [user, router]);
 
   if (!user) return null;
 
@@ -52,6 +62,9 @@ export default function ProfilePage() {
           />
         </CardContent>
       </Card>
+
+      {/* Pass user info to ActiveSessions to highlight current session if possible. 
+          Currently ActiveSessions fetches its own data, but client side knowledge helps. */}
       <ActiveSessions />
 
       {/* --- Security Zone --- */}

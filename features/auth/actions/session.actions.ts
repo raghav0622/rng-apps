@@ -13,7 +13,6 @@ export const signupAction = actionClient
   .metadata({ name: 'auth.signup' })
   .inputSchema(SignupSchema)
   .action(async ({ parsedInput }) => {
-    // 🛡️ Security: High Risk Action
     await checkRateLimit();
     return await AuthService.signup(parsedInput);
   });
@@ -22,7 +21,6 @@ export const createSessionAction = actionClient
   .metadata({ name: 'auth.createSession' })
   .inputSchema(CreateSessionSchema)
   .action(async ({ parsedInput }) => {
-    // 🛡️ Security: Protects against token replay spam
     await checkRateLimit();
     return await SessionService.createSession(parsedInput.idToken);
   });
@@ -32,19 +30,45 @@ export const logoutAction = actionClient.metadata({ name: 'auth.logout' }).actio
   redirect('/login');
 });
 
+// --- NEW: Heartbeat Action ---
+// Used by the client to poll for session validity
+export const checkSessionAction = authActionClient
+  .metadata({ name: 'session.check' })
+  .action(async () => {
+    return { success: true };
+  });
+
+// --- Updated: Returns currentSessionId ---
 export const getSessionsAction = authActionClient
   .metadata({ name: 'session.getAll' })
   .action(async ({ ctx }) => {
-    return await SessionService.getActiveSessions(ctx.userId);
+    const result = await SessionService.getActiveSessions(ctx.userId);
+
+    if (!result.success) {
+      return { success: false, error: result.error };
+    }
+
+    return {
+      success: true,
+      data: {
+        sessions: result.data || [],
+        currentSessionId: ctx.sessionId,
+      },
+    };
   });
 
 export const revokeSessionAction = authActionClient
   .metadata({ name: 'session.revoke' })
   .inputSchema(z.object({ sessionId: z.string() }))
   .action(async ({ ctx, parsedInput }) => {
+    if (ctx.sessionId === parsedInput.sessionId) {
+      await SessionService.logout();
+      return { success: true, data: { isCurrent: true } };
+    }
+
     await SessionService.revokeSession(ctx.userId, parsedInput.sessionId);
     revalidatePath('/profile');
-    return { success: true, data: undefined };
+    return { success: true, data: { isCurrent: false } };
   });
 
 export const revokeAllSessionsAction = authActionClient
@@ -60,7 +84,6 @@ export const syncUserAction = authActionClient
   .action(async ({ ctx }) => {
     await checkRateLimit();
     try {
-      // Lazy load admin to avoid circular deps if any
       const customToken = await import('@/lib/firebase/admin').then((m) =>
         m.auth().createCustomToken(ctx.userId),
       );

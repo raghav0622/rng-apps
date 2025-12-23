@@ -1,9 +1,10 @@
 import { userRepository } from '@/features/auth/repositories/user.repository';
+import { SessionService } from '@/features/auth/services/session.service'; // Import SessionService
 import { createSafeActionClient } from 'next-safe-action';
 import { cookies } from 'next/headers';
 import 'server-only';
 import { z } from 'zod';
-import { AUTH_SESSION_COOKIE_NAME } from './constants';
+import { AUTH_SESSION_COOKIE_NAME, SESSION_ID_COOKIE_NAME } from './constants';
 import { AppError, AppErrorCode, CustomError } from './errors';
 import { auth } from './firebase/admin';
 import { logError } from './logger';
@@ -12,10 +13,8 @@ import { getTraceId } from './tracing';
 export const actionClient = createSafeActionClient({
   handleServerError: (e, utils) => {
     const traceId = getTraceId();
-    // Log the error for debugging
     logError('Action Error', { traceId, error: e, action: utils.metadata?.name });
 
-    // Pass through CustomErrors (like "Invalid session") to the client
     if (e instanceof CustomError) {
       return e.toAppError(traceId);
     }
@@ -33,17 +32,25 @@ export const actionClient = createSafeActionClient({
 export const authActionClient = actionClient.use(async ({ next, ctx }) => {
   const cookieStore = await cookies();
   const sessionToken = cookieStore.get(AUTH_SESSION_COOKIE_NAME)?.value;
+  const sessionId = cookieStore.get(SESSION_ID_COOKIE_NAME)?.value;
 
-  if (!sessionToken) {
+  if (!sessionToken || !sessionId) {
     throw new CustomError(AppErrorCode.UNAUTHENTICATED, 'Session missing. Please log in.');
   }
 
   try {
-    // 1. Verify Cookie Signature & Expiration
+    // 1. Verify Cookie Signature
     const decodedToken = await auth().verifySessionCookie(sessionToken, true);
 
-    // 2. Database Integrity Check (Prevents Banned/Deleted users from acting)
-    // We check this on every action to ensure immediate lockout
+    // 2. [NEW] Strict Session Check (Redis/DB)
+    // Ensures the session hasn't been revoked remotely
+    const isValidSession = await SessionService.validateSession(decodedToken.uid, sessionId);
+
+    if (!isValidSession) {
+      throw new CustomError(AppErrorCode.UNAUTHENTICATED, 'Session has been revoked.');
+    }
+
+    // 3. User Check
     const user = await userRepository.getUserIncludeDeleted(decodedToken.uid);
 
     if (!user) {
@@ -58,11 +65,11 @@ export const authActionClient = actionClient.use(async ({ next, ctx }) => {
       ctx: {
         ...ctx,
         userId: decodedToken.uid,
-        email: decodedToken.email, // Only immutable data from token
+        email: decodedToken.email,
+        sessionId: sessionId,
       },
     });
   } catch (error) {
-    // Specifically catch revocation/expiration to give a clear error
     throw new CustomError(AppErrorCode.UNAUTHENTICATED, 'Session expired or invalid.');
   }
 });

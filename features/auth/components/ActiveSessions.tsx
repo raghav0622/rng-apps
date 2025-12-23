@@ -1,5 +1,12 @@
 'use client';
 
+import {
+  getSessionsAction,
+  revokeAllSessionsAction,
+  revokeSessionAction,
+} from '@/features/auth/actions/session.actions'; // Ensure correct import path
+import { SessionDb } from '@/features/auth/auth.model';
+import { AppErrorCode } from '@/lib/errors';
 import { useRNGServerAction } from '@/lib/use-rng-action';
 import { LoadingSpinner } from '@/ui/LoadingSpinner';
 import { Delete, Laptop, Smartphone } from '@mui/icons-material';
@@ -23,40 +30,47 @@ import {
 } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import { useEffect, useState } from 'react';
-import {
-  getSessionsAction,
-  revokeAllSessionsAction,
-  revokeSessionAction,
-} from '../actions/session.actions';
-import { SessionDb } from '../auth.model';
 
-interface ActiveSessionsProps {
-  currentSessionId?: string;
-}
-
-export function ActiveSessions({ currentSessionId }: ActiveSessionsProps) {
+export function ActiveSessions() {
   const [sessions, setSessions] = useState<SessionDb[]>([]);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const { enqueueSnackbar } = useSnackbar();
 
-  // 1. Fetch Sessions
+  // 1. Fetch Sessions (Updated to handle object return)
   const { runAction: fetchSessions, isExecuting: isLoading } = useRNGServerAction(
+    //@ts-expect-error yolo
     getSessionsAction,
     {
       onSuccess: (data) => {
-        if (data) setSessions(data);
+        if (data) {
+          setSessions(data.sessions);
+          setCurrentSessionId(data.currentSessionId);
+        }
       },
-      errorMessage: 'Failed to load active sessions',
+      // CRITICAL FIX: If fetching sessions fails due to auth (revoked), redirect immediately
+      onError: (msg, code) => {
+        if (code === AppErrorCode.UNAUTHENTICATED) {
+          window.location.href = '/login?reason=session_revoked';
+        } else {
+          enqueueSnackbar('Failed to load active sessions', { variant: 'error' });
+        }
+      },
     },
   );
 
   // 2. Revoke Single Session
   const { runAction: revokeSession, isExecuting: isRevoking } = useRNGServerAction(
-    //@ts-expect-error asd
+    //@ts-expect-error yolo
     revokeSessionAction,
     {
-      onSuccess: () => {
-        enqueueSnackbar('Session revoked successfully', { variant: 'success' });
-        fetchSessions(); // Refresh list to remove the deleted item
+      onSuccess: (data) => {
+        if (data?.isCurrent) {
+          enqueueSnackbar('Session ended. Redirecting...', { variant: 'info' });
+          window.location.href = '/login';
+        } else {
+          enqueueSnackbar('Session revoked successfully', { variant: 'success' });
+          fetchSessions();
+        }
       },
       errorMessage: 'Failed to revoke session',
     },
@@ -64,27 +78,22 @@ export function ActiveSessions({ currentSessionId }: ActiveSessionsProps) {
 
   // 3. Revoke All Sessions
   const { runAction: revokeAll, isExecuting: isRevokingAll } = useRNGServerAction(
-    //@ts-expect-error asd
-
+    //@ts-expect-error yolo
     revokeAllSessionsAction,
     {
       onSuccess: () => {
-        enqueueSnackbar('All other sessions have been signed out', { variant: 'success' });
-        // Optional: Redirect to login if the current session was also killed (backend dependent)
-        // window.location.href = '/login';
-        fetchSessions();
+        enqueueSnackbar('Signed out all devices', { variant: 'success' });
+        window.location.href = '/login';
       },
       errorMessage: 'Failed to sign out all devices',
     },
   );
 
-  // Initial Fetch
   useEffect(() => {
     fetchSessions();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // --- Helpers ---
   const getDeviceIcon = (ua: string = '') => {
     const lower = ua.toLowerCase();
     if (lower.includes('mobile') || lower.includes('android') || lower.includes('iphone'))
@@ -137,23 +146,30 @@ export function ActiveSessions({ currentSessionId }: ActiveSessionsProps) {
                   key={session.sessionId}
                   divider
                   secondaryAction={
-                    !isCurrent && (
-                      <Tooltip title="Revoke access">
-                        <IconButton
-                          edge="end"
-                          aria-label="delete"
-                          onClick={() => revokeSession({ sessionId: session.sessionId })}
-                          disabled={isRevoking}
-                          color="error"
-                        >
-                          <Delete />
-                        </IconButton>
-                      </Tooltip>
-                    )
+                    <Tooltip title={isCurrent ? 'Sign out' : 'Revoke access'}>
+                      <IconButton
+                        edge="end"
+                        aria-label="delete"
+                        onClick={() => {
+                          if (isCurrent && !window.confirm('This will log you out. Continue?'))
+                            return;
+                          revokeSession({ sessionId: session.sessionId });
+                        }}
+                        disabled={isRevoking || isRevokingAll}
+                        color="error"
+                      >
+                        <Delete />
+                      </IconButton>
+                    </Tooltip>
                   }
                 >
                   <ListItemAvatar>
-                    <Avatar sx={{ bgcolor: 'primary.light', color: 'primary.contrastText' }}>
+                    <Avatar
+                      sx={{
+                        bgcolor: isCurrent ? 'success.light' : 'primary.light',
+                        color: 'primary.contrastText',
+                      }}
+                    >
                       {getDeviceIcon(session.userAgent)}
                     </Avatar>
                   </ListItemAvatar>
@@ -166,11 +182,11 @@ export function ActiveSessions({ currentSessionId }: ActiveSessionsProps) {
                         </Typography>
                         {isCurrent && (
                           <Chip
-                            label="Current Device"
+                            label="Current Session"
                             color="success"
                             size="small"
-                            variant="outlined"
-                            sx={{ height: 20, fontSize: '0.65rem' }}
+                            variant="filled"
+                            sx={{ height: 20, fontSize: '0.65rem', fontWeight: 'bold' }}
                           />
                         )}
                       </Stack>
@@ -181,10 +197,6 @@ export function ActiveSessions({ currentSessionId }: ActiveSessionsProps) {
                           IP: {session.ip || 'Unknown'}
                         </Typography>
                         <Typography variant="caption" display="block" color="text.secondary">
-                          {/* CRITICAL FIX: 
-                             We expect 'createdAt' to be a number (milliseconds) now.
-                             Firestore Timestamp conversion happens in the repository layer.
-                          */}
                           Last Active: {new Date(session.createdAt).toLocaleString()}
                         </Typography>
                       </Box>

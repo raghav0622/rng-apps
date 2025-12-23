@@ -14,31 +14,60 @@ import { userRepository } from '../repositories/user.repository';
 
 export class SessionService {
   /**
-   * Robustly extracts the real client IP, handling proxy chains.
+   * Validates if a session is truly active by checking Redis first, then Firestore.
+   * This allows us to catch revoked sessions instantly.
    */
+  static async validateSession(userId: string, sessionId: string): Promise<boolean> {
+    try {
+      // 1. Fast Path: Check Redis
+      const cachedUserId = await sessionCache.verify(sessionId);
+      if (cachedUserId) {
+        // If the ID in cache matches the user, it's valid
+        return cachedUserId === userId;
+      }
+
+      // 2. Slow Path: Check Firestore (System of Truth)
+      // This handles cases where Redis evicted the key but the session is still valid in DB.
+      const session = await sessionRepository.getSession(userId, sessionId);
+
+      if (session && session.isValid) {
+        const expiresAt = toMillis(session.expiresAt);
+        if (expiresAt > Date.now()) {
+          // It was valid in DB but missing in Cache -> Re-populate Cache
+          await sessionCache.store(sessionId, userId, expiresAt);
+          return true;
+        }
+      }
+
+      // If missing in both or invalid/expired
+      return false;
+    } catch (error) {
+      console.error('Session Validation Error:', error);
+      return false;
+    }
+  }
+
+  // --- Helpers ---
+
   private static async getClientIp(): Promise<string> {
     const headersList = await headers();
     const forwardedFor = headersList.get('x-forwarded-for');
-
     if (forwardedFor) {
       return forwardedFor.split(',')[0].trim();
     }
     return headersList.get('x-real-ip') || 'unknown';
   }
 
-  // Atomic Step 1: Verification
   private static async verifyAndGetUid(idToken: string) {
     const decoded = await sessionRepository.verifyIdToken(idToken);
     return { uid: decoded.uid, emailVerified: decoded.email_verified };
   }
 
-  // Atomic Step 2: Persistence (Firestore + Redis)
   private static async persistSession(uid: string, userAgent: string, ip: string) {
     const sessionId = uuidv4();
     const now = Date.now();
     const expiresAtMs = now + SESSION_DURATION_MS;
 
-    // Construct DB Object with Firestore Timestamps
     const sessionData: SessionDb = {
       sessionId,
       uid,
@@ -49,16 +78,12 @@ export class SessionService {
       isValid: true,
     };
 
-    // 1. Write to Firestore (System of Record)
     await sessionRepository.createSessionRecord(sessionData);
-
-    // 2. Write to Redis (Hot Cache)
     await sessionCache.store(sessionId, uid, expiresAtMs);
 
     return sessionId;
   }
 
-  // Atomic Step 3: Cookie Generation
   private static async generateCookies(idToken: string, sessionId: string) {
     const authSessionCookie = await sessionRepository.createSessionCookie(
       idToken,
@@ -71,22 +96,29 @@ export class SessionService {
     cookieStore.set(SESSION_ID_COOKIE_NAME, sessionId, options);
   }
 
-  // Orchestrator
+  /**
+   * Public helper to robustly clear cookies
+   */
+  public static async clearCookies() {
+    const cookieStore = await cookies();
+    cookieStore.delete(AUTH_SESSION_COOKIE_NAME);
+    cookieStore.delete(SESSION_ID_COOKIE_NAME);
+  }
+
+  // --- Actions ---
+
   static async createSession(idToken: string): Promise<Result<void>> {
     try {
       const headersList = await headers();
       const userAgent = headersList.get('user-agent') || 'unknown';
       const ip = await this.getClientIp();
 
-      // 1. Verify
       const { uid, emailVerified } = await this.verifyAndGetUid(idToken);
 
-      // 2. Side Effect: Sync Verification Status
       if (emailVerified) {
         userRepository.updateUser(uid, { emailVerified: true }).catch(console.error);
       }
 
-      // 3. Persist & Set Cookies
       const sessionId = await this.persistSession(uid, userAgent, ip);
       await this.generateCookies(idToken, sessionId);
 
@@ -99,41 +131,28 @@ export class SessionService {
 
   static async logout(): Promise<Result<void>> {
     const cookieStore = await cookies();
-    const sessionCookie = cookieStore.get(AUTH_SESSION_COOKIE_NAME)?.value;
     const sessionId = cookieStore.get(SESSION_ID_COOKIE_NAME)?.value;
 
     if (sessionId) {
-      // 1. Remove from Redis immediately
       await sessionCache.revoke(sessionId);
-
-      // 2. Remove from Firestore (if you want to keep history, mark as invalid instead of deleting)
-      if (sessionCookie) {
-        try {
-          const claims = await sessionRepository.verifySessionCookie(sessionCookie);
-          await sessionRepository.deleteSessionRecord(claims.uid, sessionId);
-        } catch (e) {
-          // ignore
-        }
-      }
+      // Optional: Mark as invalid in Firestore if you want audit trails
+      // await sessionRepository.deleteSessionRecord(..., sessionId);
     }
 
-    cookieStore.delete(AUTH_SESSION_COOKIE_NAME);
-    cookieStore.delete(SESSION_ID_COOKIE_NAME);
-
+    await this.clearCookies();
     return { success: true, data: undefined };
   }
 
   static async revokeAllSessions(userId: string): Promise<Result<void>> {
     try {
-      // 1. Get all active sessions from Firestore to find their IDs
       const sessions = await sessionRepository.getUserSessions(userId);
       const sessionIds = sessions.map((s) => s.sessionId);
 
-      // 2. Revoke all from Redis
       await sessionCache.revokeMultiple(sessionIds);
-
-      // 3. Revoke in Firestore / Firebase Auth
       await sessionRepository.revokeAllUserSessions(userId);
+
+      // Important: Clear cookies for the current user initiating the action
+      await this.clearCookies();
 
       return { success: true, data: undefined };
     } catch (error) {
@@ -160,11 +179,8 @@ export class SessionService {
 
   static async revokeSession(userId: string, sessionId: string): Promise<Result<void>> {
     try {
-      // 1. Redis
       await sessionCache.revoke(sessionId);
-      // 2. Firestore
       await sessionRepository.deleteSessionRecord(userId, sessionId);
-
       return { success: true, data: undefined };
     } catch (error) {
       throw new CustomError(AppErrorCode.DB_ERROR, 'Failed to revoke session');

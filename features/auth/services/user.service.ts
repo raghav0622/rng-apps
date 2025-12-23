@@ -1,3 +1,4 @@
+import { StorageService } from '@/features/storage/storage.service';
 import { AppErrorCode, CustomError } from '@/lib/errors';
 import { auth } from '@/lib/firebase/admin';
 import { Result } from '@/lib/types';
@@ -8,10 +9,27 @@ import { SessionService } from './session.service';
 export class UserService {
   static async updateUserProfile(
     uid: string,
-    data: { displayName?: string; photoUrl?: string },
+    data: { displayName?: string; photoUrl?: string; avatarPath?: string },
   ): Promise<Result<void>> {
     try {
+      // Fetch current user to check for old avatar
+      const currentUser = await userRepository.getUser(uid);
+
       await userRepository.updateUser(uid, data);
+
+      // Clean up old avatar if a new one is provided and path is known
+      if (data.avatarPath && currentUser.avatarPath && data.avatarPath !== currentUser.avatarPath) {
+        await StorageService.deleteFileByPath(currentUser.avatarPath);
+      }
+
+      // If photoUrl is explicitly set to null/empty (removal), delete old file
+      if (data.photoUrl === '' || data.photoUrl === null) {
+        if (currentUser.avatarPath) {
+          await StorageService.deleteFileByPath(currentUser.avatarPath);
+          // Clear path in DB
+          await userRepository.updateUser(uid, { avatarPath: '' });
+        }
+      }
 
       // Sync basic data to Firebase Auth
       if (data.displayName || data.photoUrl) {
@@ -23,6 +41,7 @@ export class UserService {
 
       return { success: true, data: undefined };
     } catch (error) {
+      console.error('Update Profile Error', error);
       throw new CustomError(AppErrorCode.DB_ERROR, 'Failed to update profile');
     }
   }
@@ -45,10 +64,10 @@ export class UserService {
       // 1. Revoke all sessions immediately
       await SessionService.revokeAllSessions(uid);
 
-      // 2. Soft Delete in Firestore (keeps data for recovery/audit)
+      // 2. Soft Delete in Firestore
       await userRepository.softDeleteUser(uid);
 
-      // 3. Disable in Firebase Auth (prevents new logins/token generation)
+      // 3. Disable in Firebase Auth
       await auth().updateUser(uid, { disabled: true });
 
       return { success: true, data: undefined };

@@ -13,7 +13,10 @@ const envSchema = z.object({
   // Optional on client (undefined), Required on server (via getServerEnv)
   FIREBASE_PROJECT_ID: z.string().optional(),
   FIREBASE_CLIENT_EMAIL: z.string().optional(),
-  FIREBASE_PRIVATE_KEY: z.string().optional(),
+  FIREBASE_PRIVATE_KEY: z
+    .string()
+    .optional()
+    .transform((key) => key?.replace(/\\n/g, '\n')), // Sanitization moved here
   FIREBASE_STORAGE_BUCKET: z.string().optional(),
 
   SESSION_COOKIE_NAME: z.string().default('__session'),
@@ -78,11 +81,7 @@ export const getServerEnv = () => {
     throw new Error('❌ Missing Server-Side Firebase Environment Variables');
   }
 
-  return {
-    ...data,
-    // Robust replacement handling for both \\n (escaped in .env) and \n (actual newline)
-    FIREBASE_PRIVATE_KEY: data.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-  };
+  return data; // already transformed
 };
 
 export const getPrivateKey = () => {

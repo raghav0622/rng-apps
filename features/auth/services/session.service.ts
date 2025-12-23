@@ -7,43 +7,83 @@ import { Result } from '@/lib/types';
 import { cookies, headers } from 'next/headers';
 import 'server-only';
 import { v4 as uuidv4 } from 'uuid';
-import { Session, SessionDb } from '../auth.model';
+import { Session, SessionDb, User } from '../auth.model';
 import { sessionCache } from '../redis-session';
 import { sessionRepository } from '../repositories/session.repository';
 import { userRepository } from '../repositories/user.repository';
 
+// New interface for cached data
+interface CachedSessionData {
+  userId: string;
+  user?: Partial<User>; // Cache minimal user data
+}
+
 export class SessionService {
   /**
-   * Validates if a session is truly active by checking Redis first, then Firestore.
-   * This allows us to catch revoked sessions instantly.
+   * Validates session + Returns cached User data (Optimization)
+   * Implements Sliding Window expiration.
    */
-  static async validateSession(userId: string, sessionId: string): Promise<boolean> {
+  static async validateSession(
+    userId: string,
+    sessionId: string,
+  ): Promise<{ isValid: boolean; cachedUser?: Partial<User> }> {
     try {
       // 1. Fast Path: Check Redis
-      const cachedUserId = await sessionCache.verify(sessionId);
-      if (cachedUserId) {
-        // If the ID in cache matches the user, it's valid
-        return cachedUserId === userId;
+      const cachedData = (await sessionCache.verify(sessionId)) as unknown as
+        | CachedSessionData
+        | string
+        | null;
+
+      let cachedUserId: string | undefined;
+      let cachedUser: Partial<User> | undefined;
+
+      // Handle legacy cache (string) vs new cache (object)
+      if (typeof cachedData === 'string') {
+        cachedUserId = cachedData;
+      } else if (cachedData && typeof cachedData === 'object') {
+        cachedUserId = cachedData.userId;
+        cachedUser = cachedData.user;
+      }
+
+      if (cachedUserId && cachedUserId === userId) {
+        // --- Sliding Window Logic ---
+        // Extend the Redis key TTL so active users stay logged in
+        await sessionCache.extend(sessionId, SESSION_DURATION_MS);
+
+        return { isValid: true, cachedUser };
       }
 
       // 2. Slow Path: Check Firestore (System of Truth)
-      // This handles cases where Redis evicted the key but the session is still valid in DB.
       const session = await sessionRepository.getSession(userId, sessionId);
 
       if (session && session.isValid) {
         const expiresAt = toMillis(session.expiresAt);
         if (expiresAt > Date.now()) {
-          // It was valid in DB but missing in Cache -> Re-populate Cache
-          await sessionCache.store(sessionId, userId, expiresAt);
-          return true;
+          // Valid in DB -> Re-populate Cache
+          const user = await userRepository.getUserIncludeDeleted(userId);
+
+          if (user) {
+            const userDataForCache: CachedSessionData = {
+              userId,
+              user: {
+                uid: user.uid,
+                email: user.email,
+                orgId: user.orgId,
+                orgRole: user.orgRole,
+                deletedAt: user.deletedAt,
+              },
+            };
+            // Store object
+            await sessionCache.store(sessionId, JSON.stringify(userDataForCache), expiresAt);
+            return { isValid: true, cachedUser: userDataForCache.user };
+          }
         }
       }
 
-      // If missing in both or invalid/expired
-      return false;
+      return { isValid: false };
     } catch (error) {
       console.error('Session Validation Error:', error);
-      return false;
+      return { isValid: false };
     }
   }
 
@@ -63,14 +103,14 @@ export class SessionService {
     return { uid: decoded.uid, emailVerified: decoded.email_verified };
   }
 
-  private static async persistSession(uid: string, userAgent: string, ip: string) {
+  private static async persistSession(user: User, userAgent: string, ip: string) {
     const sessionId = uuidv4();
     const now = Date.now();
     const expiresAtMs = now + SESSION_DURATION_MS;
 
     const sessionData: SessionDb = {
       sessionId,
-      uid,
+      uid: user.uid,
       createdAt: AdminFirestore.Timestamp.fromMillis(now),
       expiresAt: AdminFirestore.Timestamp.fromMillis(expiresAtMs),
       ip,
@@ -78,8 +118,20 @@ export class SessionService {
       isValid: true,
     };
 
+    const cacheData: CachedSessionData = {
+      userId: user.uid,
+      user: {
+        uid: user.uid,
+        email: user.email,
+        orgId: user.orgId,
+        orgRole: user.orgRole,
+        deletedAt: user.deletedAt,
+      },
+    };
+
     await sessionRepository.createSessionRecord(sessionData);
-    await sessionCache.store(sessionId, uid, expiresAtMs);
+    // Store rich object in Redis
+    await sessionCache.store(sessionId, JSON.stringify(cacheData), expiresAtMs);
 
     return sessionId;
   }
@@ -96,9 +148,6 @@ export class SessionService {
     cookieStore.set(SESSION_ID_COOKIE_NAME, sessionId, options);
   }
 
-  /**
-   * Public helper to robustly clear cookies
-   */
   public static async clearCookies() {
     const cookieStore = await cookies();
     cookieStore.delete(AUTH_SESSION_COOKIE_NAME);
@@ -115,11 +164,15 @@ export class SessionService {
 
       const { uid, emailVerified } = await this.verifyAndGetUid(idToken);
 
-      if (emailVerified) {
+      // Fetch full user to cache
+      const user = await userRepository.getUserIncludeDeleted(uid);
+      if (!user) throw new Error('User not found in database');
+
+      if (emailVerified && !user.emailVerified) {
         userRepository.updateUser(uid, { emailVerified: true }).catch(console.error);
       }
 
-      const sessionId = await this.persistSession(uid, userAgent, ip);
+      const sessionId = await this.persistSession(user, userAgent, ip);
       await this.generateCookies(idToken, sessionId);
 
       return { success: true, data: undefined };
@@ -135,8 +188,6 @@ export class SessionService {
 
     if (sessionId) {
       await sessionCache.revoke(sessionId);
-      // Optional: Mark as invalid in Firestore if you want audit trails
-      // await sessionRepository.deleteSessionRecord(..., sessionId);
     }
 
     await this.clearCookies();
@@ -150,8 +201,6 @@ export class SessionService {
 
       await sessionCache.revokeMultiple(sessionIds);
       await sessionRepository.revokeAllUserSessions(userId);
-
-      // Important: Clear cookies for the current user initiating the action
       await this.clearCookies();
 
       return { success: true, data: undefined };

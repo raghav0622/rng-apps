@@ -63,6 +63,7 @@ export class AuthService {
   static async signup(input: SignupInput): Promise<Result<string>> {
     return withErrorHandling(async () => {
       let userUid: string | null = null;
+      let profileCreated = false;
 
       try {
         // 1. Create Auth User
@@ -81,11 +82,16 @@ export class AuthService {
           email: input.email,
           displayName: input.displayName,
         });
+        profileCreated = true;
 
         // 3. Generate Token
         return await auth().createCustomToken(userUid);
       } catch (error) {
-        // ROBUST ROLLBACK
+        console.error('Signup failed, attempting rollback', error);
+
+        // ROBUST ROLLBACK: Only delete if the profile wasn't successfully created
+        // (to avoid deleting a user who might have just failed the token gen step but is otherwise fine)
+        // However, if token gen fails, the client thinks signup failed, so we should clean up everything.
         if (userUid) {
           await this.rollbackAuthUser(userUid);
         }
@@ -97,10 +103,11 @@ export class AuthService {
   public static async rollbackAuthUser(uid: string) {
     console.warn(`[AuthService] Initiating rollback for user ${uid}`);
     try {
-      await auth().deleteUser(uid);
-      await userRepository.forceDeleteUser(uid);
+      // Best effort cleanup
+      await Promise.allSettled([auth().deleteUser(uid), userRepository.forceDeleteUser(uid)]);
     } catch (e) {
       console.error('[AuthService] CRITICAL: Rollback failed.', e);
+      // In a real system, send this ID to a Dead Letter Queue for manual cleanup
     }
   }
 }

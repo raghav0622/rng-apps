@@ -30,9 +30,8 @@ export async function checkRateLimit() {
     // In production, strictly require rate limiting to prevent abuse
     if (process.env.NODE_ENV === 'production') {
       console.error('CRITICAL: Rate limiting is misconfigured in production!');
-      // Fail open or closed? Failing closed is safer for security, but bad for UX.
-      // For now, we allow it but log the critical error.
-      return { limit: 100, remaining: 100, reset: Date.now() };
+      // FAIL CLOSED: Protect the system
+      throw new CustomError(AppErrorCode.UNKNOWN_ERROR, 'System busy, please try again later.');
     }
     return { limit: 100, remaining: 100, reset: Date.now() };
   }
@@ -55,8 +54,17 @@ export async function checkRateLimit() {
   } catch (error) {
     if (error instanceof CustomError) throw error;
 
-    // Fail Open: If Redis goes down, don't block users, but log the error
-    console.error('Rate Limit Error (Fail Open):', error);
+    console.error('Rate Limit Error:', error);
+
+    // Fail Closed in Production
+    if (process.env.NODE_ENV === 'production') {
+      throw new CustomError(
+        AppErrorCode.UNKNOWN_ERROR,
+        'Service temporarily unavailable. Please try again.',
+      );
+    }
+
+    // Fail Open in Dev
     return { limit: 10, remaining: 10, reset: Date.now() };
   }
 }

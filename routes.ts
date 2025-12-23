@@ -1,7 +1,7 @@
 export const ROOT_ROUTE = '/';
 export const DEFAULT_LOGIN_REDIRECT = '/dashboard';
 export const LOGIN_ROUTE = '/login';
-
+export const ONBOARDING_ROUTE = '/onboarding';
 export const PUBLIC_ROUTES = new Set<string>([]);
 
 // Routes that are ONLY for unauthenticated users

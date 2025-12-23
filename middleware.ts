@@ -10,23 +10,37 @@ export function middleware(request: NextRequest) {
   const isAuthPage = isAuthRoute(nextUrl.pathname);
   const isProtected = isProtectedRoute(nextUrl.pathname);
 
-  // 1. Authenticated users trying to access Login/Signup -> Redirect to Dashboard
+  // --- Logic 1: Route Protection ---
   if (isAuthPage && isAuthenticated) {
     return NextResponse.redirect(new URL(DEFAULT_LOGIN_REDIRECT, nextUrl));
   }
 
-  // 2. Unauthenticated users trying to access Protected pages -> Redirect to Login
   if (isProtected && !isAuthenticated) {
     const loginUrl = new URL(LOGIN_ROUTE, nextUrl);
-
-    // Only add redirect_to if it's not already the login page
-    const from = nextUrl.pathname + nextUrl.search;
-    loginUrl.searchParams.set('redirect_to', from);
-
+    // Smart Redirect: Preserve the page they were trying to visit
+    loginUrl.searchParams.set('redirect_to', nextUrl.pathname + nextUrl.search);
     return NextResponse.redirect(loginUrl);
   }
 
-  return NextResponse.next();
+  // --- Logic 2: Security Headers (Enterprise Grade) ---
+  const response = NextResponse.next();
+
+  // HSTS: Force HTTPS for 1 year, include subdomains
+  response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
+
+  // Clickjacking protection
+  response.headers.set('X-Frame-Options', 'DENY');
+
+  // XSS Protection (Old browsers, but good to have)
+  response.headers.set('X-XSS-Protection', '1; mode=block');
+
+  // Prevent MIME type sniffing
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+
+  // Referrer Policy: Don't leak full URLs to external sites
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+  return response;
 }
 
 export const config = {

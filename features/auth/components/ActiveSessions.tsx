@@ -1,146 +1,198 @@
-// 'use client';
+'use client';
 
-// import { Badge, Button, Card, Group, Loader, Stack, Text } from '@mantine/core'; // Assuming Mantine based on your UI files, adjust if using Shadcn/others
-// import { notifications } from '@mantine/notifications';
-// import { IconDeviceDesktop, IconDeviceMobile, IconTrash } from '@tabler/icons-react'; // Or your icon library
-// import { useAction } from 'next-safe-action/hooks';
-// import { useEffect, useState } from 'react';
-// import { getSessionsAction, revokeAllSessionsAction, revokeSessionAction } from '../auth.actions';
-// import { Session } from '../auth.model';
+import { useRNGServerAction } from '@/lib/use-rng-action';
+import { LoadingSpinner } from '@/ui/LoadingSpinner';
+import { Delete, Laptop, Smartphone } from '@mui/icons-material';
+import {
+  Alert,
+  Avatar,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  Chip,
+  IconButton,
+  List,
+  ListItem,
+  ListItemAvatar,
+  ListItemText,
+  Stack,
+  Tooltip,
+  Typography,
+} from '@mui/material';
+import { useSnackbar } from 'notistack';
+import { useEffect, useState } from 'react';
+import {
+  getSessionsAction,
+  revokeAllSessionsAction,
+  revokeSessionAction,
+} from '../actions/session.actions';
+import { Session } from '../auth.model';
 
-// // Helper to check if this row is the current session
-// // We can pass the current session ID via props or check a cookie in client (less reliable)
-// // For now, we will highlight based on the "Created Recently" or just list them.
-// // ideally, you pass { currentSessionId } from the server page to this component.
+interface ActiveSessionsProps {
+  currentSessionId?: string; // Optional: Pass from server if available
+}
 
-// export function ActiveSessions({ currentSessionId }: { currentSessionId?: string }) {
-//   const [sessions, setSessions] = useState<Session[]>([]);
+export function ActiveSessions({ currentSessionId }: ActiveSessionsProps) {
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const { enqueueSnackbar } = useSnackbar();
 
-//   // 1. Fetch Sessions
-//   const { execute: fetchSessions, isExecuting: isLoading } = useAction(getSessionsAction, {
-//     onSuccess: (result) => {
-//       if (result.data?.success) {
-//         setSessions(result.data.data);
-//       }
-//     },
-//   });
+  // 1. Fetch Action
+  const { runAction: fetchSessions, isExecuting: isLoading } = useRNGServerAction(
+    getSessionsAction,
+    {
+      onSuccess: (data) => {
+        if (data) setSessions(data);
+      },
+    },
+  );
 
-//   // 2. Revoke Single Session
-//   const { execute: revokeSession, isExecuting: isRevoking } = useAction(revokeSessionAction, {
-//     onSuccess: (result) => {
-//       if (result.data?.success) {
-//         notifications.show({ title: 'Success', message: 'Session revoked', color: 'green' });
-//         fetchSessions(); // Refresh list
-//       }
-//     },
-//   });
+  // 2. Revoke Single
+  const { runAction: revokeSession, isExecuting: isRevoking } = useRNGServerAction(
+    //@ts-expect-error ghar ka raj
+    revokeSessionAction,
+    {
+      onSuccess: () => {
+        enqueueSnackbar('Session revoked', { variant: 'success' });
+        fetchSessions();
+      },
+    },
+  );
 
-//   // 3. Revoke All (Sign out all other devices)
-//   const { execute: revokeAll, isExecuting: isRevokingAll } = useAction(revokeAllSessionsAction, {
-//     onSuccess: (result) => {
-//       if (result.data?.success) {
-//         notifications.show({
-//           title: 'Success',
-//           message: 'All other sessions revoked',
-//           color: 'green',
-//         });
-//         // Ideally, this redirects the USER to login if they killed their OWN session.
-//         // But usually "Revoke All" keeps the *current* one alive or kills everything.
-//         // Our backend logic kills everything, so we should redirect.
-//         window.location.href = '/login';
-//       }
-//     },
-//   });
+  // 3. Revoke All
+  const { runAction: revokeAll, isExecuting: isRevokingAll } = useRNGServerAction(
+    //@ts-expect-error ghar ka raj
+    revokeAllSessionsAction,
+    {
+      onSuccess: () => {
+        enqueueSnackbar('All other sessions signed out', { variant: 'success' });
+        window.location.href = '/login'; // Force re-login
+      },
+    },
+  );
 
-//   useEffect(() => {
-//     fetchSessions();
-//   }, []);
+  // Initial Fetch
+  useEffect(() => {
+    fetchSessions();
+  }, []);
 
-//   const getDeviceIcon = (ua: string) => {
-//     if (ua.toLowerCase().includes('mobile')) return <IconDeviceMobile />;
-//     return <IconDeviceDesktop />;
-//   };
+  // --- Helpers ---
+  const getDeviceIcon = (ua: string) => {
+    const lower = ua.toLowerCase();
+    if (lower.includes('mobile') || lower.includes('android') || lower.includes('iphone'))
+      return <Smartphone />;
+    return <Laptop />;
+  };
 
-//   const getDeviceName = (ua: string) => {
-//     if (ua.includes('Macintosh')) return 'Mac OS';
-//     if (ua.includes('Windows')) return 'Windows';
-//     if (ua.includes('iPhone')) return 'iPhone';
-//     if (ua.includes('Android')) return 'Android';
-//     return 'Unknown Device';
-//   };
+  const getDeviceName = (ua: string) => {
+    if (ua.includes('Macintosh')) return 'Mac OS';
+    if (ua.includes('Windows')) return 'Windows';
+    if (ua.includes('iPhone')) return 'iPhone';
+    if (ua.includes('Android')) return 'Android';
+    if (ua.includes('Linux')) return 'Linux';
+    return 'Unknown Device';
+  };
 
-//   return (
-//     <Card withBorder padding="lg" radius="md">
-//       <Group justify="space-between" mb="md">
-//         <Text fw={600} size="lg">
-//           Active Sessions
-//         </Text>
-//         <Button
-//           color="red"
-//           variant="light"
-//           size="xs"
-//           loading={isRevokingAll}
-//           onClick={() => {
-//             if (confirm('Are you sure? This will log you out of all devices.')) {
-//               revokeAll();
-//             }
-//           }}
-//         >
-//           Log out everywhere
-//         </Button>
-//       </Group>
+  return (
+    <Card>
+      <CardHeader
+        title="Active Sessions"
+        subheader="Manage devices logged into your account"
+        action={
+          sessions.length > 1 && (
+            <Button
+              color="error"
+              size="small"
+              variant="outlined"
+              onClick={() => {
+                if (window.confirm('Sign out of all devices? You will be redirected to login.')) {
+                  revokeAll();
+                }
+              }}
+              disabled={isRevokingAll}
+            >
+              Log out all devices
+            </Button>
+          )
+        }
+      />
+      <CardContent>
+        {isLoading && sessions.length === 0 ? (
+          <LoadingSpinner />
+        ) : (
+          <List>
+            {sessions.map((session) => {
+              const isCurrent = session.sessionId === currentSessionId;
 
-//       {isLoading ? (
-//         <Loader size="sm" />
-//       ) : (
-//         <Stack gap="sm">
-//           {sessions.map((session) => {
-//             const isCurrent = session.sessionId === currentSessionId;
+              // If we don't have currentSessionId prop, we can try to infer
+              // (weak inference) or just not show the "Current" badge.
 
-//             return (
-//               <Card key={session.sessionId} withBorder padding="sm" radius="sm">
-//                 <Group justify="space-between">
-//                   <Group>
-//                     {getDeviceIcon(session.userAgent || '')}
-//                     <div>
-//                       <Text size="sm" fw={500}>
-//                         {getDeviceName(session.userAgent || '')}
-//                         {isCurrent && (
-//                           <Badge ml="xs" size="xs" color="green">
-//                             Current
-//                           </Badge>
-//                         )}
-//                       </Text>
-//                       <Text size="xs" c="dimmed">
-//                         {new Date(session.createdAt.seconds * 1000).toLocaleString()}
-//                         {' • '}
-//                         IP: {session.ip}
-//                       </Text>
-//                     </div>
-//                   </Group>
+              return (
+                <ListItem
+                  key={session.sessionId}
+                  divider
+                  secondaryAction={
+                    !isCurrent && (
+                      <Tooltip title="Revoke Session">
+                        <IconButton
+                          edge="end"
+                          aria-label="delete"
+                          onClick={() => revokeSession({ sessionId: session.sessionId })}
+                          disabled={isRevoking}
+                        >
+                          <Delete color="action" />
+                        </IconButton>
+                      </Tooltip>
+                    )
+                  }
+                >
+                  <ListItemAvatar>
+                    <Avatar sx={{ bgcolor: 'secondary.light' }}>
+                      {getDeviceIcon(session.userAgent || '')}
+                    </Avatar>
+                  </ListItemAvatar>
 
-//                   {!isCurrent && (
-//                     <Button
-//                       color="red"
-//                       variant="subtle"
-//                       size="xs"
-//                       loading={isRevoking}
-//                       onClick={() => revokeSession({ sessionId: session.sessionId })}
-//                     >
-//                       <IconTrash size={16} />
-//                     </Button>
-//                   )}
-//                 </Group>
-//               </Card>
-//             );
-//           })}
-//           {sessions.length === 0 && (
-//             <Text c="dimmed" size="sm">
-//               No active sessions found.
-//             </Text>
-//           )}
-//         </Stack>
-//       )}
-//     </Card>
-//   );
-// }
+                  <ListItemText
+                    primary={
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography variant="subtitle2">
+                          {getDeviceName(session.userAgent || '')}
+                        </Typography>
+                        {isCurrent && (
+                          <Chip
+                            label="Current Device"
+                            color="success"
+                            size="small"
+                            variant="outlined"
+                          />
+                        )}
+                      </Stack>
+                    }
+                    secondary={
+                      <Box component="span" display="block">
+                        <Typography variant="caption" display="block">
+                          IP: {session.ip}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Last Active:{' '}
+                          {new Date(session.createdAt._seconds * 1000).toLocaleString()}
+                        </Typography>
+                      </Box>
+                    }
+                  />
+                </ListItem>
+              );
+            })}
+
+            {sessions.length === 0 && !isLoading && (
+              <Alert severity="info">
+                No active sessions found (This should not happen if you are logged in).
+              </Alert>
+            )}
+          </List>
+        )}
+      </CardContent>
+    </Card>
+  );
+}

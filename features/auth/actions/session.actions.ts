@@ -6,6 +6,7 @@ import { SessionService } from '@/features/auth/services/session.service';
 import { auth } from '@/lib/firebase/admin';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { actionClient, authActionClient } from '@/lib/safe-action';
+import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 
@@ -34,24 +35,29 @@ export const logoutAction = actionClient.metadata({ name: 'auth.logout' }).actio
   await SessionService.logout();
   redirect('/login');
 });
-
-export const revokeAllSessionsAction = authActionClient
-  .metadata({ name: 'auth.revokeAllSessions' })
-  .action(async ({ ctx }) => {
-    await SessionService.revokeAllSessions(ctx.userId);
-  });
-
 export const getSessionsAction = authActionClient
-  .metadata({ name: 'auth.getSessions' })
+  .metadata({ name: 'session.getAll' })
   .action(async ({ ctx }) => {
     return await SessionService.getActiveSessions(ctx.userId);
   });
 
 export const revokeSessionAction = authActionClient
-  .metadata({ name: 'auth.revokeSession' })
+  .metadata({ name: 'session.revoke' })
   .inputSchema(z.object({ sessionId: z.string() }))
   .action(async ({ ctx, parsedInput }) => {
-    return await SessionService.revokeSession(ctx.userId, parsedInput.sessionId);
+    await SessionService.revokeSession(ctx.userId, parsedInput.sessionId);
+    revalidatePath('/profile');
+    return { success: true, data: undefined };
+  });
+
+export const revokeAllSessionsAction = authActionClient
+  .metadata({ name: 'session.revokeAll' })
+  .action(async ({ ctx }) => {
+    // Revokes everything in DB
+    await SessionService.revokeAllSessions(ctx.userId);
+    // Note: This does NOT clear the cookie of the *current* browser immediately
+    // until they refresh, but the session is invalid in DB.
+    return { success: true, data: undefined };
   });
 
 export const syncUserAction = authActionClient

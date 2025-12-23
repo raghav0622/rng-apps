@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { UserRoleInOrg } from '../enums';
+import { AVATAR_ALLOWED_TYPES, AVATAR_MAX_SIZE } from '../storage/storage.config';
 
 export const UserSchema = z.object({
   uid: z.string(),
@@ -110,3 +111,24 @@ export type Session = z.infer<typeof SessionSchema>;
 export const CreateSessionSchema = z.object({
   idToken: z.string(),
 });
+
+// --- Profile Schema ---
+export const ProfileSchema = z.object({
+  displayName: z.string().min(2, 'Name must be at least 2 characters'),
+  email: z.email('Invalid email address').optional(), // Read-only often
+  photoURL: z
+    .union([
+      z.string().nullable(), // For existing URL or clearing (null)
+      z
+        .instanceof(File) // For new uploads
+        .refine((f) => f.size <= AVATAR_MAX_SIZE, 'Max file size is 5MB')
+        .refine(
+          (f) => AVATAR_ALLOWED_TYPES.includes(f.type),
+          'Only .jpg, .png, .webp, and .gif formats are supported',
+        ),
+    ])
+    .optional()
+    .nullable(),
+});
+
+export type ProfileInput = z.infer<typeof ProfileSchema>;

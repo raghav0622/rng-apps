@@ -1,8 +1,8 @@
-// ui/layout/UserMenu.tsx
 'use client';
 
 import { UserInSession } from '@/features/auth/auth.model';
 import { useRNGAuth } from '@/features/auth/components/AuthContext';
+import { getInitials } from '@/features/auth/utils/user.utils'; // Imported utility
 import { Logout, Person } from '@mui/icons-material';
 import {
   Avatar,
@@ -19,35 +19,10 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
-// Helper to generate consistent initials
-const getInitials = (displayName: string | null | undefined, email: string | null | undefined) => {
-  if (displayName) {
-    // Attempt to get first letter of first and last name
-    const parts = displayName.trim().split(' ');
-    if (parts.length >= 2) {
-      return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
-    }
-    return displayName.slice(0, 2).toUpperCase();
-  }
-  if (email) {
-    return email.slice(0, 2).toUpperCase();
-  }
-  return 'U';
-};
-
 export function UserMenu() {
   const { user } = useRNGAuth();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-
   const open = Boolean(anchorEl);
-
-  const handleClick = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
 
   if (!user) return null;
 
@@ -56,13 +31,12 @@ export function UserMenu() {
       user={user}
       anchorEl={anchorEl}
       open={open}
-      onClick={handleClick}
-      onClose={handleClose}
+      onClick={(e) => setAnchorEl(e.currentTarget)}
+      onClose={() => setAnchorEl(null)}
     />
   );
 }
 
-// Split component for cleaner rendering
 interface AuthenticatedMenuProps {
   user: UserInSession;
   anchorEl: HTMLElement | null;
@@ -73,9 +47,34 @@ interface AuthenticatedMenuProps {
 
 function AuthenticatedUserMenu({ user, anchorEl, open, onClick, onClose }: AuthenticatedMenuProps) {
   const hasPhoto = Boolean(user.photoUrl);
+  // Logic extracted to shared utility
   const initials = useMemo(
     () => getInitials(user.displayName, user.email),
     [user.displayName, user.email],
+  );
+
+  const UserAvatar = (
+    <Avatar
+      sx={{
+        width: 32,
+        height: 32,
+        bgcolor: hasPhoto ? 'transparent' : 'primary.main',
+        fontSize: '0.875rem',
+      }}
+      alt={user.displayName || 'User'}
+    >
+      {!hasPhoto ? (
+        initials
+      ) : (
+        <Image
+          alt="User Avatar"
+          src={user.photoUrl || ''}
+          fill
+          sizes="32px"
+          style={{ objectFit: 'cover' }}
+        />
+      )}
+    </Avatar>
   );
 
   return (
@@ -85,32 +84,8 @@ function AuthenticatedUserMenu({ user, anchorEl, open, onClick, onClose }: Authe
           onClick={onClick}
           size="small"
           aria-controls={open ? 'account-menu' : undefined}
-          aria-haspopup="true"
-          aria-expanded={open ? 'true' : undefined}
         >
-          <Avatar
-            sx={{
-              width: 32,
-              height: 32,
-              position: 'relative',
-              // Use theme color for text avatars, transparent for images
-              bgcolor: hasPhoto ? 'transparent' : 'primary.main',
-              fontSize: '0.875rem',
-            }}
-            alt={user.displayName || 'User'}
-          >
-            {!hasPhoto ? (
-              initials
-            ) : (
-              <Image
-                alt="User Avatar"
-                src={user.photoUrl || ''}
-                fill // makes the image fill the parent
-                sizes="100vw"
-                style={{ objectFit: 'cover' }} // controls cropping and scaling
-              />
-            )}
-          </Avatar>
+          {UserAvatar}
         </IconButton>
       </Tooltip>
 
@@ -130,66 +105,28 @@ function AuthenticatedUserMenu({ user, anchorEl, open, onClick, onClose }: Authe
               filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
               mt: 1.5,
               minWidth: 200,
-              '& .MuiAvatar-root': {
-                width: 32,
-                height: 32,
-                ml: -0.5,
-                mr: 1,
-              },
-              '&:before': {
-                content: '""',
-                display: 'block',
-                position: 'absolute',
-                top: 0,
-                right: 14,
-                width: 10,
-                height: 10,
-                bgcolor: 'background.paper',
-                transform: 'translateY(-50%) rotate(45deg)',
-                zIndex: 0,
-              },
             },
           },
         }}
       >
         <MenuItem component={Link} href="/profile">
-          <ListItemIcon>
-            <Avatar
-              sx={{
-                width: 32,
-                height: 32,
-                position: 'relative',
-                // Use theme color for text avatars, transparent for images
-                bgcolor: hasPhoto ? 'transparent' : 'primary.main',
-                fontSize: '0.875rem',
-              }}
-              alt={user.displayName || 'User'}
-            >
-              {!hasPhoto ? (
-                initials
-              ) : (
-                <Image
-                  alt="User Avatar"
-                  src={user.photoUrl || ''}
-                  fill // makes the image fill the parent
-                  sizes="100vw"
-                  style={{ objectFit: 'cover' }} // controls cropping and scaling
-                />
-              )}
-            </Avatar>
-          </ListItemIcon>
+          <ListItemIcon>{UserAvatar}</ListItemIcon>
           <Stack>
             <Typography variant="body2">{user.displayName}</Typography>
-            <Typography variant="subtitle2">{user.email}</Typography>
+            <Typography variant="subtitle2" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
+              {user.email}
+            </Typography>
           </Stack>
         </MenuItem>
+
+        <Divider />
+
         <MenuItem component={Link} href="/profile">
           <ListItemIcon>
             <Person fontSize="small" />
           </ListItemIcon>
           Profile
         </MenuItem>
-        <Divider />
 
         <MenuItem component={Link} href="/logout" sx={{ color: 'error.main' }}>
           <ListItemIcon>

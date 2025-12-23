@@ -4,31 +4,48 @@ import { env, getPrivateKey } from '../env';
 import { logInfo } from '../logger';
 
 function initializeAdmin() {
-  if (admin.apps.length > 0) return;
-
-  // Private key check specifically for Server context
-  if (!env.FIREBASE_CLIENT_EMAIL || !env.FIREBASE_PRIVATE_KEY) {
-    throw new Error('Missing Admin SDK credentials');
+  if (admin.apps.length > 0) {
+    return;
   }
+
+  // Use the explicit server-side variables
+  const projectId = env.FIREBASE_PROJECT_ID;
+  const clientEmail = env.FIREBASE_CLIENT_EMAIL;
+  const storageBucket = env.FIREBASE_STORAGE_BUCKET;
 
   admin.initializeApp({
     credential: admin.credential.cert({
-      projectId: env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-      clientEmail: env.FIREBASE_CLIENT_EMAIL,
+      projectId,
+      clientEmail,
       privateKey: getPrivateKey(),
     }),
-    storageBucket: env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    storageBucket,
   });
 
-  admin.firestore().settings({ ignoreUndefinedProperties: true });
-  logInfo(`✅ Firebase Admin initialized: ${env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}`);
+  admin.firestore().settings({
+    ignoreUndefinedProperties: true,
+  });
+
+  logInfo(`✅ Firebase Admin initialized: ${projectId}`);
 }
 
+// Initialize immediately
 initializeAdmin();
 
-export const firestore = () => admin.firestore();
-export const auth = () => admin.auth();
-export const storage = () => admin.storage();
+export const firestore = () => {
+  if (!admin.apps.length) initializeAdmin();
+  return admin.firestore();
+};
+
+export const auth = () => {
+  if (!admin.apps.length) initializeAdmin();
+  return admin.auth();
+};
+
+export const storage = () => {
+  if (!admin.apps.length) initializeAdmin();
+  return admin.storage();
+};
 
 export const AdminFirestore = {
   Timestamp: admin.firestore.Timestamp,

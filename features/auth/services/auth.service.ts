@@ -37,14 +37,6 @@ export class AuthService {
     });
   }
 
-  static async signin({ email }: { email: string }): Promise<Result<string>> {
-    return withErrorHandling(async () => {
-      const userProfile = await userRepository.getUserByEmail(email);
-      // Generate Custom Token for client-side sign-in
-      return await auth().createCustomToken(userProfile.uid);
-    });
-  }
-
   static async changePassword(
     uid: string,
     email: string,
@@ -68,39 +60,54 @@ export class AuthService {
     });
   }
 
+  /**
+   * Atomic Signup Transaction
+   * Creates Auth User -> Creates DB Profile -> Returns Token
+   * or Rolls back completely.
+   */
   static async signup(input: SignupInput): Promise<Result<string>> {
     return withErrorHandling(async () => {
-      // 1. Create Auth User
-      const userCredential = await auth().createUser({
-        email: input.email,
-        password: input.password,
-        displayName: input.displayName,
-        emailVerified: false,
-      });
+      let userUid: string | null = null;
 
-      // 2. Create DB Profile with Automatic Rollback Support
       try {
+        // 1. Create Auth User
+        const userCredential = await auth().createUser({
+          email: input.email,
+          password: input.password,
+          displayName: input.displayName,
+          emailVerified: false,
+        });
+        userUid = userCredential.uid;
+
+        // 2. Create DB Profile
         await userRepository.signUpUser({
-          uid: userCredential.uid,
+          uid: userUid,
           email: input.email,
           displayName: input.displayName,
         });
-      } catch (dbError) {
-        await this.rollbackAuthUser(userCredential.uid);
-        throw dbError;
-      }
 
-      return await auth().createCustomToken(userCredential.uid);
+        // 3. Generate Token
+        return await auth().createCustomToken(userUid);
+      } catch (error) {
+        // COMPENSATION TRANSACTION
+        if (userUid) {
+          await this.rollbackAuthUser(userUid);
+        }
+        throw error;
+      }
     });
   }
 
-  private static async rollbackAuthUser(uid: string) {
-    console.error(`Rolling back user ${uid}`);
+  // Refactor: Make public if you need to call it from admin panels later
+  public static async rollbackAuthUser(uid: string) {
+    console.warn(`[AuthService] Initiating rollback for user ${uid}`);
     try {
       await auth().deleteUser(uid);
+      // Add: Delete from DB if the DB write partially succeeded
+      // await userRepository.deleteUser(uid);
     } catch (e) {
-      console.error('CRITICAL: Rollback failed', e);
-      // Ideally, send this to an error reporting service (Sentry)
+      console.error('[AuthService] CRITICAL: Rollback failed. Manual intervention required.', e);
+      // TODO: Push to Sentry/Dead Letter Queue
     }
   }
 }

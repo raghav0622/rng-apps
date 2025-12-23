@@ -4,14 +4,16 @@ import { Alert, Button } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import { useState } from 'react';
 import { useFirebaseClientAuth } from '../hooks/useFirebaseClientAuth';
+import { useRNGAuth } from './AuthContext'; //
 
 export function EmailVerificationBanner() {
-  const { sendVerification, currentUser } = useFirebaseClientAuth();
+  const { sendVerification } = useFirebaseClientAuth();
+  const { firebaseUser } = useRNGAuth(); // Use reactive user from context
   const { enqueueSnackbar } = useSnackbar();
   const [sending, setSending] = useState(false);
 
-  // Don't show if verified or loading
-  if (!currentUser || currentUser.emailVerified) return null;
+  // Use firebaseUser instead of currentUser. This ensures the component re-renders when auth state loads.
+  if (!firebaseUser || firebaseUser.emailVerified) return null;
 
   const handleResend = async () => {
     setSending(true);

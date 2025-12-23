@@ -24,7 +24,7 @@ const profileFormConfig = defineForm<typeof ProfileSchema>((f) => [
     disabled: true,
     colProps: { size: { xs: 12, sm: 6 } },
   }),
-  f.avatar('photoURL', { label: 'Profile Picture' }),
+  f.avatar('photoUrl', { label: 'Profile Picture' }),
 ]);
 
 export default function ProfilePage() {
@@ -53,7 +53,7 @@ export default function ProfilePage() {
             uiSchema={profileFormConfig}
             defaultValues={{
               displayName: user.displayName || '',
-              photoURL: user.photoUrl || null,
+              photoUrl: user.photoUrl || null,
               email: user.email || '',
             }}
             submitLabel={isUpdating ? 'Saving...' : 'Save Changes'}

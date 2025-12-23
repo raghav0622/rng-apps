@@ -58,8 +58,19 @@ export class UserRepository {
   }
 
   async updateUser(uid: string, data: Partial<User>) {
+    // FIX: Remove undefined keys to prevent Firestore "Value for argument cannot be undefined" error
+    const cleanData = Object.entries(data).reduce(
+      (acc, [key, value]) => {
+        if (value !== undefined) {
+          acc[key] = value;
+        }
+        return acc;
+      },
+      {} as Record<string, any>,
+    );
+
     await this.usersCollection.doc(uid).update({
-      ...data,
+      ...cleanData,
       updatedAt: new Date(),
     });
   }

@@ -124,7 +124,7 @@ export const CreateSessionSchema = z.object({
 export const ProfileSchema = z.object({
   displayName: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.email('Invalid email address').optional(), // Read-only often
-  photoURL: z
+  photoUrl: z
     .union([
       z.string().nullable(), // For existing URL or clearing (null)
       z

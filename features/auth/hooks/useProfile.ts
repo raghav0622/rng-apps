@@ -53,29 +53,29 @@ export function useProfile() {
   /**
    * Orchestrates the upload and update process
    */
-  const handleUpdateProfile = async (data: ProfileInput, currentPhotoUrl?: string | null) => {
+  const handleUpdateProfile = async (data: ProfileInput, currentphotoUrl?: string | null) => {
     try {
-      let finalPhotoUrl: string | undefined = undefined;
+      let finalphotoUrl: string = '';
 
       // Case A: New File Upload
-      if (data.photoURL instanceof File) {
-        const res = await uploadAvatar({ file: data.photoURL });
+      if (data.photoUrl instanceof File) {
+        const res = await uploadAvatar({ file: data.photoUrl });
         if (!res?.url) throw new Error('Image upload failed');
-        finalPhotoUrl = res.url;
+        finalphotoUrl = res.url;
       }
       // Case B: Explicit Removal (null or empty string)
-      else if (data.photoURL === null || data.photoURL === '') {
-        finalPhotoUrl = '';
+      else if (!data.photoUrl || data.photoUrl === null || data.photoUrl === '') {
+        finalphotoUrl = '';
       }
       // Case C: No Change (string match)
-      else if (typeof data.photoURL === 'string') {
+      else if (typeof data.photoUrl === 'string') {
         // If it matches current, send undefined so backend ignores it
-        finalPhotoUrl = data.photoURL === currentPhotoUrl ? undefined : data.photoURL;
+        finalphotoUrl = data.photoUrl === currentphotoUrl ? '' : data.photoUrl;
       }
 
       await updateProfile({
         displayName: data.displayName,
-        photoUrl: finalPhotoUrl,
+        photoUrl: finalphotoUrl,
       });
     } catch (error: any) {
       console.error(error);

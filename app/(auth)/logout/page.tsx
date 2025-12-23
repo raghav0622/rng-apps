@@ -1,6 +1,7 @@
 'use client';
 
 import { logoutAction } from '@/features/auth/actions/session.actions';
+import { useRNGAuth } from '@/features/auth/components/AuthContext'; // <--- Import Auth Context
 import { useFirebaseClientAuth } from '@/features/auth/hooks/useFirebaseClientAuth';
 import { LoadingSpinner } from '@/ui/LoadingSpinner';
 import { useRouter } from 'next/navigation';
@@ -9,6 +10,7 @@ import { useEffect, useRef } from 'react';
 export default function LogoutPage() {
   const router = useRouter();
   const { clientLogout } = useFirebaseClientAuth();
+  const { setUser } = useRNGAuth(); // <--- Get state setter
   const hasCalledLogout = useRef(false);
 
   useEffect(() => {
@@ -23,17 +25,20 @@ export default function LogoutPage() {
 
         // 2. Clear Client SDK State (IndexedDB/LocalStorage)
         await clientLogout();
+
+        // 3. Clear Client Context State IMMEDIATELY
+        setUser(null);
       } catch (error) {
         console.error('Logout failed:', error);
       } finally {
-        // 3. Redirect to Login
+        // 4. Redirect to Login
         router.replace('/login');
         router.refresh();
       }
     };
 
     performLogout();
-  }, [router, clientLogout]);
+  }, [router, clientLogout, setUser]);
 
   return <LoadingSpinner message="Logging Out..." />;
 }

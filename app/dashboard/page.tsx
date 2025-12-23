@@ -1,13 +1,15 @@
 'use client';
 
+import { useOrg } from '@/features/orgs/components/OrgContext';
 import { Business as BusinessIcon, People as PeopleIcon } from '@mui/icons-material';
 import { Box, Container, Grid, Paper, Typography } from '@mui/material';
 
 export default function DashboardPage() {
+  const { org } = useOrg();
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Typography variant="h4" gutterBottom fontWeight="bold">
-        Dashboard
+        Dashboard of {org?.name}
       </Typography>
 
       <Grid container spacing={3} mt={2}>

@@ -1,9 +1,13 @@
-import { Typography } from '@mui/material';
-import { useColorScheme } from '@mui/material/styles';
+import { Chip } from '@mui/material';
 
 export default function Logo() {
-  const { mode, systemMode } = useColorScheme();
-  const isDarkMode = systemMode === 'dark' || mode === 'dark';
-
-  return <Typography variant="h6">RNG Apps</Typography>;
+  return (
+    <Chip
+      label="RNG Apps"
+      color="primary"
+      variant="filled"
+      size="small"
+      sx={{ borderColor: 'divider', border: 1 }}
+    />
+  );
 }

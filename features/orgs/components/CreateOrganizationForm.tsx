@@ -20,11 +20,10 @@ const createOrgUiSchema = defineForm<typeof CreateOrganizationSchema>((f) => [
 export function CreateOrganizationForm() {
   const { refreshSession } = useRNGAuth(); // <--- Hook to refresh session
   const router = useRouter();
-  const { execute, status } = useRNGServerAction(createOrganizationAction, {
+  const { runAction, status } = useRNGServerAction(createOrganizationAction, {
     onSuccess: async () => {
       // 1. Force a session refresh to update 'user.orgId' and 'user.onboarded' in context
       await refreshSession();
-      // 2. The Dashboard page will detect the change and re-render
     },
   });
 
@@ -38,7 +37,7 @@ export function CreateOrganizationForm() {
           uiSchema={createOrgUiSchema}
           defaultValues={{ name: '' }}
           onSubmit={async (data) => {
-            await execute(data);
+            await runAction(data);
             router.push('/');
           }}
           submitLabel="Create Organization"

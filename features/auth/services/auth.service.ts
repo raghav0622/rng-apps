@@ -83,7 +83,8 @@ export class AuthService {
         });
 
         // 3. Generate Token
-        return await auth().createCustomToken(userUid);
+        const customToken = await auth().createCustomToken(userUid);
+        return customToken;
       } catch (error) {
         // ROBUST ROLLBACK
         if (userUid) {

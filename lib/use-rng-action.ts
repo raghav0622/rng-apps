@@ -23,7 +23,7 @@ export function useRNGServerAction<S extends z.ZodType<any, any, any> | undefine
   action: SafeActionFn<any, S, any, any, Result<O>>,
   options: ActionOptions<S extends z.ZodType<any, any, any> ? z.infer<S> : void, O> = {},
 ) {
-  const { executeAsync, isExecuting, result, ...rest } = useAction(action);
+  const { executeAsync, isExecuting, result, execute, ...rest } = useAction(action);
   const { enqueueSnackbar } = useSnackbar();
 
   const runAction = async (
@@ -84,6 +84,7 @@ export function useRNGServerAction<S extends z.ZodType<any, any, any> | undefine
     runAction,
     isExecuting,
     result,
+    execute: runAction,
     ...rest,
   };
 }

@@ -80,6 +80,24 @@ export class UserRepository {
       updatedAt: new Date(),
     });
   }
+
+  // The "Soft" Delete
+  async softDeleteUser(uid: string) {
+    await this.usersCollection.doc(uid).update({
+      deletedAt: new Date(),
+      updatedAt: new Date(),
+    });
+  }
+
+  // The "Hard" Delete (for Rollbacks or GDPR Purges)
+  async forceDeleteUser(uid: string) {
+    try {
+      await this.usersCollection.doc(uid).delete();
+    } catch (e) {
+      console.warn('Failed to force delete user doc', e);
+      throw e;
+    }
+  }
 }
 
 export const userRepository = new UserRepository();

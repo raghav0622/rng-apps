@@ -26,9 +26,8 @@ export function middleware(request: NextRequest) {
   // --- Logic 1: Route Protection ---
   if (isAuthPage && isAuthenticated) {
     // 🛑 CRITICAL FIX: Break Infinite Loops / Zombie Sessions 🛑
-    // If the user is redirected to login with a specific reason (e.g., "session_revoked"),
-    // it means the App (Client/Server) determined the session is dead.
-    // We MUST clear the cookies and allow access to the Login page.
+    // If determined by the client/server that the session is dead (e.g., revoked),
+    // we clear cookies and allow the user to see the Login page.
     if (nextUrl.searchParams.has('reason')) {
       const response = NextResponse.next();
       response.cookies.delete(AUTH_SESSION_COOKIE_NAME);
@@ -36,12 +35,13 @@ export function middleware(request: NextRequest) {
       return response;
     }
 
+    // Otherwise, logged-in users are sent to the dashboard
     return NextResponse.redirect(new URL(DEFAULT_LOGIN_REDIRECT, nextUrl));
   }
 
   if (isProtected && !isAuthenticated) {
     const loginUrl = new URL(LOGIN_ROUTE, nextUrl);
-    // Smart Redirect: Preserve the page they were trying to visit
+    // Smart Redirect: Preserve the destination page
     loginUrl.searchParams.set('redirect_to', nextUrl.pathname + nextUrl.search);
     return NextResponse.redirect(loginUrl);
   }
@@ -58,6 +58,7 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    // Apply to all routes except internal Next.js paths and static assets
     '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };

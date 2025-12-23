@@ -41,12 +41,12 @@ export function TeamList() {
 
   // Actions
   const {
-    execute: fetchMembers,
+    runAction: fetchMembers,
     status: fetchStatus,
     result: fetchResult,
   } = useRNGServerAction(getMembersAction);
-  const { execute: removeMember } = useRNGServerAction(removeMemberAction);
-  const { execute: updateRole } = useRNGServerAction(updateMemberRoleAction);
+  const { runAction: removeMember } = useRNGServerAction(removeMemberAction);
+  const { runAction: updateRole } = useRNGServerAction(updateMemberRoleAction);
 
   // Menu State for Role Management
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);

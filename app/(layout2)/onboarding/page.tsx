@@ -5,17 +5,21 @@ import { CreateOrganizationForm } from '@/features/orgs/components/CreateOrganiz
 import { MyInvites } from '@/features/orgs/components/MyInvites';
 import { Business as BusinessIcon, Email as EmailIcon } from '@mui/icons-material';
 import { Box, Button, Card, CardContent, Stack, Typography } from '@mui/material';
-import { redirect } from 'next/navigation';
-import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 export default function OnboardingPage() {
   const [step, setStep] = useState<'choice' | 'create' | 'invites'>('choice');
   const { user, isSyncing } = useRNGAuth();
+  const router = useRouter();
 
-  // If already onboarded, send to dashboard
-  if (!isSyncing && user?.onboarded) {
-    redirect('/dashboard');
-  }
+  useEffect(() => {
+    if (!isSyncing && user?.onboarded) {
+      router.replace('/dashboard');
+    }
+  }, [user, isSyncing, router]);
+
+  if (isSyncing || user?.onboarded) return null;
 
   const renderChoice = () => (
     <Stack spacing={3}>
@@ -23,7 +27,7 @@ export default function OnboardingPage() {
         <Typography variant="h4" fontWeight="bold" gutterBottom>
           Welcome, {user?.displayName}!
         </Typography>
-        <Typography color="text.secondary">Onboarding Process?</Typography>
+        <Typography color="text.secondary">How would you like to get started?</Typography>
       </Box>
 
       <Card
@@ -69,7 +73,6 @@ export default function OnboardingPage() {
   return (
     <Box>
       {step === 'choice' && renderChoice()}
-
       {step === 'invites' && (
         <Stack spacing={2}>
           <Button onClick={() => setStep('choice')} sx={{ alignSelf: 'flex-start' }}>
@@ -78,7 +81,6 @@ export default function OnboardingPage() {
           <MyInvites />
         </Stack>
       )}
-
       {step === 'create' && (
         <Stack spacing={2}>
           <Button onClick={() => setStep('choice')} sx={{ alignSelf: 'flex-start' }}>

@@ -28,10 +28,10 @@ export function MyInvites() {
   const [invites, setInvites] = useState<OrgInvite[]>([]);
 
   // Fetch Invites
-  const { execute: fetchInvites, status: fetchStatus, result } = useRngAction(getMyInvitesAction);
+  const { runAction: fetchInvites, status: fetchStatus, result } = useRngAction(getMyInvitesAction);
 
   // Respond Action
-  const { execute: respond, status: respondStatus } = useRngAction(respondToInviteAction, {
+  const { runAction: respond, status: respondStatus } = useRngAction(respondToInviteAction, {
     onSuccess: () => {
       fetchInvites(); // Refresh list after action
     },

@@ -24,17 +24,18 @@ export function UserMenu() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
 
-  if (!user) return null;
+  if (user)
+    return (
+      <AuthenticatedUserMenu
+        user={user}
+        anchorEl={anchorEl}
+        open={open}
+        onClick={(e) => setAnchorEl(e.currentTarget)}
+        onClose={() => setAnchorEl(null)}
+      />
+    );
 
-  return (
-    <AuthenticatedUserMenu
-      user={user}
-      anchorEl={anchorEl}
-      open={open}
-      onClick={(e) => setAnchorEl(e.currentTarget)}
-      onClose={() => setAnchorEl(null)}
-    />
-  );
+  return null;
 }
 
 interface AuthenticatedMenuProps {

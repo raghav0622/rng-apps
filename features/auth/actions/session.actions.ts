@@ -34,7 +34,6 @@ export const logoutAction = actionClient.metadata({ name: 'auth.logout' }).actio
 export const checkSessionAction = authActionClient
   .metadata({ name: 'session.check' })
   .action(async ({ ctx }) => {
-    // Correct structure: { success: true, data: { user: ... } }
     return { success: true, data: { user: ctx.user } };
   });
 

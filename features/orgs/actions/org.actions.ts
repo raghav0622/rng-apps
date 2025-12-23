@@ -1,10 +1,12 @@
 'use server';
 
 import { AppPermission } from '@/lib/action-policies';
+import { serializeFirestoreData } from '@/lib/firebase/utils';
 import { checkRateLimit } from '@/lib/rate-limit';
 import { authActionClient, orgActionClient } from '@/lib/safe-action';
 import { revalidatePath } from 'next/cache';
 import { CreateOrganizationSchema, UpdateOrganizationSchema } from '../org.model';
+import { orgRepository } from '../repositories/org.repository';
 import { OrgService } from '../services/org.service';
 
 // ----------------------------------------------------------------------------
@@ -52,4 +54,18 @@ export const updateOrganizationAction = orgActionClient
     }
 
     return result;
+  });
+
+export const getOrganizationAction = orgActionClient
+  .metadata({ name: 'org.get' })
+  .action(async ({ ctx }) => {
+    // Uses your existing orgRepository to fetch the org by the context's orgId
+    const org = await orgRepository.getById(ctx.orgId);
+
+    if (!org) {
+      return { success: false, error: 'Organization not found' };
+    }
+
+    // Ensures Firestore data is sanitized for the client
+    return { success: true, data: serializeFirestoreData(org) };
   });

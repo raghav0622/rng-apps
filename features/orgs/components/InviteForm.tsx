@@ -29,7 +29,7 @@ const inviteUiSchema = defineForm<typeof CreateInviteSchema>((f) => [
 ]);
 
 export function InviteForm() {
-  const { execute, status } = useRngAction(createInviteAction, {
+  const { runAction: execute, status } = useRngAction(createInviteAction, {
     onSuccess: () => {
       alert('Invite sent successfully!');
       // Note: RNGForm can handle reset internally if configured,

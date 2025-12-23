@@ -1,20 +1,18 @@
 'use client';
 
 import { LoginInput } from '@/features/auth/auth.model';
-import { useRNGAuth } from '@/features/auth/components/AuthContext'; // <--- Import Auth Context
+import { useRNGAuth } from '@/features/auth/components/AuthContext';
 import { useRNGServerAction } from '@/lib/use-rng-action';
 import { FormError } from '@/rng-form';
-import { DEFAULT_LOGIN_REDIRECT } from '@/routes';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { createSessionAction } from '../actions/session.actions';
 import { mapAuthError } from '../utils/auth-errors';
 import { useFirebaseClientAuth } from './useFirebaseClientAuth';
 
 export function useSignin() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { signInEmail } = useFirebaseClientAuth();
-  const { refreshSession } = useRNGAuth(); // <--- Get refresh function
+  const { refreshSession } = useRNGAuth(); // Destructure setUser
 
   const { runAction: createSession } = useRNGServerAction(createSessionAction, {
     successMessage: 'Account Login Successful',
@@ -22,22 +20,20 @@ export function useSignin() {
 
   const handleSubmit = async (data: LoginInput) => {
     try {
-      // 1. Authenticate with Firebase Client SDK (Verifies Password)
       const idToken = await signInEmail(data.email, data.password);
-
-      // 2. Create the HTTP-only Session Cookie via Server Action
       await createSession({ idToken });
 
-      // 3. FORCE REFRESH: Update AuthContext state
-      await refreshSession();
+      // Explicitly update client state before redirecting
+      const updatedUser = await refreshSession();
 
-      // 4. Redirect
-      const redirectTo = searchParams.get('redirect_to') || DEFAULT_LOGIN_REDIRECT;
-      router.push(redirectTo);
-      router.refresh(); // Ensure server components also re-fetch
+      if (updatedUser && !updatedUser.onboarded) {
+        router.push('/onboarding');
+      } else {
+        router.push('/dashboard');
+      }
+      router.refresh();
     } catch (error: any) {
-      const errorMsg = mapAuthError(error.code, error.message);
-      throw new FormError(errorMsg);
+      throw new FormError(mapAuthError(error.code, error.message));
     }
   };
 

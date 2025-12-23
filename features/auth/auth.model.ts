@@ -79,6 +79,12 @@ export const ResetPasswordSchema = z
 
 export type ResetPasswordInput = z.infer<typeof ResetPasswordSchema>;
 
+export const ForgotPasswordSchema = z.object({
+  email: z.email('Invalid email address'),
+});
+
+export type ForgotPasswordInput = z.infer<typeof ForgotPasswordSchema>;
+
 // --- SESSION SCHEMAS ---
 
 export const SessionSchema = z.object({

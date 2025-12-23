@@ -1,18 +1,19 @@
 'use client';
 
 import { logoutAction } from '@/features/auth/actions/session.actions';
-import { clientAuth } from '@/lib/firebase/client';
+import { useFirebaseClientAuth } from '@/features/auth/hooks/useFirebaseClientAuth';
 import { LoadingSpinner } from '@/ui/LoadingSpinner';
-import { signOut } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef } from 'react';
 
 export default function LogoutPage() {
   const router = useRouter();
+  const { clientLogout } = useFirebaseClientAuth();
   const hasCalledLogout = useRef(false);
 
   useEffect(() => {
     const performLogout = async () => {
+      // Prevent double execution in React Strict Mode
       if (hasCalledLogout.current) return;
       hasCalledLogout.current = true;
 
@@ -21,7 +22,7 @@ export default function LogoutPage() {
         await logoutAction();
 
         // 2. Clear Client SDK State (IndexedDB/LocalStorage)
-        await signOut(clientAuth);
+        await clientLogout();
       } catch (error) {
         console.error('Logout failed:', error);
       } finally {
@@ -32,7 +33,7 @@ export default function LogoutPage() {
     };
 
     performLogout();
-  }, [router]);
+  }, [router, clientLogout]);
 
   return <LoadingSpinner message="Logging Out..." />;
 }

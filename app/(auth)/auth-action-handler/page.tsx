@@ -30,6 +30,7 @@ function AuthActionContent() {
     );
   }
 
+  // Dispatch based on mode
   switch (mode) {
     case 'resetPassword':
       return <ResetPasswordForm oobCode={oobCode} />;
@@ -41,6 +42,11 @@ function AuthActionContent() {
           <Alert severity="info">
             Email recovery is not yet implemented. Please contact support.
           </Alert>
+          <Box sx={{ mt: 3, textAlign: 'center' }}>
+            <Button component={Link} href="/login" variant="text">
+              Back to Login
+            </Button>
+          </Box>
         </AuthCard>
       );
     default:

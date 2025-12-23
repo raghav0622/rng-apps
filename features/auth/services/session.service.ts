@@ -11,6 +11,22 @@ import { sessionRepository } from '../repositories/session.repository';
 import { userRepository } from '../repositories/user.repository';
 
 export class SessionService {
+  /**
+   * Robustly extracts the real client IP, handling proxy chains.
+   */
+  private static async getClientIp(): Promise<string> {
+    const headersList = await headers();
+    const forwardedFor = headersList.get('x-forwarded-for');
+
+    if (forwardedFor) {
+      // The first IP in the list is the original client IP
+      return forwardedFor.split(',')[0].trim();
+    }
+
+    // Fallback for direct connections or dev environments
+    return headersList.get('x-real-ip') || 'unknown';
+  }
+
   // Atomic Step 1: Verification
   private static async verifyAndGetUid(idToken: string) {
     const decoded = await sessionRepository.verifyIdToken(idToken);
@@ -51,14 +67,14 @@ export class SessionService {
     try {
       const headersList = await headers();
       const userAgent = headersList.get('user-agent') || 'unknown';
-      const ip = headersList.get('x-forwarded-for') || 'unknown';
+      const ip = await this.getClientIp();
 
       // 1. Verify
       const { uid, emailVerified } = await this.verifyAndGetUid(idToken);
 
-      // 2. Side Effect: Sync Verification Status (Fire and Forget or Await based on strictness)
+      // 2. Side Effect: Sync Verification Status (Fire and Forget)
       if (emailVerified) {
-        await userRepository.updateUser(uid, { emailVerified: true }).catch(console.error);
+        userRepository.updateUser(uid, { emailVerified: true }).catch(console.error);
       }
 
       // 3. Persist & Set Cookies
@@ -68,7 +84,6 @@ export class SessionService {
       return { success: true, data: undefined };
     } catch (error: any) {
       console.error('Create Session Error:', error);
-      // TEMPORARY: Throw the real error message to see it in the UI
       throw new CustomError(AppErrorCode.UNAUTHENTICATED, error.message);
     }
   }
@@ -83,7 +98,7 @@ export class SessionService {
         const claims = await sessionRepository.verifySessionCookie(sessionCookie);
         await sessionRepository.deleteSessionRecord(claims.uid, sessionId);
       } catch (e) {
-        // Session likely already invalid
+        // Session likely already invalid/expired
       }
     }
 
@@ -101,8 +116,6 @@ export class SessionService {
       throw new CustomError(AppErrorCode.DB_ERROR, 'Failed to revoke sessions');
     }
   }
-
-  // --- NEWLY ADDED METHODS ---
 
   static async getActiveSessions(userId: string): Promise<Result<Session[]>> {
     try {

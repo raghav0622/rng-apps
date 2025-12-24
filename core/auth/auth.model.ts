@@ -1,7 +1,7 @@
 // features/auth/auth.model.ts
-import { BaseEntity } from '@/core/lib/firestore-repository/types';
+import { BaseEntity } from '@/lib/firestore-repository/types';
 import { z } from 'zod';
-import { UserRoleInOrg } from '../lib/action-policies';
+import { UserRoleInOrg } from '../../lib/action-policies';
 
 /**
  * 🔒 User Entity

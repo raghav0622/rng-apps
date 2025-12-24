@@ -1,8 +1,8 @@
 // features/auth/services/session.service.ts
-import { SESSION_PREFIX, SESSION_TTL_SECONDS } from '@/core/lib/constants';
-import { Result } from '@/core/lib/types'; // Assuming standard Result type exists
-import { AppErrorCode } from '@/core/lib/utils/errors';
+import { SESSION_PREFIX, SESSION_TTL_SECONDS } from '@/lib/constants';
 import { redisClient } from '@/lib/redis';
+import { Result } from '@/lib/types'; // Assuming standard Result type exists
+import { AppErrorCode } from '@/lib/utils/errors';
 import 'server-only';
 
 // Constants for Session Management

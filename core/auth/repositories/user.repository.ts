@@ -1,6 +1,6 @@
 // features/auth/repositories/user.repository.ts
-import { FirestoreRepository } from '@/core/lib/firestore-repository/firestore-repository';
-import { upstashCache } from '@/core/lib/firestore-repository/redis-adapter';
+import { FirestoreRepository } from '@/lib/firestore-repository/firestore-repository';
+import { upstashCache } from '@/lib/firestore-repository/redis-adapter';
 import { cache } from 'react'; // React cache for request deduping
 import { User, UserSchema } from '../auth.model';
 

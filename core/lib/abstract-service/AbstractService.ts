@@ -7,34 +7,46 @@ import { AppError, AppErrorCode, CustomError } from '../utils/errors';
 import { checkRateLimit } from '../utils/rate-limit';
 import { getTraceId } from '../utils/tracing';
 import { CircuitBreaker } from './resilience/circuit-breaker';
+import { getIdempotencyRecord, saveIdempotencyRecord } from './resilience/idempotency';
 import { withTimeout } from './resilience/timeout';
 
 export abstract class AbstractService {
-  // Static registry keeps circuit states alive across service instantiations
   private static breakers = new Map<string, CircuitBreaker>();
-  private readonly DEFAULT_TIMEOUT = 15000; // 15 seconds
+  private readonly DEFAULT_TIMEOUT = 15000;
 
   protected async handleOperation<T>(
     operationName: string,
     operation: () => Promise<T>,
-    options?: { timeoutMs?: number; skipRateLimit?: boolean },
+    options?: {
+      timeoutMs?: number;
+      skipRateLimit?: boolean;
+      idempotencyKey?: string; // New: Unique key for the request
+    },
   ): Promise<Result<T>> {
     const traceId = getTraceId();
     const startTime = performance.now();
 
-    // Get or create breaker for this specific service operation
     if (!AbstractService.breakers.has(operationName)) {
       AbstractService.breakers.set(operationName, new CircuitBreaker());
     }
     const breaker = AbstractService.breakers.get(operationName)!;
 
     try {
-      // 1. Security Pillar: Rate Limiting
+      // 1. Idempotency Check: Return cached result if we've seen this key before
+      if (options?.idempotencyKey) {
+        const cachedResult = await getIdempotencyRecord(options.idempotencyKey);
+        if (cachedResult) {
+          logInfo(`[IDEMPOTENCY_HIT] ${operationName}`, { traceId, key: options.idempotencyKey });
+          return { success: true, data: cachedResult as T };
+        }
+      }
+
+      // 2. Security: Rate Limiting
       if (!options?.skipRateLimit) {
         await checkRateLimit();
       }
 
-      // 2. Resilience Pillar: Circuit Breaker + Timeout
+      // 3. Execution: Circuit Breaker + Timeout
       const data = await breaker.execute(async () => {
         return await withTimeout(
           operation(),
@@ -43,48 +55,41 @@ export abstract class AbstractService {
         );
       });
 
-      // 3. Observability Pillar: Success Logging
+      // 4. Save for Idempotency: Cache successful result
+      if (options?.idempotencyKey) {
+        await saveIdempotencyRecord(options.idempotencyKey, data);
+      }
+
       const duration = (performance.now() - startTime).toFixed(2);
       logInfo(`[SERVICE_SUCCESS] ${operationName}`, { traceId, duration: `${duration}ms` });
 
       return { success: true, data };
     } catch (error: any) {
-      const duration = (performance.now() - startTime).toFixed(2);
-
-      // 4. Error Mapping & Obfuscation
-      logError(`Service Error [${operationName}] after ${duration}ms`, {
-        traceId,
-        error: error instanceof Error ? error.message : error,
-        operation: operationName,
-      });
-
-      // Handle Known Business/Custom Errors
-      if (error instanceof CustomError) {
-        return { success: false, error: error.toAppError(traceId) };
-      }
-
-      // Handle Specific System Failures (Circuit/Timeout)
-      let errorCode = AppErrorCode.INTERNAL_ERROR;
-      let message = error.message || 'An internal service error occurred.';
-
-      if (message.includes('CIRCUIT_OPEN')) {
-        errorCode = AppErrorCode.INTERNAL_ERROR; // Or a specific SHUTDOWN code
-        message = 'Service is temporarily overloaded. Please try again in 30s.';
-      } else if (message.includes('Timeout')) {
-        errorCode = AppErrorCode.INTERNAL_ERROR;
-        message = 'The operation timed out. Please try again.';
-      } else if (message.includes('Too many attempts')) {
-        errorCode = AppErrorCode.TOO_MANY_REQUESTS;
-      }
-
-      const appError: AppError = {
-        code: errorCode,
-        message,
-        traceId,
-        details: { duration: `${duration}ms` },
-      };
-
-      return { success: false, error: appError };
+      return this.handleGlobalError(error, operationName, traceId, startTime);
     }
+  }
+
+  private handleGlobalError(
+    error: any,
+    opName: string,
+    traceId: string,
+    start: number,
+  ): Result<any> {
+    const duration = (performance.now() - start).toFixed(2);
+    logError(`Service Error [${opName}]`, { traceId, error: error.message, duration });
+
+    if (error instanceof CustomError) {
+      return { success: false, error: error.toAppError(traceId) };
+    }
+
+    // Default Error Mapping
+    const appError: AppError = {
+      code: error.message?.includes('CIRCUIT') ? AppErrorCode.INTERNAL_ERROR : AppErrorCode.UNKNOWN,
+      message: error.message || 'An internal error occurred.',
+      traceId,
+      details: { duration: `${duration}ms` },
+    };
+
+    return { success: false, error: appError };
   }
 }

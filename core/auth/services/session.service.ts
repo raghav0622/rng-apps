@@ -2,7 +2,7 @@
 import { SESSION_PREFIX, SESSION_TTL_SECONDS } from '@/core/lib/constants';
 import { Result } from '@/core/lib/types'; // Assuming standard Result type exists
 import { AppErrorCode } from '@/core/lib/utils/errors';
-import { redisClient } from '@/rng-form/utils/redis';
+import { redisClient } from '@/lib/redis';
 import 'server-only';
 
 // Constants for Session Management

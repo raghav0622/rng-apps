@@ -1,10 +1,13 @@
-import { env } from '../lib/env';
+import { env } from '@/lib/env';
 
 export const AUTH_SESSION_COOKIE_NAME = env.SESSION_COOKIE_NAME;
 export const SESSION_ID_COOKIE_NAME = `${env.SESSION_COOKIE_NAME}_id`;
 
 // Convert days to milliseconds for cookie options
 export const SESSION_DURATION_MS = env.SESSION_COOKIE_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
+
+export const SESSION_PREFIX = 'session:valid:';
+export const SESSION_TTL_SECONDS = SESSION_DURATION_MS / 1000; // 5 days (matches Firebase cookie)
 
 export const getCookieOptions = () => ({
   maxAge: SESSION_DURATION_MS / 1000,

@@ -1,17 +1,17 @@
-import { userRepository } from '@/features/auth/repositories/user.repository';
-import { SessionService } from '@/features/auth/services/session.service';
-import { UserRoleInOrg } from '@/features/enums';
+import 'server-only';
+
+import { auth } from '@/lib/firebase/admin';
+import { logError } from '@/lib/logger';
 import { createSafeActionClient, DEFAULT_SERVER_ERROR_MESSAGE } from 'next-safe-action';
 import { cookies } from 'next/headers';
-import 'server-only';
 import { z } from 'zod';
-import { auth } from '../lib/firebase/admin';
-import { AppPermission, hasAllPermissions } from './action-policies';
-import { AUTH_SESSION_COOKIE_NAME, SESSION_ID_COOKIE_NAME } from './constants';
-import { AppError, AppErrorCode, CustomError } from './errors';
-import { logError } from './logger';
-import { checkRateLimit } from './rate-limit';
-import { getTraceId } from './tracing';
+import { userRepository } from '../../auth/repositories/user.repository';
+import { SessionService } from '../../auth/services/session.service';
+import { AppPermission, hasAllPermissions, UserRoleInOrg } from '../action-policies';
+import { AUTH_SESSION_COOKIE_NAME, SESSION_ID_COOKIE_NAME } from '../constants';
+import { AppError, AppErrorCode, CustomError } from '../utils/errors';
+import { checkRateLimit } from '../utils/rate-limit';
+import { getTraceId } from '../utils/tracing';
 
 // ----------------------------------------------------------------------------
 // 1. Base Action Client (Public / Infrastructure)

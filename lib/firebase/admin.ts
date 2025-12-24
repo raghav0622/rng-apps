@@ -1,6 +1,6 @@
+import { logInfo } from '@/lib/logger';
 import * as admin from 'firebase-admin';
 import 'server-only';
-import { logInfo } from '../../core/logger';
 import { getServerEnv } from '../env';
 
 function initializeAdmin() {

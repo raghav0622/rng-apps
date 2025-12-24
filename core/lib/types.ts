@@ -1,7 +1,7 @@
 // lib/types.ts
 // FIX: Use 'import type' to avoid runtime import of firebase-admin
 import type { Timestamp } from 'firebase-admin/firestore';
-import { AppError } from './errors';
+import { AppError } from './utils/errors';
 
 export type SuccessResult<T> = {
   success: true;

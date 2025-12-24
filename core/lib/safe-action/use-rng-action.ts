@@ -1,10 +1,11 @@
-import { AppErrorCode } from '@/core/errors';
-import { Result, SuccessResult } from '@/core/types';
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { FormError } from '@/rng-form';
 import { SafeActionFn } from 'next-safe-action';
 import { useAction } from 'next-safe-action/hooks';
 import { useSnackbar } from 'notistack';
 import { z } from 'zod';
+import { Result, SuccessResult } from '../types';
+import { AppErrorCode } from '../utils/errors';
 
 // Helper to extract the Schema from the Action Type
 type InferSchema<A> = A extends SafeActionFn<any, infer S, any, any, any> ? S : never;

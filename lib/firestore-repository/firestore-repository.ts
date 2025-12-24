@@ -239,13 +239,14 @@ export class FirestoreRepository<T extends BaseEntity> {
     }
 
     try {
-      const results = await this.searchProvider.search<T>(this.collection.id, query, options);
+      // Inject the tenant filter directly into the provider options
+      const tenantId = this.defaultCreateOverrides?.orgId;
+      const searchOptions = {
+        ...options,
+        ...(tenantId ? { filters: `orgId:${tenantId}` } : {}), // Syntax varies by provider (Algolia vs Meili)
+      };
 
-      // Security Check: Filter results by tenant if scoped
-      if (this.defaultCreateOverrides?.orgId) {
-        results.hits = results.hits.filter((h) => h.orgId === this.defaultCreateOverrides.orgId);
-      }
-
+      const results = await this.searchProvider.search<T>(this.collection.id, query, searchOptions);
       return results;
     } catch (e: any) {
       throw new RepositoryError(`Search failed: ${e.message}`, 'UNKNOWN', e);

@@ -9,10 +9,16 @@ import { FormItem } from './types/index';
  * Provides convenience methods for all registered field types.
  */
 export class FormBuilderDSL<S extends FormSchema> {
+  private fields: Record<string, z.ZodTypeAny> = {};
+
+  buildZodSchema() {
+    return z.object(this.fields);
+  }
+
   // ===========================================================================
   // INTERNAL FACTORY
   // ===========================================================================
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
   private create<T extends string, P>(type: T, name: Path<z.infer<S>> | undefined, props: P): any {
     return { type, name, ...props };
   }
@@ -250,9 +256,9 @@ export class FormBuilderDSL<S extends FormSchema> {
 
   array(
     name: Path<z.infer<S>>,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     items: FormItem<any>[],
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     props?: Omit<LayoutRegistry<S, any>['array'], 'items' | 'name'> & Partial<BaseFormItem<S>>,
   ) {
     return this.create('array', name, { items, ...props });
@@ -260,9 +266,9 @@ export class FormBuilderDSL<S extends FormSchema> {
 
   dataGrid(
     name: Path<z.infer<S>>,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     columns: LayoutRegistry<S, any>['data-grid']['columns'],
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     props?: Omit<LayoutRegistry<S, any>['data-grid'], 'columns' | 'name'> &
       Partial<BaseFormItem<S>>,
   ) {

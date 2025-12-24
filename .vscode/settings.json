@@ -17,8 +17,7 @@
     "next.config.ts": true,
     "tsconfig.json": true,
     ".env.local": true,
-    "ui": true,
-    "rng-form": true
+    "ui": true
   },
   "hide-files.files": [
     "node_modules",
@@ -32,8 +31,7 @@
     "next.config.ts",
     "tsconfig.json",
     ".env.local",
-    "ui",
-    "rng-form"
+    "ui"
   ],
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {

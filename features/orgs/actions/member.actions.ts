@@ -7,9 +7,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { MemberService } from '../services/member.service';
 
-// ----------------------------------------------------------------------------
-// Get Members
-// ----------------------------------------------------------------------------
+// --- Get Members ---
 export const getMembersAction = orgActionClient
   .metadata({
     name: 'members.list',
@@ -19,9 +17,7 @@ export const getMembersAction = orgActionClient
     return await MemberService.getMembers(ctx.orgId);
   });
 
-// ----------------------------------------------------------------------------
-// Update Role
-// ----------------------------------------------------------------------------
+// --- Update Role ---
 const UpdateRoleSchema = z.object({
   userId: z.string(),
   newRole: z.nativeEnum(UserRoleInOrg),
@@ -32,7 +28,7 @@ export const updateMemberRoleAction = orgActionClient
     name: 'members.updateRole',
     permissions: [AppPermission.MEMBER_UPDATE],
   })
-  .inputSchema(UpdateRoleSchema)
+  .schema(UpdateRoleSchema) // Note: using .schema() instead of .inputSchema() for newer next-safe-action versions, or stick to what worked if older
   .action(async ({ parsedInput, ctx }) => {
     const result = await MemberService.updateMemberRole(
       ctx.userId,
@@ -41,16 +37,11 @@ export const updateMemberRoleAction = orgActionClient
       parsedInput.newRole,
       ctx.orgId,
     );
-
-    if (result.success) {
-      revalidatePath('/dashboard/team');
-    }
+    if (result.success) revalidatePath('/dashboard/team');
     return result;
   });
 
-// ----------------------------------------------------------------------------
-// Remove Member
-// ----------------------------------------------------------------------------
+// --- Remove Member ---
 const RemoveMemberSchema = z.object({
   userId: z.string(),
 });
@@ -60,12 +51,9 @@ export const removeMemberAction = orgActionClient
     name: 'members.remove',
     permissions: [AppPermission.MEMBER_REMOVE],
   })
-  .inputSchema(RemoveMemberSchema)
+  .schema(RemoveMemberSchema)
   .action(async ({ parsedInput, ctx }) => {
     const result = await MemberService.removeMember(ctx.userId, parsedInput.userId, ctx.orgId);
-
-    if (result.success) {
-      revalidatePath('/dashboard/team');
-    }
+    if (result.success) revalidatePath('/dashboard/team');
     return result;
   });

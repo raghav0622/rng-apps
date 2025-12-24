@@ -55,7 +55,9 @@ export class InviteService {
     };
 
     await inviteRepository.create(newInvite);
-    return { success: true, data: newInvite };
+
+    // FIX: Serialize the Firestore data (Timestamps -> ISO strings) before returning to client
+    return { success: true, data: serializeFirestoreData(newInvite) };
   }
 
   /**

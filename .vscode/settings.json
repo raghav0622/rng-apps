@@ -13,15 +13,12 @@
     "next-env.d.ts": true,
     ".vscode": true,
     "public": true,
-    "app/page.tsx": true,
-    "app/loading.tsx": true,
     "eslint.config.mjs": true,
     "next.config.ts": true,
     "tsconfig.json": true,
     ".env.local": true,
     "ui": true,
-    "rng-form": true,
-    "app": true
+    "rng-form": true
   },
   "hide-files.files": [
     "node_modules",
@@ -31,15 +28,12 @@
     "next-env.d.ts",
     ".vscode",
     "public",
-    "app/page.tsx",
-    "app/loading.tsx",
     "eslint.config.mjs",
     "next.config.ts",
     "tsconfig.json",
     ".env.local",
     "ui",
-    "rng-form",
-    "app"
+    "rng-form"
   ],
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {

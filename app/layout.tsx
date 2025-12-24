@@ -1,5 +1,3 @@
-import { RNGAuthContextProvider } from '@/features/auth/components/AuthContext';
-import { getCurrentUser } from '@/features/auth/session';
 import InitColorSchemeScript from '@mui/material/InitColorSchemeScript';
 import type { Metadata } from 'next';
 import AppProvider from './provider';
@@ -13,14 +11,11 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const user = await getCurrentUser();
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
         <InitColorSchemeScript attribute="class" />
-        <RNGAuthContextProvider user={user}>
-          <AppProvider>{children}</AppProvider>
-        </RNGAuthContextProvider>
+        <AppProvider>{children}</AppProvider>
       </body>
     </html>
   );

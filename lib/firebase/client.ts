@@ -4,6 +4,10 @@ import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { env } from '../env';
 
+/**
+ * Public Firebase Configuration.
+ * These keys are safe to expose to the browser (NEXT_PUBLIC_ prefix).
+ */
 const firebaseConfig = {
   apiKey: env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -13,6 +17,10 @@ const firebaseConfig = {
   appId: env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
+/**
+ * Singleton Firebase Client App.
+ * Ensures we don't re-initialize the app on client-side navigation.
+ */
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 export const clientAuth = getAuth(app);

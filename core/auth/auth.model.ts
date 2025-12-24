@@ -9,6 +9,10 @@ import { UserRoleInOrg } from '../../lib/action-policies';
  * * STRICT TENANCY RULE:
  * A user can only belong to ONE organization at a time (orgId).
  * To switch orgs, they must leave the current one.
+ *
+ * @example
+ * // Usage in Zod validation
+ * UserSchema.parse(unknownUserData);
  */
 export const UserSchema = z.object({
   id: z.string(),
@@ -31,6 +35,14 @@ export const UserSchema = z.object({
 
 export type User = z.infer<typeof UserSchema> & BaseEntity;
 
+/**
+ * Validation schema for the Sign Up form.
+ * Enforces email format, password length, and that password matches confirmPassword.
+ *
+ * @example
+ * const result = SignUpSchema.safeParse(formData);
+ * if (!result.success) { handleErrors(result.error); }
+ */
 export const SignUpSchema = z
   .object({
     displayName: z.string().min(3).max(50),

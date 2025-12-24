@@ -1,21 +1,32 @@
 import 'server-only';
 
+import { AppPermission, hasAllPermissions, UserRoleInOrg } from '@/lib/action-policies';
+import { AUTH_SESSION_COOKIE_NAME, SESSION_ID_COOKIE_NAME } from '@/lib/constants';
 import { auth } from '@/lib/firebase/admin';
 import { logError } from '@/lib/logger';
+import { AppError, AppErrorCode, CustomError } from '@/lib/utils/errors';
+import { checkRateLimit } from '@/lib/utils/rate-limit';
+import { getTraceId } from '@/lib/utils/tracing';
 import { createSafeActionClient, DEFAULT_SERVER_ERROR_MESSAGE } from 'next-safe-action';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
 import { userRepository } from '../../core/auth/repositories/user.repository';
 import { SessionService } from '../../core/auth/services/session.service';
-import { AUTH_SESSION_COOKIE_NAME, SESSION_ID_COOKIE_NAME } from '../../core/lib/constants';
-import { AppPermission, hasAllPermissions, UserRoleInOrg } from '../action-policies';
-import { AppError, AppErrorCode, CustomError } from '../utils/errors';
-import { checkRateLimit } from '../utils/rate-limit';
-import { getTraceId } from '../utils/tracing';
 
 // ----------------------------------------------------------------------------
 // 1. Base Action Client (Public / Infrastructure)
 // ----------------------------------------------------------------------------
+
+/**
+ * The base client for type-safe server actions.
+ * Handles top-level error catching, logging, and metadata schema definitions.
+ *
+ * @example
+ * // Define a public action
+ * export const myAction = actionClient
+ * .schema(mySchema)
+ * .action(async ({ parsedInput }) => { ... });
+ */
 export const actionClient = createSafeActionClient({
   handleServerError: (e, utils) => {
     const traceId = getTraceId();
@@ -51,6 +62,25 @@ export const actionClient = createSafeActionClient({
 // ----------------------------------------------------------------------------
 // 2. Authenticated Middleware (Session & User Context)
 // ----------------------------------------------------------------------------
+
+/**
+ * An authenticated action client.
+ * Enforces:
+ * 1. Rate Limiting.
+ * 2. Session validity (Cookie & Redis check).
+ * 3. User existence and "not disabled" check.
+ * 4. RBAC permissions (if defined in metadata).
+ *
+ * It injects `ctx.user`, `ctx.userId`, `ctx.orgId`, etc., into the action context.
+ *
+ * @example
+ * export const updateProfile = authActionClient
+ * .metadata({ name: 'update-profile' })
+ * .schema(updateSchema)
+ * .action(async ({ ctx, parsedInput }) => {
+ * console.log(ctx.userId); // Safe to use
+ * });
+ */
 export const authActionClient = actionClient
   .use(async ({ next }) => {
     // A. Rate Limiting Strategy (Token Bucket via Redis usually)
@@ -126,6 +156,17 @@ export const authActionClient = actionClient
 /**
  * Use this client for ANY action that reads/writes organization data.
  * It guarantees that `ctx.orgId` is present and valid.
+ *
+ * @throws {ORGANIZATION_REQUIRED} If the user is not currently in an organization.
+ *
+ * @example
+ * export const createProject = orgActionClient
+ * .metadata({ name: 'create-project', permissions: [AppPermission.PROJECT_CREATE] })
+ * .schema(projectSchema)
+ * .action(async ({ ctx }) => {
+ * // ctx.orgId is guaranteed to be a string here
+ * await db.create(ctx.orgId, ...);
+ * });
  */
 export const orgActionClient = authActionClient.use(async ({ next, ctx }) => {
   if (!ctx.orgId || ctx.orgRole === UserRoleInOrg.NOT_IN_ORG) {

@@ -20,6 +20,13 @@ class UserRepository extends FirestoreRepository<User> {
   /**
    * Specialized fetch that bypasses the default "exclude deleted" filter
    * strictly for Auth Middleware checks (we need to know if a user is disabled).
+   *
+   * @param {string} uid - The unique ID of the user.
+   * @returns {Promise<User | null>} The user document, including soft-deleted ones, or null if not found.
+   *
+   * @example
+   * const user = await userRepository.getUserIncludeDeleted('user-123');
+   * if (user?.deletedAt) { throw new Error('Account disabled'); }
    */
   async getUserIncludeDeleted(uid: string): Promise<User | null> {
     return await this.get(uid, { includeDeleted: true });
@@ -29,6 +36,13 @@ class UserRepository extends FirestoreRepository<User> {
    * Find a user by email (useful for invites/admin tools).
    * Note: Firestore doesn't enforce unique emails automatically,
    * but Firebase Auth does.
+   *
+   * @param {string} email - The email address to search for.
+   * @returns {Promise<User | null>} The user matching the email, or null if none found.
+   *
+   * @example
+   * const existingUser = await userRepository.getByEmail('test@example.com');
+   * if (existingUser) { console.log('User exists!'); }
    */
   async getByEmail(email: string): Promise<User | null> {
     const { data } = await this.list({

@@ -10,6 +10,18 @@ const ratelimit = new Ratelimit({
   prefix: '@upstash/ratelimit',
 });
 
+/**
+ * Checks the rate limit for the current request's IP address.
+ * Throws an error if the limit is exceeded.
+ *
+ * @throws {Error} If "Too many attempts" are detected.
+ * @returns {Promise<void>} Resolves if the request is allowed.
+ *
+ * @example
+ * // Inside a server action
+ * await checkRateLimit();
+ * // ... perform sensitive action
+ */
 export async function checkRateLimit() {
   const headersList = await headers();
   const ip = headersList.get('x-forwarded-for') ?? '127.0.0.1';

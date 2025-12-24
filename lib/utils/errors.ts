@@ -23,16 +23,40 @@ export interface AppError {
   details?: Record<string, unknown>;
 }
 
+/**
+ * Custom Error class for handling application-specific exceptions.
+ * It extends the native Error class and adds an error code and optional details.
+ */
 export class CustomError extends Error {
   public readonly code: AppErrorCode;
   public readonly details?: Record<string, unknown>;
 
+  /**
+   * Creates a new CustomError instance.
+   *
+   * @param {AppErrorCode} code - The specific application error code.
+   * @param {string} message - A human-readable error message.
+   * @param {Record<string, unknown>} [details] - Optional additional context for the error.
+   *
+   * @example
+   * throw new CustomError(AppErrorCode.NOT_FOUND, 'User not found', { userId: '123' });
+   */
   constructor(code: AppErrorCode, message: string, details?: Record<string, unknown>) {
     super(message);
     this.code = code;
     this.details = details;
   }
 
+  /**
+   * Converts the CustomError into a plain object (AppError) suitable for API responses.
+   *
+   * @param {string} [traceId] - The tracing ID associated with the current request.
+   * @returns {AppError} A standardized error object.
+   *
+   * @example
+   * const appError = error.toAppError('trace-abc-123');
+   * console.log(appError.code); // 'NOT_FOUND'
+   */
   toAppError(traceId?: string): AppError {
     return {
       code: this.code,

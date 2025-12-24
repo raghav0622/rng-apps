@@ -3,6 +3,11 @@ import * as admin from 'firebase-admin';
 import 'server-only';
 import { getServerEnv } from '../env';
 
+/**
+ * Initializes the Firebase Admin SDK.
+ * Ensures the app is only initialized once to prevent "App already exists" errors.
+ * Uses strict server-side environment variables.
+ */
 function initializeAdmin() {
   if (admin.apps.length > 0) {
     return;
@@ -31,16 +36,28 @@ function initializeAdmin() {
 // Initialize immediately
 initializeAdmin();
 
+/**
+ * Returns the initialized Firestore Admin instance.
+ * @returns {admin.firestore.Firestore}
+ */
 export const firestore = () => {
   if (!admin.apps.length) initializeAdmin();
   return admin.firestore();
 };
 
+/**
+ * Returns the initialized Auth Admin instance.
+ * @returns {admin.auth.Auth}
+ */
 export const auth = () => {
   if (!admin.apps.length) initializeAdmin();
   return admin.auth();
 };
 
+/**
+ * Returns the initialized Storage Admin instance.
+ * @returns {admin.storage.Storage}
+ */
 export const storage = () => {
   if (!admin.apps.length) initializeAdmin();
   return admin.storage();
@@ -50,7 +67,7 @@ export const AdminFirestore = {
   Timestamp: admin.firestore.Timestamp,
   FieldValue: admin.firestore.FieldValue,
 };
-// Re-export specific types
+// Re-export specific types for use in Repositories
 export type Timestamp = admin.firestore.Timestamp;
 export type WriteBatch = admin.firestore.WriteBatch;
 export type Transaction = admin.firestore.Transaction;

@@ -5,9 +5,18 @@ export interface StorageMetadata {
   contentType?: string;
 }
 
+/**
+ * Abstraction for File Storage Services (AWS S3, Google Cloud Storage, Firebase Storage).
+ * Enforces metadata requirements for tenancy and security.
+ */
 export abstract class AbstractStorageProvider {
   /**
-   * Upload a file with mandatory tenancy metadata.
+   * Uploads a file to the storage provider.
+   *
+   * @param {string} path - The destination path/key (e.g., "avatars/user-123.png").
+   * @param {Buffer | Blob} file - The file content.
+   * @param {StorageMetadata} metadata - Mandatory metadata for access control (orgId).
+   * @returns {Promise<{ url: string; fileId: string }>} The public/download URL and unique file ID.
    */
   abstract upload(
     path: string,
@@ -16,17 +25,26 @@ export abstract class AbstractStorageProvider {
   ): Promise<{ url: string; fileId: string }>;
 
   /**
-   * Generate a secure, time-limited URL for private files.
+   * Generates a temporary, secure URL for accessing private files.
+   *
+   * @param {string} path - The file path/key.
+   * @param {number} expiresAt - The timestamp (ms) when the link should expire.
+   * @returns {Promise<string>} A signed URL.
    */
   abstract getSignedUrl(path: string, expiresAt: number): Promise<string>;
 
   /**
-   * Delete a file.
+   * Permanently deletes a file.
+   *
+   * @param {string} path - The file path/key.
    */
   abstract delete(path: string): Promise<void>;
 
   /**
-   * Verify file existence.
+   * Checks if a file exists at the given path.
+   *
+   * @param {string} path - The file path/key.
+   * @returns {Promise<boolean>} True if the file exists.
    */
   abstract exists(path: string): Promise<boolean>;
 }

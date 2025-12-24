@@ -10,10 +10,41 @@ import { CircuitBreaker } from './resilience/circuit-breaker';
 import { getIdempotencyRecord, saveIdempotencyRecord } from './resilience/idempotency';
 import { withTimeout } from './resilience/timeout';
 
+/**
+ * The base class for all domain services.
+ * It wraps business logic with cross-cutting concerns:
+ * 1. **Tracing**: Automatically logs operations with trace IDs.
+ * 2. **Resilience**: Circuit Breaking and Timeouts.
+ * 3. **Idempotency**: Prevents duplicate execution of sensitive operations.
+ * 4. **Rate Limiting**: Protects downstream resources.
+ * 5. **Error Handling**: Standardizes error responses into `Result<T>`.
+ */
 export abstract class AbstractService {
   private static breakers = new Map<string, CircuitBreaker>();
   private readonly DEFAULT_TIMEOUT = 15000;
 
+  /**
+   * Executes a service operation with built-in safety mechanisms.
+   *
+   * @template T - The expected return type of the operation.
+   * @param {string} operationName - A unique name for the operation (used for metrics and circuit breaking).
+   * @param {() => Promise<T>} operation - The async business logic to execute.
+   * @param {Object} [options] - Configuration for this execution.
+   * @param {number} [options.timeoutMs] - Max duration before throwing a Timeout Error (default 15s).
+   * @param {boolean} [options.skipRateLimit] - If true, bypasses the rate limiter (e.g., for internal background jobs).
+   * @param {string} [options.idempotencyKey] - Unique key. If provided, checks cache for previous results to avoid re-execution.
+   *
+   * @returns {Promise<Result<T>>} A standardized success/failure result object.
+   *
+   * @example
+   * class PaymentService extends AbstractService {
+   * async charge(amount: number) {
+   * return this.handleOperation('charge-card', async () => {
+   * return await stripe.charges.create({ amount });
+   * }, { idempotencyKey: 'order-123' });
+   * }
+   * }
+   */
   protected async handleOperation<T>(
     operationName: string,
     operation: () => Promise<T>,

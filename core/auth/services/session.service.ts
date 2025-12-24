@@ -5,12 +5,18 @@ import { Result } from '@/lib/types'; // Assuming standard Result type exists
 import { AppErrorCode } from '@/lib/utils/errors';
 import 'server-only';
 
-// Constants for Session Management
-
 export class SessionService {
   /**
    * 🔍 Validates if a session ID is currently active and not revoked.
    * Called by middleware on EVERY secure action.
+   *
+   * @param {string} userId - The unique identifier of the user.
+   * @param {string} sessionId - The unique identifier of the session.
+   * @returns {Promise<boolean>} True if the session exists and is valid, false otherwise.
+   *
+   * @example
+   * const isValid = await SessionService.validateSession('user-123', 'session-abc');
+   * if (!isValid) throw new Error('Session Expired');
    */
   static async validateSession(userId: string, sessionId: string): Promise<boolean> {
     if (!userId || !sessionId) return false;
@@ -32,6 +38,14 @@ export class SessionService {
 
   /**
    * ✨ Registers a new session upon login.
+   * Stores the session in Redis with a Time-To-Live (TTL).
+   *
+   * @param {string} userId - The ID of the user logging in.
+   * @param {string} sessionId - The new session ID to register.
+   * @returns {Promise<void>}
+   *
+   * @example
+   * await SessionService.createSession('user-123', 'session-new-789');
    */
   static async createSession(userId: string, sessionId: string): Promise<void> {
     const key = `${SESSION_PREFIX}${userId}:${sessionId}`;
@@ -40,6 +54,13 @@ export class SessionService {
 
   /**
    * 🚫 Revokes a specific session (Sign Out).
+   *
+   * @param {string} userId - The user ID.
+   * @param {string} sessionId - The session ID to remove.
+   * @returns {Promise<void>}
+   *
+   * @example
+   * await SessionService.revokeSession('user-123', 'session-old-456');
    */
   static async revokeSession(userId: string, sessionId: string): Promise<void> {
     const key = `${SESSION_PREFIX}${userId}:${sessionId}`;
@@ -48,6 +69,14 @@ export class SessionService {
 
   /**
    * 💥 Revokes ALL sessions for a user (Security Event / Password Reset).
+   * Scans for all keys matching the user prefix and deletes them.
+   *
+   * @param {string} userId - The ID of the user to sign out globally.
+   * @returns {Promise<Result<void>>} A result object indicating success or failure.
+   *
+   * @example
+   * const result = await SessionService.revokeAllUserSessions('user-123');
+   * if (result.success) console.log('User signed out everywhere');
    */
   static async revokeAllUserSessions(userId: string): Promise<Result<void>> {
     try {

@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
+import { Result, SuccessResult } from '@/lib/types';
+import { AppErrorCode } from '@/lib/utils/errors';
 import { FormError } from '@/rng-form';
 import { SafeActionFn } from 'next-safe-action';
 import { useAction } from 'next-safe-action/hooks';
 import { useSnackbar } from 'notistack';
 import { z } from 'zod';
-import { Result, SuccessResult } from '../types';
-import { AppErrorCode } from '../utils/errors';
 
 // Helper to extract the Schema from the Action Type
 type InferSchema<A> = A extends SafeActionFn<any, infer S, any, any, any> ? S : never;
@@ -22,16 +22,34 @@ type InferData<A> =
 type InferInput<S> = S extends z.ZodType<any, any, any> ? z.input<S> : void;
 
 type ActionOptions<TInput, TOutput> = {
+  /** Callback fired when the action completes successfully */
   onSuccess?: (data: TOutput) => void;
+  /** Callback fired when the action fails (server error or logic error) */
   onError?: (message: string, code?: AppErrorCode) => void;
+  /** Automatically show a success snackbar with this message */
   successMessage?: string;
+  /** Override the default error message from the server */
   errorMessage?: string;
 };
 
 /**
- * A wrapper around useAction that handles the RNG App 'Result<T>' pattern.
+ * A wrapper around `useAction` that handles the RNG App 'Result<T>' pattern.
+ * Automatically parses the standard `Result` object, handles UI feedback (Snackbars),
+ * and throws `FormError` for easy integration with React Hook Form.
  *
- * Uses Type Inference (A extends SafeActionFn) to avoid BindArgs conflicts.
+ * @template A - The type of the Server Action function.
+ * @param {A} action - The server action to execute.
+ * @param {ActionOptions} [options] - Configuration for success/error handling.
+ * @returns {Object} The execution hooks (runAction, isExecuting, result, etc.).
+ *
+ * @example
+ * const { runAction, isExecuting } = useRNGServerAction(updateUser, {
+ * successMessage: "Profile updated!",
+ * onSuccess: (user) => console.log(user.id),
+ * });
+ *
+ * // Trigger
+ * await runAction({ name: "New Name" });
  */
 export function useRNGServerAction<
   // We accept ANY valid SafeAction. strict type checking happens via inference below.

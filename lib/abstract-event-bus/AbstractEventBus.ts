@@ -13,9 +13,32 @@ export interface AppEvent<P = any> {
   };
 }
 
+/**
+ * Base class for Event-Driven Architectures.
+ * Decouples the act of publishing an event from the underlying transport (e.g., Redis, Kafka, Google PubSub).
+ */
 export abstract class AbstractEventBus {
+  /**
+   * Internal implementation to actually send the event to the broker.
+   * @protected
+   */
   protected abstract deliver(event: AppEvent): Promise<void>;
 
+  /**
+   * Publishes an event to the system.
+   * Automatically enriches the event with tracing metadata (Trace ID, Timestamp).
+   *
+   * @template P
+   * @param {string} topic - The channel or topic name (e.g., "user.created").
+   * @param {P} payload - The event data.
+   * @param {Object} context - Contextual data for auditing.
+   * @param {string} [context.orgId] - The organization ID related to the event.
+   * @param {string} [context.actorId] - The user ID who triggered the event.
+   * @returns {Promise<void>}
+   *
+   * @example
+   * await eventBus.publish('order.paid', { orderId: '123' }, { orgId: 'org-abc' });
+   */
   async publish<P>(
     topic: string,
     payload: P,

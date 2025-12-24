@@ -1,6 +1,6 @@
 'use client';
 
-import { logError } from '@/core/logger';
+import { logError } from '@/lib/logger';
 import cloneDeep from 'lodash/cloneDeep';
 import set from 'lodash/set';
 import { useFormContext, useWatch } from 'react-hook-form';
@@ -8,7 +8,7 @@ import { useRNGForm } from '../components/FormContext';
 import { BaseFormItem, FormSchema } from '../types';
 
 // Helper: Get value safely without throwing
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 function getValueByPath(obj: any, path: string | undefined): any {
   if (!path || obj === undefined || obj === null) return obj;
   const parts = path.split('.');
@@ -57,7 +57,7 @@ export function useFieldLogic<S extends FormSchema, T extends BaseFormItem<S>>(
   const watchedValues = useWatch({
     control,
     disabled: watchConfig.disabled,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     name: watchConfig.name as any,
   });
 
@@ -100,7 +100,6 @@ export function useFieldLogic<S extends FormSchema, T extends BaseFormItem<S>>(
 
     if (item.renderLogic) {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         isVisible = item.renderLogic(scopedValues, rootValues as any);
       } catch (e) {
         logError(`Render logic failed for ${item.name}`);
@@ -109,7 +108,6 @@ export function useFieldLogic<S extends FormSchema, T extends BaseFormItem<S>>(
 
     if (item.propsLogic && isVisible) {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         dynamicProps = item.propsLogic(scopedValues, rootValues as any);
       } catch (e) {
         logError(`Props logic failed for ${item.name}`);

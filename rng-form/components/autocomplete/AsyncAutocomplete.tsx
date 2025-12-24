@@ -1,12 +1,10 @@
 'use client';
-import { logError } from '@/core/logger';
+import { logError } from '@/lib/logger';
 import { FieldWrapper } from '@/rng-form/components/FieldWrapper';
 import { AutocompleteOption, FormSchema, InputItem } from '@/rng-form/types';
 import { Autocomplete, CircularProgress, TextField } from '@mui/material';
 import React, { useEffect, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
-
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 // Helper to safely get value for comparison
 const getOptValue = (opt: any) => {

@@ -1,95 +1,74 @@
-// features/auth/services/session.service.ts
 import { SESSION_PREFIX, SESSION_TTL_SECONDS } from '@/lib/constants';
-import { redisClient } from '@/lib/redis';
-import { Result } from '@/lib/types'; // Assuming standard Result type exists
+import { redisClient as redis } from '@/lib/redis'; // Ensure this matches your redis export
+import { Result } from '@/lib/types';
 import { AppErrorCode } from '@/lib/utils/errors';
 import 'server-only';
 
 export class SessionService {
   /**
-   * 🔍 Validates if a session ID is currently active and not revoked.
-   * Called by middleware on EVERY secure action.
-   *
-   * @param {string} userId - The unique identifier of the user.
-   * @param {string} sessionId - The unique identifier of the session.
-   * @returns {Promise<boolean>} True if the session exists and is valid, false otherwise.
-   *
-   * @example
-   * const isValid = await SessionService.validateSession('user-123', 'session-abc');
-   * if (!isValid) throw new Error('Session Expired');
+   * Validates if a session ID is currently active.
    */
   static async validateSession(userId: string, sessionId: string): Promise<boolean> {
-    if (!userId || !sessionId) return false;
+    if (!userId || !sessionId) {
+      console.warn('[Session] Validation failed: Missing userId or sessionId');
+      return false;
+    }
+
+    const key = `${SESSION_PREFIX}${userId}:${sessionId}`;
 
     try {
-      // 1. Check Redis whitelist
-      const key = `${SESSION_PREFIX}${userId}:${sessionId}`;
-      const isValid = await redisClient.get(key);
+      // 1. Check Redis
+      // We use 'get' to inspect the value (useful for debugging)
+      const value = await redis.get(key);
 
-      return isValid === 'true';
+      if (!value) {
+        console.warn(`[Session] Key not found: ${key}`);
+        return false;
+      }
+
+      // 2. Refresh TTL (Optional: Slide expiry on activity)
+      // await redis.expire(key, SESSION_TTL_SECONDS);
+
+      return true; // Any value means it exists and is valid
     } catch (error) {
-      // Fail open or closed?
-      // For high security, we should fail closed, but if Redis blips, we might annoy users.
-      // Current: Fail closed (User must re-login)
-      console.error('Session validation failed:', error);
+      console.error('[Session] Redis Error during validation:', error);
+      // Fail closed for security
       return false;
     }
   }
 
   /**
-   * ✨ Registers a new session upon login.
-   * Stores the session in Redis with a Time-To-Live (TTL).
-   *
-   * @param {string} userId - The ID of the user logging in.
-   * @param {string} sessionId - The new session ID to register.
-   * @returns {Promise<void>}
-   *
-   * @example
-   * await SessionService.createSession('user-123', 'session-new-789');
+   * Registers a new session upon login.
    */
   static async createSession(userId: string, sessionId: string): Promise<void> {
     const key = `${SESSION_PREFIX}${userId}:${sessionId}`;
-    await redisClient.set(key, 'true', { ex: SESSION_TTL_SECONDS });
+    // Store 'true' or a timestamp. We prefer timestamp for debugging.
+    await redis.set(key, new Date().toISOString(), { ex: SESSION_TTL_SECONDS });
   }
 
   /**
-   * 🚫 Revokes a specific session (Sign Out).
-   *
-   * @param {string} userId - The user ID.
-   * @param {string} sessionId - The session ID to remove.
-   * @returns {Promise<void>}
-   *
-   * @example
-   * await SessionService.revokeSession('user-123', 'session-old-456');
+   * Revokes a specific session.
    */
   static async revokeSession(userId: string, sessionId: string): Promise<void> {
     const key = `${SESSION_PREFIX}${userId}:${sessionId}`;
-    await redisClient.del(key);
+    await redis.del(key);
   }
 
   /**
-   * 💥 Revokes ALL sessions for a user (Security Event / Password Reset).
-   * Scans for all keys matching the user prefix and deletes them.
-   *
-   * @param {string} userId - The ID of the user to sign out globally.
-   * @returns {Promise<Result<void>>} A result object indicating success or failure.
-   *
-   * @example
-   * const result = await SessionService.revokeAllUserSessions('user-123');
-   * if (result.success) console.log('User signed out everywhere');
+   * Revokes ALL sessions for a user.
    */
   static async revokeAllUserSessions(userId: string): Promise<Result<void>> {
     try {
-      // Scan for all keys belonging to user
       const pattern = `${SESSION_PREFIX}${userId}:*`;
-      const keys = await redisClient.keys(pattern);
+      const keys = await redis.keys(pattern);
 
       if (keys.length > 0) {
-        await redisClient.del(...keys);
+        await redis.del(...keys);
       }
 
       return { success: true, data: undefined };
     } catch (error) {
+      console.error('[Session] Revoke All Error:', error);
       return {
         success: false,
         error: { code: AppErrorCode.INTERNAL_ERROR, message: 'Failed to revoke sessions' },

@@ -23,11 +23,12 @@ export function middleware(request: NextRequest) {
   const isAuthPage = isAuthRoute(nextUrl.pathname);
   const isProtected = isProtectedRoute(nextUrl.pathname);
 
-  // --- Logic 1: Route Protection ---
+  // --- Logic 1: Route Protection & Redirection ---
+
+  // A. Logged-in User hitting Login/Signup -> Redirect to Dashboard
   if (isAuthPage && isAuthenticated) {
     // 🛑 CRITICAL FIX: Break Infinite Loops / Zombie Sessions 🛑
-    // If determined by the client/server that the session is dead (e.g., revoked),
-    // we clear cookies and allow the user to see the Login page.
+    // If the client sends a "reason", explicitly clear cookies to allow re-login.
     if (nextUrl.searchParams.has('reason')) {
       const response = NextResponse.next();
       response.cookies.delete(AUTH_SESSION_COOKIE_NAME);
@@ -35,16 +36,21 @@ export function middleware(request: NextRequest) {
       return response;
     }
 
-    // Otherwise, logged-in users are sent to the dashboard
     return NextResponse.redirect(new URL(DEFAULT_LOGIN_REDIRECT, nextUrl));
   }
 
+  // B. Unauthenticated User hitting Protected Route -> Redirect to Login
   if (isProtected && !isAuthenticated) {
     const loginUrl = new URL(LOGIN_ROUTE, nextUrl);
-    // Smart Redirect: Preserve the destination page
+    // Smart Redirect: Preserve the destination page for post-login redirect
     loginUrl.searchParams.set('redirect_to', nextUrl.pathname + nextUrl.search);
     return NextResponse.redirect(loginUrl);
   }
+
+  // C. Onboarding Check?
+  // NOTE: We do NOT check for 'orgId' or onboarding status here in Middleware.
+  // Checking Firestore/Claims at the edge is complex.
+  // Instead, 'app/(protected)/layout.tsx' handles the "Onboarding Wall" redirect.
 
   // --- Logic 2: Security Headers (Enterprise Grade) ---
   const response = NextResponse.next();

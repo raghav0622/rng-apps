@@ -1,5 +1,5 @@
 'use client';
-import { LayoutContextProvider } from '@/ui/layout/LayoutContext';
+import { LayoutProvider } from '@/ui/layout/LayoutContext';
 import theme from '@/ui/theme';
 import { Close as CloseIcon } from '@mui/icons-material';
 import { Box, CssBaseline, IconButton, ThemeProvider } from '@mui/material';
@@ -45,18 +45,17 @@ function AppProvider({ children }: AppProviderProps) {
             </IconButton>
           )}
         >
-          <LayoutContextProvider>
+          <LayoutProvider>
             <Box
               sx={{
                 display: 'flex',
                 flexDirection: 'column',
-                minHeight: '100vh',
                 bgcolor: 'background.default',
               }}
             >
               {children}
             </Box>
-          </LayoutContextProvider>
+          </LayoutProvider>
         </SnackbarProvider>
       </ThemeProvider>
     </AppRouterCacheProvider>

@@ -15,6 +15,7 @@ export enum AppPermission {
   MEMBER_INVITE = 'MEMBER_INVITE',
   MEMBER_UPDATE = 'MEMBER_UPDATE',
   MEMBER_REMOVE = 'MEMBER_REMOVE',
+  MEMBER_DELETE = 'MEMBER_DELETE',
   MEMBER_VIEW = 'MEMBER_VIEW',
 
   // Billing & Subscription
@@ -42,6 +43,7 @@ export const ROLE_PERMISSIONS: Record<UserRoleInOrg, AppPermission[]> = {
     AppPermission.MEMBER_UPDATE,
     AppPermission.MEMBER_REMOVE,
     AppPermission.MEMBER_VIEW,
+    AppPermission.MEMBER_DELETE,
     AppPermission.BILLING_MANAGE,
     AppPermission.BILLING_VIEW,
     AppPermission.VIEW_AUDIT_LOGS,
@@ -54,6 +56,7 @@ export const ROLE_PERMISSIONS: Record<UserRoleInOrg, AppPermission[]> = {
     AppPermission.MEMBER_INVITE,
     AppPermission.MEMBER_UPDATE,
     AppPermission.MEMBER_REMOVE,
+    AppPermission.MEMBER_DELETE,
     AppPermission.MEMBER_VIEW,
     AppPermission.BILLING_VIEW,
     AppPermission.VIEW_AUDIT_LOGS,

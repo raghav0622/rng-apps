@@ -392,20 +392,35 @@ export class FirestoreRepository<T extends BaseEntity> {
   }
 
   // ============================================================================
+  // ➕ NEW METHOD: Manually Clear Cache
+  // ============================================================================
+  async clearCache(id: string): Promise<void> {
+    if (!this.cache) return;
+    try {
+      await this.safeCacheDel(this.getCacheKey(id));
+      this.logger.info(`[CACHE] Cleared cache for ${this.collection.id}/${id}`);
+    } catch (e) {
+      this.logger.error('[CACHE] Clear failed', e);
+    }
+  }
+
+  // ============================================================================
   // 3. WRITE OPERATIONS
   // ============================================================================
-
   async create(
     id: string,
-    data: Omit<T, 'createdAt' | 'updatedAt' | 'deletedAt'>,
+    // We omit 'id' from input because we passed it as 1st arg
+    data: Omit<T, 'id' | 'createdAt' | 'updatedAt' | 'deletedAt'>,
     opts: WriteOptions = {},
   ): Promise<T> {
     return this.withErrorHandling(async () => {
       const raw = { ...this.defaultCreateOverrides, ...data };
       const now = new Date();
+
+      // Construct the full entity
       let entity = {
         ...raw,
-        id,
+        id, // ID is definitely here
         createdAt: now,
         updatedAt: now,
         deletedAt: null,
@@ -416,9 +431,12 @@ export class FirestoreRepository<T extends BaseEntity> {
 
       let payload = this.encryptData(entity);
       payload = await this.compressData(payload);
+
+      // 🛑 FIX: Persist ID in the document (Do not set to undefined)
+      // verify that sanitizeForWrite doesn't corrupt it
       const firestoreData = this.sanitizeForWrite({
         ...payload,
-        id: undefined,
+        // id: undefined, <--- REMOVED THIS LINE. We want ID in the doc.
         _v: this.targetVersion,
       });
 
@@ -439,13 +457,13 @@ export class FirestoreRepository<T extends BaseEntity> {
       return entity;
     });
   }
-
   /**
    * ⚡ **Bulk Create with Reporting**
    * Uses batched writes (in chunks) to return row-level errors.
    */
   async createMany(
-    items: Omit<T, 'createdAt' | 'updatedAt' | 'deletedAt'>[],
+    // 🛑 FIX: Items input should NOT require 'id' (it's optional)
+    items: (Omit<T, 'id' | 'createdAt' | 'updatedAt' | 'deletedAt'> & { id?: string })[],
     opts: WriteOptions = {},
   ): Promise<BulkResult> {
     const result: BulkResult = { successCount: 0, failureCount: 0, errors: [] };

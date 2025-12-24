@@ -1,10 +1,8 @@
 'use client';
-import { logError } from '@/core/logger';
+import { logError } from '@/lib/logger';
 import { useFormContext } from 'react-hook-form';
 import { FormItem, FormSchema } from '../types';
 import { INPUT_REGISTRY, LAYOUT_REGISTRY } from './registry';
-
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 interface RenderItemProps<S extends FormSchema> {
   item: FormItem<S>;

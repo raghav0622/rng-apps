@@ -1,28 +1,33 @@
 'use client';
 
-import { useRNGAuth } from '@/features/auth/components/AuthContext'; // <--- Import Auth Context
-import { useOrg } from '@/features/orgs/components/OrgContext';
-import { isAuthRoute } from '@/routes'; // <--- Import Route Helper
+import { useRNGAuth } from '@/core/auth/contexts/auth-context';
+import { useOrg } from '@/core/org/contexts/org-context';
+import { isAuthRoute } from '@/routes';
+import { useLayoutContext } from '@/ui/layout/LayoutContext';
+import Logo from '@/ui/Logo';
+import DarkModeToggle from '@/ui/ThemeSwitch';
 import { Dashboard, Menu as MenuIcon } from '@mui/icons-material';
 import { AppBar, Box, IconButton, Stack, Toolbar, Tooltip, Typography } from '@mui/material';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import Logo from '../Logo';
-import DarkModeToggle from '../ThemeSwitch';
-import { useLayoutContext } from './LayoutContext';
 
-// Dynamic import with SSR enabled prevents layout shift during hydration
+// Dynamic import prevents hydration mismatch for user-specific content
 const UserMenu = dynamic(() => import('@/ui/UserMenu').then((mod) => mod.UserMenu), {
-  ssr: true,
+  ssr: false,
+  loading: () => (
+    <Box sx={{ width: 40, height: 40, bgcolor: 'action.hover', borderRadius: '50%' }} />
+  ),
 });
 
 export default function AppHeader({ drawerDisabled = false }: { drawerDisabled?: boolean }) {
+  // Consuming the updated Context
   const { handleDrawerToggle } = useLayoutContext();
-  const { user } = useRNGAuth(); // <--- Get User State
-  const pathname = usePathname();
+
+  const { user } = useRNGAuth();
   const { org } = useOrg();
-  const isAuthPage = isAuthRoute(pathname); // <--- Check if current page is Login/Signup
+  const pathname = usePathname();
+  const isAuthPage = isAuthRoute(pathname);
 
   return (
     <AppBar
@@ -31,45 +36,54 @@ export default function AppHeader({ drawerDisabled = false }: { drawerDisabled?:
       sx={{
         borderBottom: 1,
         borderColor: 'divider',
+        // Ensure Header sits ABOVE the Drawer (Clipped Drawer pattern)
         zIndex: (theme) => theme.zIndex.drawer + 1,
+        bgcolor: 'background.paper',
+        color: 'text.primary',
       }}
     >
       <Toolbar variant="dense" sx={{ gap: 1 }}>
-        {!!drawerDisabled && (
+        {/* MENU TOGGLE BUTTON 
+           Visible on ALL screens (Mobile & Desktop) to support collapsible sidebar.
+        */}
+        {!drawerDisabled && (
           <IconButton
             edge="start"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { sm: 'none' } }}
+            color="inherit"
             aria-label="open drawer"
+            onClick={handleDrawerToggle}
           >
             <MenuIcon />
           </IconButton>
         )}
 
-        <Box sx={{ ml: -1 }}>
-          <Logo />
-        </Box>
+        {/* LOGO */}
+        <Logo />
 
+        {/* ORG NAME (Desktop Only) */}
         {org?.name && (
-          <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Typography textTransform="uppercase" variant="h6">
+          <Box sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 1 }}>
+            <Box sx={{ borderLeft: 1, borderColor: 'divider', height: 24 }} />
+            <Typography variant="subtitle2" fontWeight={600} noWrap>
               {org.name}
             </Typography>
           </Box>
         )}
-        <Box sx={{ flexGrow: 1 }}></Box>
 
+        <Box sx={{ flexGrow: 1 }} />
+
+        {/* RIGHT ACTIONS */}
         <Stack direction="row" spacing={1} alignItems="center">
           {pathname === '/profile' && (
-            <Tooltip title={'Go To Dashboard'}>
-              <IconButton color="inherit" LinkComponent={Link} href="/dashboard">
+            <Tooltip title="Go To Dashboard">
+              <IconButton component={Link} href="/dashboard" color="inherit">
                 <Dashboard />
               </IconButton>
             </Tooltip>
           )}
+
           <DarkModeToggle />
 
-          {/* Only show UserMenu if user is logged in AND not on an auth page */}
           {!isAuthPage && user && <UserMenu />}
         </Stack>
       </Toolbar>

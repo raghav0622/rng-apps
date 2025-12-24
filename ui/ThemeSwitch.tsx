@@ -1,7 +1,7 @@
 'use client';
 import { DarkMode, LightMode } from '@mui/icons-material';
-import { useColorScheme } from '@mui/material/styles';
 import { IconButton, Tooltip } from '@mui/material';
+import { useColorScheme } from '@mui/material/styles';
 
 export default function DarkModeToggle() {
   const { mode, systemMode, setMode } = useColorScheme();
@@ -14,11 +14,7 @@ export default function DarkModeToggle() {
   return (
     <Tooltip title={isDarkMode ? 'Swith to Light Mode' : 'Switch to Dark Mode'}>
       <IconButton onClick={() => (isDarkMode ? setMode('light') : setMode('dark'))}>
-        {isDarkMode ? (
-          <DarkMode color="inherit" />
-        ) : (
-          <LightMode color="inherit" style={{ color: '#fff' }} />
-        )}
+        {isDarkMode ? <DarkMode color="inherit" /> : <LightMode color="inherit" />}
       </IconButton>
     </Tooltip>
   );

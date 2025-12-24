@@ -1,5 +1,5 @@
+import { AUTH_SESSION_COOKIE_NAME, SESSION_ID_COOKIE_NAME } from '@/core/lib/constants';
 import { NextRequest, NextResponse } from 'next/server';
-import { AUTH_SESSION_COOKIE_NAME, SESSION_ID_COOKIE_NAME } from './lib/constants';
 import { DEFAULT_LOGIN_REDIRECT, LOGIN_ROUTE, isAuthRoute, isProtectedRoute } from './routes';
 
 const SECURITY_HEADERS = {

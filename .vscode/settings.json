@@ -5,6 +5,7 @@
     "**/.hg": true,
     "**/.DS_Store": true,
     "**/Thumbs.db": true,
+    ".next": true,
     "node_modules": true,
     ".gitignore": true,
     "package-lock.json": true,
@@ -14,7 +15,13 @@
     "public": true,
     "app/page.tsx": true,
     "app/loading.tsx": true,
-    ".next": true
+    "eslint.config.mjs": true,
+    "next.config.ts": true,
+    "tsconfig.json": true,
+    ".env.local": true,
+    "ui": true,
+    "rng-form": true,
+    "app": true
   },
   "hide-files.files": [
     "node_modules",
@@ -25,7 +32,14 @@
     ".vscode",
     "public",
     "app/page.tsx",
-    "app/loading.tsx"
+    "app/loading.tsx",
+    "eslint.config.mjs",
+    "next.config.ts",
+    "tsconfig.json",
+    ".env.local",
+    "ui",
+    "rng-form",
+    "app"
   ],
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {

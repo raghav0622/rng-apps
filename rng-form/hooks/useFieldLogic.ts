@@ -1,6 +1,6 @@
 'use client';
 
-import { logError } from '@/lib/logger';
+import { logError } from '@/core/logger';
 import cloneDeep from 'lodash/cloneDeep';
 import set from 'lodash/set';
 import { useFormContext, useWatch } from 'react-hook-form';

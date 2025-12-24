@@ -1,5 +1,5 @@
+import { env } from '@/lib/env';
 import { Redis } from '@upstash/redis';
-import { env } from './env';
 
 const redisUrl = env.UPSTASH_REDIS_REST_URL;
 const redisToken = env.UPSTASH_REDIS_REST_TOKEN;
@@ -10,7 +10,7 @@ if (!redisUrl || !redisToken) {
   );
 }
 
-export const redis = new Redis({
+export const redisClient = new Redis({
   url: redisUrl,
   token: redisToken,
 });

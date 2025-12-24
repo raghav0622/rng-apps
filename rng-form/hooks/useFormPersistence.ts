@@ -1,4 +1,4 @@
-import { logError } from '@/lib/logger';
+import { logError } from '@/core/logger';
 import { useEffect } from 'react';
 import { FieldValues, UseFormReturn } from 'react-hook-form';
 

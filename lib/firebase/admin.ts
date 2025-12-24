@@ -1,7 +1,7 @@
 import * as admin from 'firebase-admin';
 import 'server-only';
+import { logInfo } from '../../core/logger';
 import { getServerEnv } from '../env';
-import { logInfo } from '../logger';
 
 function initializeAdmin() {
   if (admin.apps.length > 0) {

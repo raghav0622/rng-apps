@@ -1,5 +1,5 @@
 'use client';
-import { logError } from '@/lib/logger';
+import { logError } from '@/core/logger';
 import { useFormContext } from 'react-hook-form';
 import { FormItem, FormSchema } from '../types';
 import { INPUT_REGISTRY, LAYOUT_REGISTRY } from './registry';

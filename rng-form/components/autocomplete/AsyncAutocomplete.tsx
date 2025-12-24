@@ -1,5 +1,5 @@
 'use client';
-import { logError } from '@/lib/logger';
+import { logError } from '@/core/logger';
 import { FieldWrapper } from '@/rng-form/components/FieldWrapper';
 import { AutocompleteOption, FormSchema, InputItem } from '@/rng-form/types';
 import { Autocomplete, CircularProgress, TextField } from '@mui/material';

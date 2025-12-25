@@ -10,14 +10,7 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material';
-import React, {
-  cloneElement,
-  isValidElement,
-  ReactElement,
-  useCallback,
-  useEffect,
-  useState,
-} from 'react';
+import React, { cloneElement, isValidElement, ReactElement, useState } from 'react';
 
 // Define the signature for the Render Prop function
 type ChildrenFn = (props: {
@@ -42,56 +35,21 @@ export interface AppModalProps extends Omit<DialogProps, 'open' | 'title' | 'chi
    */
   trigger?: ReactElement;
 
-  /**
-   * (Optional) Controlled open state.
-   * If provided, overrides internal state.
-   */
-  open?: boolean;
-
-  /**
-   * (Optional) Controlled onClose handler.
-   */
-  onClose?: () => void;
-
   /** Remove default padding from content for custom layouts */
   noPadding?: boolean;
 }
 
-export function AppModal({
-  open: controlledOpen,
-  onClose: controlledOnClose,
-  trigger,
-  title,
-  children,
-  noPadding = false,
-  ...props
-}: AppModalProps) {
+export function AppModal({ trigger, title, children, noPadding = false, ...props }: AppModalProps) {
   const theme = useTheme();
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'));
 
   // Internal state for uncontrolled mode
-  const [internalOpen, setInternalOpen] = useState(false);
+  const [isOpen, setInternalOpen] = useState(false);
 
   // Determine if we are in "Controlled" or "Uncontrolled" mode
-  const isControlled = controlledOpen !== undefined;
-  const isOpen = isControlled ? controlledOpen : internalOpen;
 
-  // Sync internal state if controlled state changes (optional, but good for hybrid usage)
-  useEffect(() => {
-    if (isControlled) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setInternalOpen(controlledOpen);
-    }
-  }, [controlledOpen, isControlled]);
-
-  const handleOpen = useCallback(() => {
-    if (!isControlled) setInternalOpen(true);
-  }, [isControlled]);
-
-  const handleClose = useCallback(() => {
-    if (!isControlled) setInternalOpen(false);
-    controlledOnClose?.();
-  }, [isControlled, controlledOnClose]);
+  const handleOpen = () => setInternalOpen(true);
+  const handleClose = () => setInternalOpen(false);
 
   // Clone the trigger element to attach the onClick handler
   const triggerElement =
@@ -110,7 +68,7 @@ export function AppModal({
     typeof children === 'function'
       ? (children as ChildrenFn)({
           open: isOpen,
-          setOpen: isControlled ? () => {} : setInternalOpen, // No-op if controlled
+          setOpen: setInternalOpen, // No-op if controlled
           close: handleClose,
         })
       : children;

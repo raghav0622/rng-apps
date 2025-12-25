@@ -1,5 +1,5 @@
 'use client';
-import { LayoutProvider } from '@/ui/layout/LayoutContext';
+import { LayoutProvider } from '@/app/(protected)/LayoutContext';
 import theme from '@/ui/theme';
 import { Close as CloseIcon } from '@mui/icons-material';
 import { Box, CssBaseline, IconButton, ThemeProvider } from '@mui/material';

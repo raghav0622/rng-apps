@@ -4,14 +4,14 @@ import { OrgProvider } from '@/core/org/contexts/org-context';
 import { organizationRepository } from '@/core/org/org.repository';
 import { AUTH_SESSION_COOKIE_NAME } from '@/lib/constants';
 import { auth } from '@/lib/firebase/admin';
-import AppContent from '@/ui/layout/AppContent';
-import AppDrawer from '@/ui/layout/AppDrawer';
-import AppHeader from '@/ui/layout/AppHeader';
-import { LayoutProvider as LayoutContextProvider } from '@/ui/layout/LayoutContext';
 import { Box } from '@mui/material';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { ReactNode } from 'react';
+import AppContent from './AppContent';
+import AppDrawer from './AppDrawer';
+import AppHeader from './AppHeader';
+import { LayoutProvider as LayoutContextProvider } from './LayoutContext';
 
 export default async function ProtectedLayout({ children }: { children: ReactNode }) {
   const cookieStore = await cookies();

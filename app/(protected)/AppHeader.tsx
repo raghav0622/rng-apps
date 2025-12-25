@@ -3,7 +3,6 @@
 import { useRNGAuth } from '@/core/auth/contexts/auth-context';
 import { useOrg } from '@/core/org/contexts/org-context';
 import { isAuthRoute } from '@/routes';
-import { useLayoutContext } from '@/ui/layout/LayoutContext';
 import Logo from '@/ui/Logo';
 import DarkModeToggle from '@/ui/ThemeSwitch';
 import { Dashboard, Menu as MenuIcon } from '@mui/icons-material';
@@ -11,9 +10,10 @@ import { AppBar, Box, IconButton, Stack, Toolbar, Tooltip, Typography } from '@m
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useLayoutContext } from './LayoutContext';
 
 // Dynamic import prevents hydration mismatch for user-specific content
-const UserMenu = dynamic(() => import('@/ui/UserMenu').then((mod) => mod.UserMenu), {
+const UserMenu = dynamic(() => import('@/app/(protected)/UserMenu').then((mod) => mod.UserMenu), {
   ssr: false,
   loading: () => (
     <Box sx={{ width: 40, height: 40, bgcolor: 'action.hover', borderRadius: '50%' }} />

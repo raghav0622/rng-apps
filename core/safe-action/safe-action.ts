@@ -11,7 +11,7 @@ import { createSafeActionClient, DEFAULT_SERVER_ERROR_MESSAGE } from 'next-safe-
 import { cookies } from 'next/headers';
 import { z } from 'zod';
 import { userRepository } from '../../core/auth/repositories/user.repository';
-import { SessionService } from '../../core/auth/services/session.service';
+import { SessionService } from '../auth/session.service';
 
 export const actionClient = createSafeActionClient({
   handleServerError: (e, utils) => {

@@ -1,18 +1,12 @@
-// features/auth/auth.model.ts
+import { UserRoleInOrg } from '@/lib/action-policies';
 import { BaseEntity } from '@/lib/firestore-repository/types';
 import { z } from 'zod';
-import { UserRoleInOrg } from '../../lib/action-policies';
+
+// --- Entities ---
 
 /**
  * 🔒 User Entity
  * Represents a global user in the system.
- * * STRICT TENANCY RULE:
- * A user can only belong to ONE organization at a time (orgId).
- * To switch orgs, they must leave the current one.
- *
- * @example
- * // Usage in Zod validation
- * UserSchema.parse(unknownUserData);
  */
 export const UserSchema = z.object({
   id: z.string(),
@@ -22,27 +16,26 @@ export const UserSchema = z.object({
 
   // Tenancy & RBAC
   orgId: z.string().optional().nullable(),
-  orgRole: z.enum(UserRoleInOrg).default(UserRoleInOrg.NOT_IN_ORG),
+  orgRole: z.nativeEnum(UserRoleInOrg).default(UserRoleInOrg.NOT_IN_ORG),
 
   // Metadata
   createdAt: z.date(),
   updatedAt: z.date(),
   deletedAt: z.date().nullable(),
 
-  // Flattened preferences or flags can go here
+  // State
   isOnboarded: z.boolean().default(false),
 });
 
 export type User = z.infer<typeof UserSchema> & BaseEntity;
 
-/**
- * Validation schema for the Sign Up form.
- * Enforces email format, password length, and that password matches confirmPassword.
- *
- * @example
- * const result = SignUpSchema.safeParse(formData);
- * if (!result.success) { handleErrors(result.error); }
- */
+// --- Input Schemas ---
+
+export const LoginSchema = z.object({
+  email: z.string().email('Invalid email address'),
+  password: z.string().min(1, 'Password is required'),
+});
+
 export const SignUpSchema = z
   .object({
     displayName: z.string().min(3).max(50),
@@ -60,4 +53,25 @@ export const SignUpSchema = z
     }
   });
 
+export const ForgotPasswordSchema = z.object({
+  email: z.string().email(),
+});
+
+export const ResetPasswordSchema = z
+  .object({
+    oobCode: z.string().min(1, 'Reset code is missing'),
+    newPassword: z.string().min(6, 'Password must be at least 6 characters'),
+    confirmPassword: z.string().min(6),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ['confirmPassword'],
+  });
+
+export const VerifyEmailSchema = z.object({
+  oobCode: z.string().min(1, 'Verification code is missing'),
+});
+
 export type SignUpInput = z.infer<typeof SignUpSchema>;
+export type ForgotPasswordInput = z.infer<typeof ForgotPasswordSchema>;
+export type ResetPasswordInput = z.infer<typeof ResetPasswordSchema>;

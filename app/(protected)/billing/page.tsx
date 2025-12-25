@@ -1,8 +1,8 @@
-import { userRepository } from '@/core/auth/repositories/user.repository';
+import { userRepository } from '@/core/auth/user.repository';
 import { billingService } from '@/core/billing/billing.service';
 import { AUTH_SESSION_COOKIE_NAME } from '@/lib/constants';
 import { auth } from '@/lib/firebase/admin';
-import { Box, Button, Card, CardContent, Chip, Grid, Typography } from '@mui/material';
+import { Alert, Box, Button, Card, CardContent, Chip, Grid, Typography } from '@mui/material';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
@@ -19,7 +19,20 @@ export default async function BillingPage() {
   const user = await userRepository.get(decoded.uid);
   if (!user || !user.orgId) redirect('/onboarding');
 
-  const subscription = await billingService.getSubscription(user.orgId);
+  // 1. Fetch the result
+  const result = await billingService.getSubscription(user.orgId);
+
+  // 2. Handle the error case
+  if (!result.success) {
+    return (
+      <Box p={4}>
+        <Alert severity="error">Failed to load subscription details. {result.error.message}</Alert>
+      </Box>
+    );
+  }
+
+  // 3. Extract the actual subscription data
+  const subscription = result.data;
 
   return (
     <Box>

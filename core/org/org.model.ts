@@ -1,18 +1,12 @@
+import { UserRoleInOrg } from '@/lib/action-policies';
 import { BaseEntity } from '@/lib/firestore-repository/types';
 import { z } from 'zod';
 
-/**
- * 🏢 Organization Entity
- * The root container for all tenant data.
- */
+// --- Organization ---
 export const OrganizationSchema = z.object({
   id: z.string(),
   name: z.string().min(2, 'Name must be at least 2 characters').max(50),
-
-  // Ownership
-  ownerId: z.string(), // The User ID of the primary owner
-
-  // Metadata
+  ownerId: z.string(),
   createdAt: z.date(),
   updatedAt: z.date(),
   deletedAt: z.date().nullable(),
@@ -20,20 +14,57 @@ export const OrganizationSchema = z.object({
 
 export type Organization = z.infer<typeof OrganizationSchema> & BaseEntity;
 
-/**
- * Input for creating an organization.
- */
-export const CreateOrgSchema = OrganizationSchema.pick({
-  name: true,
+export const CreateOrgSchema = z.object({
+  name: z.string().min(2).max(50),
+});
+export const UpdateOrgSchema = CreateOrgSchema.partial();
+export type CreateOrgInput = z.infer<typeof CreateOrgSchema>;
+export type UpdateOrgInput = z.infer<typeof UpdateOrgSchema>;
+
+// --- Invites ---
+export enum InviteStatus {
+  PENDING = 'PENDING',
+  ACCEPTED = 'ACCEPTED',
+  REJECTED = 'REJECTED', // Added REJECTED
+  EXPIRED = 'EXPIRED',
+  REVOKED = 'REVOKED',
+}
+
+export const InviteSchema = z.object({
+  id: z.string(),
+  orgId: z.string(),
+  email: z.string().email(),
+  role: z.nativeEnum(UserRoleInOrg).default(UserRoleInOrg.MEMBER),
+  token: z.string(),
+  inviterId: z.string(),
+  status: z.nativeEnum(InviteStatus).default(InviteStatus.PENDING),
+  expiresAt: z.date(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+  deletedAt: z.date().nullable(),
 });
 
-export type CreateOrgInput = z.infer<typeof CreateOrgSchema>;
+export type Invite = z.infer<typeof InviteSchema> & BaseEntity;
 
-/**
- * Input for updating an organization settings.
- */
-export const UpdateOrgSchema = OrganizationSchema.pick({
-  name: true,
-}).partial();
+export const SendInviteSchema = z.object({
+  email: z.string().email(),
+  role: z.nativeEnum(UserRoleInOrg).default(UserRoleInOrg.MEMBER),
+});
+export const AcceptInviteSchema = z.object({
+  token: z.string().min(1),
+});
+export const RejectInviteSchema = z.object({
+  token: z.string().min(1),
+});
+export const RevokeInviteSchema = z.object({
+  inviteId: z.string(),
+});
 
-export type UpdateOrgInput = z.infer<typeof UpdateOrgSchema>;
+// --- Members (Logic Support) ---
+export const UpdateMemberRoleSchema = z.object({
+  userId: z.string(),
+  role: z.nativeEnum(UserRoleInOrg),
+});
+export const RemoveMemberSchema = z.object({
+  userId: z.string(),
+});

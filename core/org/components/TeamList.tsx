@@ -1,7 +1,7 @@
 'use client';
 
+import { useRNGAuth } from '@/core/auth/auth.context';
 import { User } from '@/core/auth/auth.model';
-import { useRNGAuth } from '@/core/auth/contexts/auth-context';
 import { removeMemberAction, updateMemberRoleAction } from '@/core/org/actions/member.actions';
 import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
 import { UserRoleInOrg } from '@/lib/action-policies';

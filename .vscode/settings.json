@@ -16,7 +16,10 @@
     "eslint.config.mjs": true,
     "next.config.ts": true,
     "tsconfig.json": true,
-    ".env.local": true
+    ".env.local": true,
+    "rng-form": true,
+    "lib": true,
+    "core/safe-action": true
   },
   "hide-files.files": [
     "node_modules",
@@ -29,7 +32,10 @@
     "eslint.config.mjs",
     "next.config.ts",
     "tsconfig.json",
-    ".env.local"
+    ".env.local",
+    "rng-form",
+    "lib",
+    "core/safe-action"
   ],
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {

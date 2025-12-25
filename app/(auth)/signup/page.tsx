@@ -1,6 +1,6 @@
 'use client';
 
-import { signUpAction } from '@/core/auth/actions/auth.actions';
+import { signUpAction } from '@/core/auth/auth.actions';
 import { SignUpSchema } from '@/core/auth/auth.model'; // Use shared model
 import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
 import { RNGForm } from '@/rng-form/components/RNGForm';

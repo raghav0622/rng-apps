@@ -1,6 +1,6 @@
 'use client';
-import { logoutAction } from '@/core/auth/actions/auth.actions';
-import { useRNGAuth } from '@/core/auth/contexts/auth-context';
+import { logoutAction } from '@/core/auth/auth.actions';
+import { useRNGAuth } from '@/core/auth/auth.context';
 import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
 import { Logout, Person } from '@mui/icons-material';
 import {

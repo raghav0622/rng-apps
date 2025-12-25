@@ -1,7 +1,7 @@
 'use client';
 
 import { useLayoutContext } from '@/app/(protected)/LayoutContext';
-import { useOrg } from '@/core/org/contexts/org-context';
+import { useOrg } from '@/core/org/org.context';
 import {
   Business as BusinessIcon,
   Dashboard as DashboardIcon,

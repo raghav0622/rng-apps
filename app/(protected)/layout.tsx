@@ -1,6 +1,6 @@
-import { AuthProvider } from '@/core/auth/contexts/auth-context';
-import { userRepository } from '@/core/auth/repositories/user.repository';
-import { OrgProvider } from '@/core/org/contexts/org-context';
+import { AuthProvider } from '@/core/auth/auth.context';
+import { userRepository } from '@/core/auth/user.repository';
+import { OrgProvider } from '@/core/org/org.context';
 import { organizationRepository } from '@/core/org/org.repository';
 import { AUTH_SESSION_COOKIE_NAME } from '@/lib/constants';
 import { auth } from '@/lib/firebase/admin';

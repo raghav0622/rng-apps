@@ -1,6 +1,6 @@
 'use client';
 
-import { loginAction } from '@/core/auth/actions/auth.actions';
+import { loginAction } from '@/core/auth/auth.actions';
 import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';

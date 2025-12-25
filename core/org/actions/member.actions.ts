@@ -2,6 +2,7 @@
 
 import { orgActionClient } from '@/core/safe-action/safe-action';
 import { AppPermission, UserRoleInOrg } from '@/lib/action-policies';
+import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { memberService } from '../services/member.service';
 
@@ -21,12 +22,14 @@ export const updateMemberRoleAction = orgActionClient
   })
   .schema(UpdateRoleSchema)
   .action(async ({ ctx, parsedInput }) => {
-    return await memberService.updateMemberRole(
+    const result = await memberService.updateMemberRole(
       ctx.userId,
       ctx.orgId,
       parsedInput.userId,
       parsedInput.role,
     );
+    revalidatePath('/dashboard/team');
+    return result;
   });
 
 export const removeMemberAction = orgActionClient
@@ -36,5 +39,7 @@ export const removeMemberAction = orgActionClient
   })
   .schema(RemoveMemberSchema)
   .action(async ({ ctx, parsedInput }) => {
-    return await memberService.removeMember(ctx.userId, ctx.orgId, parsedInput.userId);
+    const result = await memberService.removeMember(ctx.userId, ctx.orgId, parsedInput.userId);
+    revalidatePath('/dashboard/team');
+    return result;
   });

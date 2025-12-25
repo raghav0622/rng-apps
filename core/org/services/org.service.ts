@@ -5,8 +5,8 @@ import { firestore } from '@/lib/firebase/admin';
 import { Result } from '@/lib/types';
 import { AppErrorCode, CustomError } from '@/lib/utils/errors';
 import { v4 as uuidv4 } from 'uuid';
-import { CreateOrgInput, Organization, UpdateOrgInput } from './org.model';
-import { organizationRepository } from './org.repository';
+import { CreateOrgInput, Organization, UpdateOrgInput } from '../org.model';
+import { organizationRepository } from '../org.repository';
 
 class OrganizationService extends AbstractService {
   /**

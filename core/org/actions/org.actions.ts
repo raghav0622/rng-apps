@@ -2,8 +2,8 @@
 
 import { authActionClient, orgActionClient } from '@/core/safe-action/safe-action';
 import { AppPermission } from '@/lib/action-policies';
-import { CreateOrgSchema, UpdateOrgSchema } from './org.model';
-import { organizationService } from './org.service';
+import { CreateOrgSchema, UpdateOrgSchema } from '../org.model';
+import { organizationService } from '../services/org.service';
 
 /**
  * Action: Create Organization

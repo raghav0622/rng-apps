@@ -24,9 +24,9 @@ import { usePathname } from 'next/navigation';
 
 const MENU_ITEMS = [
   { label: 'Dashboard', icon: <DashboardIcon />, href: '/dashboard' },
-  { label: 'Team Members', icon: <GroupIcon />, href: '/dashboard/team' },
-  { label: 'Organization', icon: <BusinessIcon />, href: '/dashboard/organization' },
-  { label: 'Settings', icon: <SettingsIcon />, href: '/dashboard/settings' },
+  { label: 'Team Members', icon: <GroupIcon />, href: '/team' },
+  { label: 'Organization', icon: <BusinessIcon />, href: '/organization' },
+  { label: 'Settings', icon: <SettingsIcon />, href: '/settings' },
 ];
 
 export default function AppDrawer() {

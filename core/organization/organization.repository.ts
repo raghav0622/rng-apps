@@ -1,5 +1,12 @@
 import { FirestoreRepository } from '@/lib/firestore-repository/firestore-repository';
-import { Invite, InviteSchema, Organization, OrganizationSchema } from './organization.model';
+import {
+  Invite,
+  InviteSchema,
+  Member,
+  MemberSchema,
+  Organization,
+  OrganizationSchema,
+} from './organization.model';
 
 const ORG_COLLECTION = 'organizations';
 const INVITE_COLLECTION = 'invites';
@@ -10,6 +17,17 @@ class OrganizationRepository extends FirestoreRepository<Organization> {
       schema: OrganizationSchema,
       softDeleteEnabled: true,
       enableVersioning: true,
+    });
+  }
+
+  /**
+   * Returns a repository for the members sub-collection of a specific organization.
+   * Path: organizations/{orgId}/members
+   */
+  members(orgId: string) {
+    return this.subCollection<Member>(orgId, 'members', {
+      schema: MemberSchema,
+      softDeleteEnabled: true,
     });
   }
 }

@@ -21,11 +21,29 @@ export const UpdateOrgSchema = CreateOrgSchema.partial();
 export type CreateOrgInput = z.infer<typeof CreateOrgSchema>;
 export type UpdateOrgInput = z.infer<typeof UpdateOrgSchema>;
 
+// --- Members (New) ---
+export const MemberSchema = z.object({
+  id: z.string(), // Matches userId
+  orgId: z.string(),
+  userId: z.string(),
+  email: z.string().email(),
+  displayName: z.string().optional(),
+  photoURL: z.string().optional(),
+  role: z.nativeEnum(UserRoleInOrg),
+  joinedAt: z.date(),
+  status: z.enum(['ACTIVE', 'INACTIVE']).default('ACTIVE'),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+  deletedAt: z.date().nullable(),
+});
+
+export type Member = z.infer<typeof MemberSchema> & BaseEntity;
+
 // --- Invites ---
 export enum InviteStatus {
   PENDING = 'PENDING',
   ACCEPTED = 'ACCEPTED',
-  REJECTED = 'REJECTED', // Added REJECTED
+  REJECTED = 'REJECTED',
   EXPIRED = 'EXPIRED',
   REVOKED = 'REVOKED',
 }
@@ -46,6 +64,7 @@ export const InviteSchema = z.object({
 
 export type Invite = z.infer<typeof InviteSchema> & BaseEntity;
 
+// --- Actions ---
 export const SendInviteSchema = z.object({
   email: z.string().email(),
   role: z.nativeEnum(UserRoleInOrg).default(UserRoleInOrg.MEMBER),
@@ -60,11 +79,11 @@ export const RevokeInviteSchema = z.object({
   inviteId: z.string(),
 });
 
-// --- Members (Logic Support) ---
 export const UpdateMemberRoleSchema = z.object({
   userId: z.string(),
   role: z.nativeEnum(UserRoleInOrg),
 });
+
 export const RemoveMemberSchema = z.object({
   userId: z.string(),
 });

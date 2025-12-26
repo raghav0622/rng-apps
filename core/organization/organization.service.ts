@@ -11,6 +11,7 @@ import {
   CreateOrgInput,
   Invite,
   InviteStatus,
+  Member,
   Organization,
   SendInviteSchema,
   UpdateOrgInput,
@@ -20,16 +21,21 @@ import { inviteRepository, organizationRepository } from './organization.reposit
 type SendInviteInput = z.infer<typeof SendInviteSchema>;
 
 class OrganizationService extends AbstractService {
-  // --- Organization Lifecycle ---
+  // ===========================================================================
+  // 🏢 Organization Lifecycle
+  // ===========================================================================
 
   async createOrganization(userId: string, input: CreateOrgInput): Promise<Result<Organization>> {
     return this.handleOperation('org.create', async () => {
+      const orgId = uuidv4();
       let newOrg: Organization;
 
       await firestore().runTransaction(async (t) => {
         const userRepoT = userRepository.withTransaction(t);
         const orgRepoT = organizationRepository.withTransaction(t);
+        const memberRepoT = organizationRepository.members(orgId).withTransaction(t);
 
+        // 1. Check: User cannot have an existing orgId
         const user = await userRepoT.get(userId);
         if (user.orgId) {
           throw new CustomError(
@@ -38,12 +44,25 @@ class OrganizationService extends AbstractService {
           );
         }
 
-        const orgId = uuidv4();
+        // 2. Create Org Doc
         newOrg = await orgRepoT.create(orgId, {
           name: input.name,
           ownerId: userId,
         });
 
+        // 3. Create Owner Member Doc
+        await memberRepoT.create(userId, {
+          orgId,
+          userId,
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+          role: UserRoleInOrg.OWNER,
+          joinedAt: new Date(),
+          status: 'ACTIVE',
+        });
+
+        // 4. Update User Profile
         await userRepoT.update(userId, {
           orgId: orgId,
           orgRole: UserRoleInOrg.OWNER,
@@ -58,17 +77,19 @@ class OrganizationService extends AbstractService {
 
   async updateOrganization(orgId: string, input: UpdateOrgInput): Promise<Result<void>> {
     return this.handleOperation('org.update', async () => {
+      // Access Policy Check: Handled by Action Metadata (AppPermission.ORG_UPDATE)
       await organizationRepository.update(orgId, input);
     });
   }
 
-  // --- Member Management ---
+  // ===========================================================================
+  // 👥 Members (RBAC & Management)
+  // ===========================================================================
 
-  async getMembers(orgId: string) {
+  async getMembers(orgId: string): Promise<Result<Member[]>> {
     return this.handleOperation('org.getMembers', async () => {
-      const { data } = await userRepository.list({
-        where: [{ field: 'orgId', op: '==', value: orgId }],
-        orderBy: [{ field: 'displayName', direction: 'asc' }],
+      const { data } = await organizationRepository.members(orgId).list({
+        orderBy: [{ field: 'role', direction: 'asc' }], // Owner first usually
         limit: 100,
       });
       return data;
@@ -86,24 +107,29 @@ class OrganizationService extends AbstractService {
         throw new CustomError(AppErrorCode.INVALID_INPUT, 'Cannot change your own role.');
       }
 
-      const targetUser = await userRepository.get(targetUserId);
-      if (targetUser.orgId !== orgId)
-        throw new CustomError(AppErrorCode.NOT_FOUND, 'Member not found.');
+      const memberRepo = organizationRepository.members(orgId);
+      const targetMember = await memberRepo.get(targetUserId);
 
       // Safety: If demoting last owner
-      if (newRole !== UserRoleInOrg.OWNER && targetUser.orgRole === UserRoleInOrg.OWNER) {
-        const owners = await userRepository.list({
-          where: [
-            { field: 'orgId', op: '==', value: orgId },
-            { field: 'orgRole', op: '==', value: 'OWNER' },
-          ],
+      if (newRole !== UserRoleInOrg.OWNER && targetMember.role === UserRoleInOrg.OWNER) {
+        const { data: owners } = await memberRepo.list({
+          where: [{ field: 'role', op: '==', value: UserRoleInOrg.OWNER }],
         });
-        if (owners.data.length <= 1) {
+        if (owners.length <= 1) {
           throw new CustomError(AppErrorCode.PERMISSION_DENIED, 'Cannot remove the last owner.');
         }
       }
 
-      await userRepository.update(targetUserId, { orgRole: newRole });
+      // Sync Role: Update Member Doc AND User Doc
+      await firestore().runTransaction(async (t) => {
+        const memberRepoT = memberRepo.withTransaction(t);
+        const userRepoT = userRepository.withTransaction(t);
+
+        await memberRepoT.update(targetUserId, { role: newRole });
+        await userRepoT.update(targetUserId, { orgRole: newRole });
+      });
+
+      await userRepository.clearCache(targetUserId);
     });
   }
 
@@ -112,33 +138,42 @@ class OrganizationService extends AbstractService {
       if (actorId === targetUserId)
         throw new CustomError(AppErrorCode.INVALID_INPUT, 'Cannot remove yourself.');
 
-      const targetUser = await userRepository.get(targetUserId);
-      if (targetUser.orgId !== orgId)
-        throw new CustomError(AppErrorCode.NOT_FOUND, 'Member not found.');
+      const memberRepo = organizationRepository.members(orgId);
 
-      if (targetUser.orgRole === UserRoleInOrg.OWNER) {
-        const owners = await userRepository.list({
-          where: [
-            { field: 'orgId', op: '==', value: orgId },
-            { field: 'orgRole', op: '==', value: 'OWNER' },
-          ],
+      // 1. Fetch Member to check role
+      const targetMember = await memberRepo.get(targetUserId);
+
+      // 2. Safety: Cannot remove last OWNER
+      if (targetMember.role === UserRoleInOrg.OWNER) {
+        const { data: owners } = await memberRepo.list({
+          where: [{ field: 'role', op: '==', value: UserRoleInOrg.OWNER }],
         });
-        if (owners.data.length <= 1) {
+        if (owners.length <= 1) {
           throw new CustomError(AppErrorCode.PERMISSION_DENIED, 'Cannot remove the last owner.');
         }
       }
 
-      await userRepository.update(targetUserId, {
-        orgId: undefined,
-        orgRole: UserRoleInOrg.NOT_IN_ORG,
-        isOnboarded: false,
+      // 3. Transaction: Delete Member -> Update User
+      await firestore().runTransaction(async (t) => {
+        const memberRepoT = memberRepo.withTransaction(t);
+        const userRepoT = userRepository.withTransaction(t);
+
+        await memberRepoT.forceDelete(targetUserId); // Hard delete from org
+        await userRepoT.update(targetUserId, {
+          orgId: undefined, // Explicit null in Firestore
+          orgRole: UserRoleInOrg.NOT_IN_ORG,
+          isOnboarded: false,
+        });
       });
 
+      await userRepository.clearCache(targetUserId);
       await eventBus.publish('member.removed', { userId: targetUserId, orgId }, { orgId, actorId });
     });
   }
 
-  // --- Invites ---
+  // ===========================================================================
+  // 📩 Invites (Transactional)
+  // ===========================================================================
 
   async listPendingInvites(orgId: string) {
     return this.handleOperation('org.listInvites', async () => {
@@ -159,6 +194,7 @@ class OrganizationService extends AbstractService {
     input: SendInviteInput,
   ): Promise<Result<Invite>> {
     return this.handleOperation('org.sendInvite', async () => {
+      // 1. Logic Checks
       if (await inviteRepository.existsActiveInvite(orgId, input.email)) {
         throw new CustomError(AppErrorCode.ALREADY_EXISTS, 'Invite already exists.');
       }
@@ -168,6 +204,7 @@ class OrganizationService extends AbstractService {
         throw new CustomError(AppErrorCode.INVALID_INPUT, 'User is already in an organization.');
       }
 
+      // 2. Create Invite
       const token = uuidv4();
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7);
@@ -182,6 +219,7 @@ class OrganizationService extends AbstractService {
         expiresAt,
       });
 
+      // TODO: await emailService.sendInvite(input.email, token);
       await eventBus.publish('invite.created', { ...invite }, { orgId, actorId: inviterId });
       return invite;
     });
@@ -200,11 +238,28 @@ class OrganizationService extends AbstractService {
         throw new CustomError(AppErrorCode.PERMISSION_DENIED, 'Already in an org.');
       }
 
+      // Transaction: Accept Invite -> Create Member -> Update User
       await firestore().runTransaction(async (t) => {
         const inviteRepoT = inviteRepository.withTransaction(t);
         const userRepoT = userRepository.withTransaction(t);
+        const memberRepoT = organizationRepository.members(invite.orgId).withTransaction(t);
 
+        // 1. Update Invite Status
         await inviteRepoT.update(invite.id, { status: InviteStatus.ACCEPTED });
+
+        // 2. Create Member Doc
+        await memberRepoT.create(userId, {
+          orgId: invite.orgId,
+          userId: userId,
+          email: user.email,
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+          role: invite.role,
+          joinedAt: new Date(),
+          status: 'ACTIVE',
+        });
+
+        // 3. Update User Profile
         await userRepoT.update(userId, {
           orgId: invite.orgId,
           orgRole: invite.role,
@@ -221,28 +276,15 @@ class OrganizationService extends AbstractService {
     });
   }
 
-  /**
-   * Rejects a pending invite.
-   * Performed by the Invitee (must be logged in and match email).
-   */
   async rejectInvite(userId: string, token: string): Promise<Result<void>> {
     return this.handleOperation('org.rejectInvite', async () => {
-      // 1. Validate Invite
       const invite = await inviteRepository.findByToken(token);
-      if (!invite) {
-        throw new CustomError(AppErrorCode.NOT_FOUND, 'Invalid or expired invite link.');
-      }
+      if (!invite) throw new CustomError(AppErrorCode.NOT_FOUND, 'Invalid invite.');
 
-      // 2. Validate User ownership
       const user = await userRepository.get(userId);
-      if (user.email !== invite.email) {
-        throw new CustomError(
-          AppErrorCode.PERMISSION_DENIED,
-          'This invite was sent to a different email address.',
-        );
-      }
+      if (user.email !== invite.email)
+        throw new CustomError(AppErrorCode.PERMISSION_DENIED, 'Email mismatch.');
 
-      // 3. Reject
       await inviteRepository.update(invite.id, { status: InviteStatus.REJECTED });
     });
   }

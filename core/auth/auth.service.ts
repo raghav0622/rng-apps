@@ -1,8 +1,8 @@
 import { AbstractService } from '@/lib/abstract-service/AbstractService';
 import { UserRoleInOrg } from '@/lib/action-policies';
+import { SESSION_DURATION_MS } from '@/lib/constants';
 import { env } from '@/lib/env';
 import { auth } from '@/lib/firebase/admin';
-import { logInfo } from '@/lib/logger';
 import { Result } from '@/lib/types';
 import { AppErrorCode, CustomError } from '@/lib/utils/errors';
 import { v4 as uuidv4 } from 'uuid';
@@ -10,7 +10,6 @@ import { SignUpInput, User } from './auth.model';
 import { SessionService } from './session.service';
 import { userRepository } from './user.repository';
 
-// Google Identity Toolkit API Endpoint
 const GOOGLE_API_URL = 'https://identitytoolkit.googleapis.com/v1/accounts';
 
 class AuthService extends AbstractService {
@@ -46,6 +45,7 @@ class AuthService extends AbstractService {
         });
         return newUser;
       } catch (dbError) {
+        // Rollback Auth User if DB creation fails
         await auth().deleteUser(authUser.uid);
         throw new CustomError(AppErrorCode.INTERNAL_ERROR, 'Failed to create user profile.');
       }
@@ -53,7 +53,7 @@ class AuthService extends AbstractService {
   }
 
   /**
-   * Server-side Login.
+   * Server-side Login to generate Session Cookie.
    */
   async login(
     email: string,
@@ -81,70 +81,12 @@ class AuthService extends AbstractService {
         throw new Error(msg);
       }
 
-      const expiresIn = 60 * 60 * 24 * 5 * 1000; // 5 days
+      const expiresIn = SESSION_DURATION_MS; // 5 days
       const sessionCookie = await auth().createSessionCookie(data.idToken, { expiresIn });
       const sessionId = uuidv4();
       await SessionService.createSession(data.localId, sessionId);
 
       return { sessionCookie, expiresIn, sessionId };
-    });
-  }
-
-  /**
-   * Sends a password reset email via Firebase.
-   */
-  async sendPasswordResetLink(email: string): Promise<Result<void>> {
-    return this.handleOperation('auth.forgotPassword', async () => {
-      try {
-        const link = await auth().generatePasswordResetLink(email);
-        logInfo(`[AUTH] Password Reset Link for ${email}: ${link}`);
-        // TODO: await emailService.sendForgotPassword(email, link);
-      } catch (e: any) {
-        if (e.code === 'auth/user-not-found') {
-          return;
-        }
-        throw e;
-      }
-    });
-  }
-
-  /**
-   * Resets password using OOB code via REST API.
-   */
-  async resetPassword(oobCode: string, newPassword: string): Promise<Result<void>> {
-    return this.handleOperation('auth.resetPassword', async () => {
-      const url = `${GOOGLE_API_URL}:resetPassword?key=${env.NEXT_PUBLIC_FIREBASE_API_KEY}`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ oobCode, newPassword }),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new CustomError(
-          AppErrorCode.INVALID_INPUT,
-          data.error?.message || 'Failed to reset password.',
-        );
-      }
-    });
-  }
-
-  /**
-   * Verifies email using OOB code via REST API.
-   */
-  async verifyEmail(oobCode: string): Promise<Result<void>> {
-    return this.handleOperation('auth.verifyEmail', async () => {
-      const url = `${GOOGLE_API_URL}:setAccountInfo?key=${env.NEXT_PUBLIC_FIREBASE_API_KEY}`;
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ oobCode, emailVerified: true }),
-      });
-
-      if (!response.ok) {
-        throw new CustomError(AppErrorCode.INVALID_INPUT, 'Invalid or expired verification code.');
-      }
     });
   }
 }

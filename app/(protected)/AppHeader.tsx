@@ -1,7 +1,7 @@
 'use client';
 
 import { useRNGAuth } from '@/core/auth/auth.context';
-import { useOrg } from '@/core/org/org.context';
+import { useOrg } from '@/core/organization/organization.context';
 import { isAuthRoute } from '@/routes';
 import Logo from '@/ui/Logo';
 import DarkModeToggle from '@/ui/ThemeSwitch';

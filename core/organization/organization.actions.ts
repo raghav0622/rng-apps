@@ -12,8 +12,8 @@ import {
   SendInviteSchema,
   UpdateMemberRoleSchema,
   UpdateOrgSchema,
-} from './org.model';
-import { organizationService } from './org.service';
+} from './organization.model';
+import { organizationService } from './organization.service';
 
 // --- Org Actions ---
 

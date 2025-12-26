@@ -1,5 +1,5 @@
 import { FirestoreRepository } from '@/lib/firestore-repository/firestore-repository';
-import { Invite, InviteSchema, Organization, OrganizationSchema } from './org.model';
+import { Invite, InviteSchema, Organization, OrganizationSchema } from './organization.model';
 
 const ORG_COLLECTION = 'organizations';
 const INVITE_COLLECTION = 'invites';

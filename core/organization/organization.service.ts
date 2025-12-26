@@ -1,17 +1,5 @@
 import { userRepository } from '@/core/auth/user.repository';
 import { eventBus } from '@/core/events/event-bus.service';
-import {
-  CreateOrgInput,
-  Invite,
-  InviteStatus,
-  Organization,
-  SendInviteSchema,
-  UpdateOrgInput,
-} from '@/core/organization/organization.model';
-import {
-  inviteRepository,
-  organizationRepository,
-} from '@/core/organization/organization.repository';
 import { AbstractService } from '@/lib/abstract-service/AbstractService';
 import { UserRoleInOrg } from '@/lib/action-policies';
 import { firestore } from '@/lib/firebase/admin';
@@ -19,6 +7,15 @@ import { Result } from '@/lib/types';
 import { AppErrorCode, CustomError } from '@/lib/utils/errors';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
+import {
+  CreateOrgInput,
+  Invite,
+  InviteStatus,
+  Organization,
+  SendInviteSchema,
+  UpdateOrgInput,
+} from './organization.model';
+import { inviteRepository, organizationRepository } from './organization.repository';
 
 type SendInviteInput = z.infer<typeof SendInviteSchema>;
 

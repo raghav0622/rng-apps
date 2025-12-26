@@ -6,9 +6,9 @@ import { logInfo } from '@/lib/logger';
 import { Result } from '@/lib/types';
 import { AppErrorCode, CustomError } from '@/lib/utils/errors';
 import { v4 as uuidv4 } from 'uuid';
-import { userRepository } from '../repositories/user.repository';
 import { SignUpInput, User } from './auth.model';
 import { SessionService } from './session.service';
+import { userRepository } from './user.repository';
 
 // Google Identity Toolkit API Endpoint
 const GOOGLE_API_URL = 'https://identitytoolkit.googleapis.com/v1/accounts';

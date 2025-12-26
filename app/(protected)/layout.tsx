@@ -1,7 +1,7 @@
 import { AuthProvider } from '@/core/auth/auth.context';
 import { userRepository } from '@/core/auth/user.repository';
-import { OrgProvider } from '@/core/org/org.context';
-import { organizationRepository } from '@/core/org/org.repository';
+import { OrgProvider } from '@/core/organization/organization.context';
+import { organizationRepository } from '@/core/organization/organization.repository';
 import { AUTH_SESSION_COOKIE_NAME } from '@/lib/constants';
 import { auth } from '@/lib/firebase/admin';
 import { Box } from '@mui/material';

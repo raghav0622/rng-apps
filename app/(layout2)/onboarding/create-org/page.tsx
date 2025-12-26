@@ -1,7 +1,7 @@
 'use client';
 
-import { createOrganizationAction } from '@/core/org/org.actions';
-import { CreateOrgSchema } from '@/core/org/org.model';
+import { createOrganizationAction } from '@/core/organization/organization.actions';
+import { CreateOrgSchema } from '@/core/organization/organization.model';
 import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';

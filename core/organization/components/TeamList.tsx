@@ -2,7 +2,6 @@
 
 import { useRNGAuth } from '@/core/auth/auth.context';
 import { User } from '@/core/auth/auth.model';
-import { removeMemberAction, updateMemberRoleAction } from '@/core/org/actions/member.actions';
 import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
 import { UserRoleInOrg } from '@/lib/action-policies';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
@@ -22,6 +21,7 @@ import {
   Typography,
 } from '@mui/material';
 import { useState } from 'react';
+import { removeMemberAction, updateMemberRoleAction } from '../organization.actions';
 
 export function TeamList({ members }: { members: User[] }) {
   const { user: currentUser } = useRNGAuth();

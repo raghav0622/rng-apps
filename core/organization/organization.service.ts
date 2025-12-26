@@ -1,4 +1,8 @@
+import { AuditAction } from '@/core/audit/audit.model';
+import { auditRepository } from '@/core/audit/audit.repository';
 import { userRepository } from '@/core/auth/user.repository';
+import { SubscriptionPlan } from '@/core/billing/billing.model';
+import { subscriptionRepository } from '@/core/billing/subscription.repository';
 import { eventBus } from '@/core/events/event-bus.service';
 import { AbstractService } from '@/lib/abstract-service/AbstractService';
 import { UserRoleInOrg } from '@/lib/action-policies';
@@ -20,7 +24,48 @@ import { inviteRepository, organizationRepository } from './organization.reposit
 
 type SendInviteInput = z.infer<typeof SendInviteSchema>;
 
+// Billing Limits Configuration
+const SEAT_LIMITS: Record<SubscriptionPlan, number> = {
+  [SubscriptionPlan.FREE]: 5,
+  [SubscriptionPlan.PRO]: 10,
+  [SubscriptionPlan.ENTERPRISE]: 50,
+};
+
 class OrganizationService extends AbstractService {
+  // ===========================================================================
+  // 🛡️ Helper: Billing Check
+  // ===========================================================================
+
+  /**
+   * Checks if the organization has reached its seat limit.
+   * Throws an error if the limit is exceeded.
+   */
+  private async checkSeatLimits(orgId: string, additionalSeats = 1): Promise<void> {
+    const subscription = await subscriptionRepository.getByOrgId(orgId);
+    const plan = subscription?.planId || SubscriptionPlan.FREE;
+    const limit = SEAT_LIMITS[plan];
+
+    // Count Active Members
+    const members = await organizationRepository.members(orgId).list({ limit: 1000 }); // Optimization: count aggregation in real app
+    const activeMembersCount = members.data.length;
+
+    // Count Pending Invites (They reserve a seat)
+    const invites = await inviteRepository.list({
+      where: [
+        { field: 'orgId', op: '==', value: orgId },
+        { field: 'status', op: '==', value: InviteStatus.PENDING },
+      ],
+    });
+    const pendingInvitesCount = invites.data.length;
+
+    if (activeMembersCount + pendingInvitesCount + additionalSeats > limit) {
+      throw new CustomError(
+        AppErrorCode.QUOTA_EXCEEDED,
+        `Organization seat limit reached (${limit}). Please upgrade your plan.`,
+      );
+    }
+  }
+
   // ===========================================================================
   // 🏢 Organization Lifecycle
   // ===========================================================================
@@ -34,6 +79,7 @@ class OrganizationService extends AbstractService {
         const userRepoT = userRepository.withTransaction(t);
         const orgRepoT = organizationRepository.withTransaction(t);
         const memberRepoT = organizationRepository.members(orgId).withTransaction(t);
+        const auditRepoT = auditRepository.withTransaction(t);
 
         // 1. Check: User cannot have an existing orgId
         const user = await userRepoT.get(userId);
@@ -56,7 +102,7 @@ class OrganizationService extends AbstractService {
           userId,
           email: user.email,
           displayName: user.displayName,
-          photoURL: user.photoURL,
+          photoURL: user.photoURL || '',
           role: UserRoleInOrg.OWNER,
           joinedAt: new Date(),
           status: 'ACTIVE',
@@ -68,17 +114,41 @@ class OrganizationService extends AbstractService {
           orgRole: UserRoleInOrg.OWNER,
           isOnboarded: true,
         });
+
+        // 5. Audit Log (Atomic)
+        await auditRepoT.create(uuidv4(), {
+          orgId,
+          actorId: userId,
+          action: AuditAction.RESOURCE_CREATE, // Or explicit ORG_CREATE if added to enum
+          targetId: orgId,
+          metadata: { name: input.name },
+        });
       });
 
       await userRepository.clearCache(userId);
+      await eventBus.publish('org.created', newOrg!, { orgId, actorId: userId });
       return newOrg!;
     });
   }
 
   async updateOrganization(orgId: string, input: UpdateOrgInput): Promise<Result<void>> {
     return this.handleOperation('org.update', async () => {
-      // Access Policy Check: Handled by Action Metadata (AppPermission.ORG_UPDATE)
-      await organizationRepository.update(orgId, input);
+      // Note: Permission checks are handled by the Action Metadata/Policy
+
+      await firestore().runTransaction(async (t) => {
+        const orgRepoT = organizationRepository.withTransaction(t);
+        const auditRepoT = auditRepository.withTransaction(t);
+
+        await orgRepoT.update(orgId, input);
+
+        await auditRepoT.create(uuidv4(), {
+          orgId,
+          actorId: 'system', // Or pass actorId through context if available in service method
+          action: AuditAction.ORG_UPDATE,
+          targetId: orgId,
+          metadata: input,
+        });
+      });
     });
   }
 
@@ -124,9 +194,19 @@ class OrganizationService extends AbstractService {
       await firestore().runTransaction(async (t) => {
         const memberRepoT = memberRepo.withTransaction(t);
         const userRepoT = userRepository.withTransaction(t);
+        const auditRepoT = auditRepository.withTransaction(t);
 
         await memberRepoT.update(targetUserId, { role: newRole });
         await userRepoT.update(targetUserId, { orgRole: newRole });
+
+        // Audit
+        await auditRepoT.create(uuidv4(), {
+          orgId,
+          actorId,
+          action: AuditAction.MEMBER_UPDATE_ROLE,
+          targetId: targetUserId,
+          metadata: { oldRole: targetMember.role, newRole },
+        });
       });
 
       await userRepository.clearCache(targetUserId);
@@ -153,16 +233,26 @@ class OrganizationService extends AbstractService {
         }
       }
 
-      // 3. Transaction: Delete Member -> Update User
+      // 3. Transaction: Delete Member -> Update User -> Audit
       await firestore().runTransaction(async (t) => {
         const memberRepoT = memberRepo.withTransaction(t);
         const userRepoT = userRepository.withTransaction(t);
+        const auditRepoT = auditRepository.withTransaction(t);
 
         await memberRepoT.forceDelete(targetUserId); // Hard delete from org
         await userRepoT.update(targetUserId, {
           orgId: undefined, // Explicit null in Firestore
           orgRole: UserRoleInOrg.NOT_IN_ORG,
           isOnboarded: false,
+        });
+
+        // Audit
+        await auditRepoT.create(uuidv4(), {
+          orgId,
+          actorId,
+          action: AuditAction.MEMBER_REMOVE,
+          targetId: targetUserId,
+          metadata: { email: targetMember.email },
         });
       });
 
@@ -172,7 +262,7 @@ class OrganizationService extends AbstractService {
   }
 
   // ===========================================================================
-  // 📩 Invites (Transactional)
+  // 📩 Invites (Transactional + Billing)
   // ===========================================================================
 
   async listPendingInvites(orgId: string) {
@@ -204,24 +294,47 @@ class OrganizationService extends AbstractService {
         throw new CustomError(AppErrorCode.INVALID_INPUT, 'User is already in an organization.');
       }
 
-      // 2. Create Invite
-      const token = uuidv4();
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 7);
+      // 2. BILLING CHECK: Ensure we have space
+      await this.checkSeatLimits(orgId);
 
-      const invite = await inviteRepository.create(uuidv4(), {
-        orgId,
-        inviterId,
-        email: input.email,
-        role: input.role,
-        token,
-        status: InviteStatus.PENDING,
-        expiresAt,
-      });
+      // 3. Create Invite & Audit (Atomic)
+      return await firestore()
+        .runTransaction(async (t) => {
+          const inviteRepoT = inviteRepository.withTransaction(t);
+          const auditRepoT = auditRepository.withTransaction(t);
 
-      // TODO: await emailService.sendInvite(input.email, token);
-      await eventBus.publish('invite.created', { ...invite }, { orgId, actorId: inviterId });
-      return invite;
+          const token = uuidv4();
+          const expiresAt = new Date();
+          expiresAt.setDate(expiresAt.getDate() + 7);
+          const inviteId = uuidv4();
+
+          const invite = await inviteRepoT.create(inviteId, {
+            orgId,
+            inviterId,
+            email: input.email,
+            role: input.role,
+            token,
+            status: InviteStatus.PENDING,
+            expiresAt,
+          });
+
+          await auditRepoT.create(uuidv4(), {
+            orgId,
+            actorId: inviterId,
+            action: AuditAction.MEMBER_INVITE,
+            targetId: inviteId,
+            metadata: { email: input.email, role: input.role },
+          });
+
+          // Side effect usually goes here or after transaction.
+          // We'll publish event after.
+          return invite;
+        })
+        .then(async (invite) => {
+          // TODO: await emailService.sendInvite(input.email, token);
+          await eventBus.publish('invite.created', { ...invite }, { orgId, actorId: inviterId });
+          return invite;
+        });
     });
   }
 
@@ -238,11 +351,18 @@ class OrganizationService extends AbstractService {
         throw new CustomError(AppErrorCode.PERMISSION_DENIED, 'Already in an org.');
       }
 
-      // Transaction: Accept Invite -> Create Member -> Update User
+      // Transaction: Accept Invite -> Create Member -> Update User -> Audit
       await firestore().runTransaction(async (t) => {
         const inviteRepoT = inviteRepository.withTransaction(t);
         const userRepoT = userRepository.withTransaction(t);
         const memberRepoT = organizationRepository.members(invite.orgId).withTransaction(t);
+        const auditRepoT = auditRepository.withTransaction(t);
+
+        // 🛑 RACE CONDITION PROTECTION: Re-check limits inside the lock
+        // We manually count inside the transaction scope if strict consistency is needed.
+        // For now, we assume this optimistic check combined with `checkSeatLimits` logic is sufficient
+        // or we would use a counter field on the Org document for strictly atomic limit enforcement.
+        // await this.checkSeatLimits(invite.orgId); <--- This would need to be transaction-aware
 
         // 1. Update Invite Status
         await inviteRepoT.update(invite.id, { status: InviteStatus.ACCEPTED });
@@ -264,6 +384,15 @@ class OrganizationService extends AbstractService {
           orgId: invite.orgId,
           orgRole: invite.role,
           isOnboarded: true,
+        });
+
+        // 4. Audit
+        await auditRepoT.create(uuidv4(), {
+          orgId: invite.orgId,
+          actorId: userId,
+          action: AuditAction.RESOURCE_CREATE, // Member Added
+          targetId: userId,
+          metadata: { email: user.email, source: 'invite' },
         });
       });
 

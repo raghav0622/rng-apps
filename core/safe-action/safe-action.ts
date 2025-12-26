@@ -10,8 +10,8 @@ import { getTraceId } from '@/lib/utils/tracing';
 import { createSafeActionClient, DEFAULT_SERVER_ERROR_MESSAGE } from 'next-safe-action';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
-import { userRepository } from '../../core/auth/repositories/user.repository';
 import { SessionService } from '../auth/session.service';
+import { userRepository } from '../auth/user.repository';
 
 export const actionClient = createSafeActionClient({
   handleServerError: (e, utils) => {

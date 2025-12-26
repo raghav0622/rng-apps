@@ -1,17 +1,24 @@
 'use client';
 
-import { useRNGAuth } from '@/core/auth/auth.context';
-import { User } from '@/core/auth/auth.model';
-import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
+import {
+  removeMemberAction,
+  revokeInviteAction,
+  updateMemberRoleAction,
+} from '@/core/organization/organization.actions';
+import { Invite, Member } from '@/core/organization/organization.model';
+import { useRNGServerAction as useRngAction } from '@/core/safe-action/use-rng-action';
 import { UserRoleInOrg } from '@/lib/action-policies';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
+import CancelIcon from '@mui/icons-material/Cancel';
+import DeleteIcon from '@mui/icons-material/Delete';
 import {
   Avatar,
+  Box,
+  Button,
   Chip,
   IconButton,
-  Menu,
   MenuItem,
   Paper,
+  Select,
   Table,
   TableBody,
   TableCell,
@@ -20,102 +27,136 @@ import {
   TableRow,
   Typography,
 } from '@mui/material';
-import { useState } from 'react';
-import { removeMemberAction, updateMemberRoleAction } from '../organization.actions';
 
-export function TeamList({ members }: { members: User[] }) {
-  const { user: currentUser } = useRNGAuth();
-
-  return (
-    <TableContainer component={Paper} variant="outlined">
-      <Table>
-        <TableHead>
-          <TableRow>
-            <TableCell>Member</TableCell>
-            <TableCell>Role</TableCell>
-            <TableCell>Status</TableCell>
-            <TableCell align="right">Actions</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {members.map((member) => (
-            <MemberRow key={member.id} member={member} isMe={currentUser?.id === member.id} />
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
-  );
+interface TeamListProps {
+  members: Member[];
+  invites: Invite[];
+  currentUserId: string;
 }
 
-function MemberRow({ member, isMe }: { member: User; isMe: boolean }) {
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const { runAction: removeMember } = useRNGServerAction(removeMemberAction);
-  const { runAction: updateRole } = useRNGServerAction(updateMemberRoleAction);
-
-  const handleAction = (action: () => void) => {
-    setAnchorEl(null);
-    action();
-  };
+export function TeamList({ members, invites, currentUserId }: TeamListProps) {
+  const { execute: updateRole } = useRngAction(updateMemberRoleAction);
+  const { execute: removeMember } = useRngAction(removeMemberAction);
+  const { execute: revokeInvite } = useRngAction(revokeInviteAction);
 
   return (
-    <TableRow>
-      <TableCell>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Avatar src={member.photoURL || undefined} alt={member.displayName}>
-            {member.displayName?.[0]}
-          </Avatar>
-          <div>
-            <Typography variant="subtitle2">
-              {member.displayName} {isMe && '(You)'}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {member.email}
-            </Typography>
-          </div>
-        </div>
-      </TableCell>
-      <TableCell>
-        <Chip
-          label={member.orgRole}
-          size="small"
-          color={member.orgRole === 'OWNER' ? 'primary' : 'default'}
-          variant="outlined"
-        />
-      </TableCell>
-      <TableCell>
-        <Chip label="Active" size="small" color="success" sx={{ height: 20, fontSize: 10 }} />
-      </TableCell>
-      <TableCell align="right">
-        {!isMe && member.orgRole !== 'OWNER' && (
-          <>
-            <IconButton size="small" onClick={(e) => setAnchorEl(e.currentTarget)}>
-              <MoreVertIcon fontSize="small" />
-            </IconButton>
-            <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
-              <MenuItem
-                onClick={() =>
-                  handleAction(() => updateRole({ userId: member.id, role: UserRoleInOrg.ADMIN }))
-                }
-              >
-                Promote to Admin
-              </MenuItem>
-              <MenuItem
-                onClick={() =>
-                  handleAction(() => updateRole({ userId: member.id, role: UserRoleInOrg.MEMBER }))
-                }
-              >
-                Demote to Member
-              </MenuItem>
-              <MenuItem
-                onClick={() => handleAction(() => removeMember({ userId: member.id }))}
-                sx={{ color: 'error.main' }}
-              >
-                Remove from Team
-              </MenuItem>
-            </Menu>
-          </>
-        )}
-      </TableCell>
-    </TableRow>
+    <Box sx={{ mt: 4 }}>
+      {/* --- Active Members Section --- */}
+      <Typography variant="h6" gutterBottom>
+        Active Members
+      </Typography>
+      <TableContainer component={Paper} variant="outlined" sx={{ mb: 4 }}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>User</TableCell>
+              <TableCell>Role</TableCell>
+              <TableCell>Joined</TableCell>
+              <TableCell align="right">Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {members.map((member) => (
+              <TableRow key={member.id}>
+                <TableCell>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <Avatar src={member.photoURL} alt={member.displayName}>
+                      {member.displayName?.charAt(0) || member.email.charAt(0)}
+                    </Avatar>
+                    <Box>
+                      <Typography variant="subtitle2">
+                        {member.displayName || 'Unknown'}
+                        {member.userId === currentUserId && ' (You)'}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {member.email}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </TableCell>
+                <TableCell>
+                  <Select
+                    size="small"
+                    value={member.role}
+                    disabled={
+                      member.userId === currentUserId || member.role === UserRoleInOrg.OWNER
+                    }
+                    onChange={(e) =>
+                      updateRole({
+                        userId: member.userId,
+                        role: e.target.value as UserRoleInOrg,
+                      })
+                    }
+                    sx={{ minWidth: 120 }}
+                  >
+                    <MenuItem value={UserRoleInOrg.ADMIN}>Admin</MenuItem>
+                    <MenuItem value={UserRoleInOrg.MEMBER}>Member</MenuItem>
+                  </Select>
+                </TableCell>
+                <TableCell>{new Date(member.joinedAt).toLocaleDateString()}</TableCell>
+                <TableCell align="right">
+                  <IconButton
+                    color="error"
+                    disabled={
+                      member.userId === currentUserId || member.role === UserRoleInOrg.OWNER
+                    }
+                    onClick={() => {
+                      if (confirm('Are you sure you want to remove this member?')) {
+                        removeMember({ userId: member.userId });
+                      }
+                    }}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      {/* --- Pending Invites Section --- */}
+      {invites.length > 0 && (
+        <>
+          <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>
+            Pending Invitations
+          </Typography>
+          <TableContainer component={Paper} variant="outlined">
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Email</TableCell>
+                  <TableCell>Role</TableCell>
+                  <TableCell>Sent At</TableCell>
+                  <TableCell align="right">Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {invites.map((invite) => (
+                  <TableRow key={invite.id}>
+                    <TableCell>{invite.email}</TableCell>
+                    <TableCell>
+                      <Chip label={invite.role} size="small" />
+                    </TableCell>
+                    <TableCell>{new Date(invite.createdAt).toLocaleDateString()}</TableCell>
+                    <TableCell align="right">
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        size="small"
+                        startIcon={<CancelIcon />}
+                        onClick={() => revokeInvite({ inviteId: invite.id })}
+                      >
+                        Revoke
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </>
+      )}
+    </Box>
   );
 }

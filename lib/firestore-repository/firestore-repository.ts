@@ -140,7 +140,7 @@ export class FirestoreRepository<T extends BaseEntity> {
    * Returns a repository instance isolated to a specific Tenant.
    */
   forTenant(tenantId: string): FirestoreRepository<T> {
-    const repo = this.clone(this.collection.id);
+    const repo = this.clone(this.collection.path);
     repo.defaultConstraints = [
       ...this.defaultConstraints,
       { field: 'orgId', op: '==', value: tenantId },
@@ -156,7 +156,7 @@ export class FirestoreRepository<T extends BaseEntity> {
    * Binds the repository to a Firestore Transaction.
    */
   withTransaction(t: Transaction): FirestoreRepository<T> {
-    const repo = this.clone(this.collection.id);
+    const repo = this.clone(this.collection.path);
     repo.transaction = t;
     return repo;
   }

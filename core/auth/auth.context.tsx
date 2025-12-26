@@ -14,6 +14,12 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export const useRNGAuth = () => useContext(AuthContext);
+export const useRNGAuthStrict = () => {
+  const { user, isLoading } = useContext(AuthContext);
+
+  if (!user) throw new Error('Ghar ka raj ni hai');
+  return { user, isLoading };
+};
 
 export function AuthProvider({ user, children }: { user: User | null; children: ReactNode }) {
   return <AuthContext.Provider value={{ user, isLoading: false }}>{children}</AuthContext.Provider>;

@@ -1,5 +1,6 @@
 import { AbstractService } from '@/lib/abstract-service/AbstractService';
-import { Result } from '@/lib/types'; // <--- Ensure Result is imported
+import { Result } from '@/lib/types';
+import { AppErrorCode, CustomError } from '@/lib/utils/errors';
 import { v4 as uuidv4 } from 'uuid';
 import { Subscription, SubscriptionPlan, SubscriptionStatus } from './billing.model';
 import { subscriptionRepository } from './subscription.repository';
@@ -7,17 +8,19 @@ import { subscriptionRepository } from './subscription.repository';
 class BillingService extends AbstractService {
   /**
    * Initializes a free trial for a new organization.
-   * Called via Event Bus when 'org.created' event fires.
+   * idempotent: checks if subscription exists first.
    */
-  // 🛑 FIX: Return type must be Result<Subscription>
   async createTrial(orgId: string): Promise<Result<Subscription>> {
     return this.handleOperation('billing.createTrial', async () => {
+      // 1. Idempotency Check
+      const existing = await subscriptionRepository.getByOrgId(orgId);
+      if (existing) return existing;
+
       const now = new Date();
       const trialEnd = new Date();
       trialEnd.setDate(now.getDate() + 14); // 14 Day Trial
 
-      // repo.create returns the entity directly (Subscription)
-      // handleOperation wraps it in { success: true, data: ... }
+      // 2. Create Record
       const sub = await subscriptionRepository.create(uuidv4(), {
         orgId,
         status: SubscriptionStatus.TRIALING,
@@ -33,18 +36,17 @@ class BillingService extends AbstractService {
 
   /**
    * Gets the current subscription for an org.
-   * If none exists (legacy data), returns a dummy FREE plan object.
+   * Returns a "Virtual" Free Tier subscription if no record exists.
    */
-  // 🛑 FIX: Return type must be Result<Subscription>
   async getSubscription(orgId: string): Promise<Result<Subscription>> {
     return this.handleOperation('billing.get', async () => {
       const sub = await subscriptionRepository.getByOrgId(orgId);
 
       if (sub) return sub;
 
-      // Fallback for orgs created before billing existed
+      // Virtual Fallback (Free Tier)
       return {
-        id: 'virtual',
+        id: 'virtual-free-tier',
         orgId,
         status: SubscriptionStatus.ACTIVE,
         planId: SubscriptionPlan.FREE,
@@ -55,6 +57,22 @@ class BillingService extends AbstractService {
         updatedAt: new Date(),
         deletedAt: null,
       } as Subscription;
+    });
+  }
+
+  /**
+   * Upgrade/Downgrade Plan (Placeholder for Stripe Integration)
+   */
+  async changePlan(orgId: string, planId: SubscriptionPlan): Promise<Result<void>> {
+    return this.handleOperation('billing.changePlan', async () => {
+      const sub = await subscriptionRepository.getByOrgId(orgId);
+      if (!sub) throw new CustomError(AppErrorCode.NOT_FOUND, 'No subscription found to upgrade.');
+
+      // In a real app, this would trigger a Stripe Checkout Session or Update Subscription API
+      await subscriptionRepository.update(sub.id, {
+        planId,
+        updatedAt: new Date(),
+      });
     });
   }
 }

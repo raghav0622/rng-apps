@@ -7,18 +7,13 @@ import { env } from '@/lib/env';
 import { DEFAULT_LOGIN_REDIRECT } from '@/routes';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import {
-  ForgotPasswordSchema,
-  LoginSchema,
-  ResetPasswordSchema,
-  SignUpSchema,
-  VerifyEmailSchema,
-} from './auth.model';
+import { LoginSchema, SignUpSchema } from './auth.model';
 
 export const signUpAction = actionClient
   .metadata({ name: 'auth.signup' })
   .schema(SignUpSchema)
   .action(async ({ parsedInput }) => {
+    // Keeps Atomic Transaction: Auth User + Firestore User Profile
     return await authService.signup(parsedInput);
   });
 
@@ -26,7 +21,9 @@ export const loginAction = actionClient
   .metadata({ name: 'auth.login' })
   .schema(LoginSchema)
   .action(async ({ parsedInput }) => {
+    // Server-side login is required to generate the HTTP-Only Session Cookie
     const result = await authService.login(parsedInput.email, parsedInput.password);
+
     if (!result.success) return result;
 
     const { sessionCookie, expiresIn, sessionId } = result.data;
@@ -52,28 +49,3 @@ export const logoutAction = actionClient.metadata({ name: 'auth.logout' }).actio
   cookieStore.delete(SESSION_ID_COOKIE_NAME);
   redirect('/login');
 });
-
-export const forgotPasswordAction = actionClient
-  .metadata({ name: 'auth.forgotPassword' })
-  .schema(ForgotPasswordSchema)
-  .action(async ({ parsedInput }) => {
-    return await authService.sendPasswordResetLink(parsedInput.email);
-  });
-
-export const resetPasswordAction = actionClient
-  .metadata({ name: 'auth.resetPassword' })
-  .schema(ResetPasswordSchema)
-  .action(async ({ parsedInput }) => {
-    const res = await authService.resetPassword(parsedInput.oobCode, parsedInput.newPassword);
-    if (res.success) {
-      redirect('/login?verified=true');
-    }
-    return res;
-  });
-
-export const verifyEmailAction = actionClient
-  .metadata({ name: 'auth.verifyEmail' })
-  .schema(VerifyEmailSchema)
-  .action(async ({ parsedInput }) => {
-    return await authService.verifyEmail(parsedInput.oobCode);
-  });

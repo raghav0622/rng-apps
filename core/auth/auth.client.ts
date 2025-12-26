@@ -1,72 +1,52 @@
-import { clientAuth } from '@/lib/firebase/client';
+import { clientAuth as auth } from '@/lib/firebase/client';
 import {
   applyActionCode,
+  checkActionCode,
   confirmPasswordReset,
-  sendEmailVerification,
   sendPasswordResetEmail,
-  signInWithCustomToken,
-  signOut,
   verifyPasswordResetCode,
 } from 'firebase/auth';
 
-// Configuration: Redirect back to this app after email action
-const actionCodeSettings = {
-  url: `${typeof window !== 'undefined' ? window.location.origin : ''}/auth/action`,
-  handleCodeInApp: true,
-};
-
 export const authClient = {
   /**
-   * Trigger Forgot Password Email
+   * Trigger the "Forgot Password" email.
    */
-  sendPasswordResetEmail: async (email: string) => {
-    return sendPasswordResetEmail(clientAuth, email, actionCodeSettings);
+  async sendPasswordResetLink(email: string) {
+    // Defines where the user is redirected after clicking the link
+    const actionCodeSettings = {
+      url: `${window.location.origin}/login`, // Redirect to login after success
+      handleCodeInApp: true,
+    };
+    await sendPasswordResetEmail(auth, email, actionCodeSettings);
   },
 
   /**
-   * Verify code from Reset Password link
+   * Verify the code from the email URL to ensure it's valid
+   * and retrieve the associated email address (useful for UI).
    */
-  verifyResetCode: async (code: string) => {
-    return verifyPasswordResetCode(clientAuth, code);
+  async verifyResetCode(code: string) {
+    return await verifyPasswordResetCode(auth, code);
   },
 
   /**
-   * Complete Password Reset
+   * Complete the password reset process with the new password.
    */
-  confirmPasswordReset: async (code: string, newPassword: string) => {
-    return confirmPasswordReset(clientAuth, code, newPassword);
+  async confirmPasswordReset(code: string, newPassword: string) {
+    await confirmPasswordReset(auth, code, newPassword);
   },
 
   /**
-   * Apply Email Verification Code
+   * Handle Email Verification codes.
    */
-  applyActionCode: async (code: string) => {
-    return applyActionCode(clientAuth, code);
+  async verifyEmail(code: string) {
+    await applyActionCode(auth, code);
   },
 
   /**
-   * Send Verification Email (Requires User to be Signed In).
-   * Supports 'Hybrid Flow': If a customToken is provided (from server action),
-   * it signs in momentarily to send the email.
+   * Generic check for any action code (reset, verify, recover).
+   * Returns metadata about the code.
    */
-  sendEmailVerification: async (customToken?: string) => {
-    let user = clientAuth.currentUser;
-
-    if (!user && customToken) {
-      // Hybrid: Sign in -> Send -> Sign out
-      await signInWithCustomToken(clientAuth, customToken);
-      user = clientAuth.currentUser;
-      if (user) {
-        await sendEmailVerification(user, actionCodeSettings);
-        await signOut(clientAuth);
-      }
-      return;
-    }
-
-    if (user) {
-      await sendEmailVerification(user, actionCodeSettings);
-    } else {
-      throw new Error('User must be signed in to send verification email.');
-    }
+  async checkActionCode(code: string) {
+    return await checkActionCode(auth, code);
   },
 };

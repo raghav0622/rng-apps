@@ -1,1 +1,149 @@
-//Todo implement
+'use client';
+
+import { authClient } from '@/core/auth/auth.client';
+import { RNGForm } from '@/rng-form/components/RNGForm';
+import { Alert, Box, CircularProgress, Container, Typography } from '@mui/material';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { z } from 'zod';
+
+// Schema for the "New Password" form
+const ResetPasswordFormSchema = z
+  .object({
+    password: z.string().min(6, 'Password must be at least 6 characters'),
+    confirmPassword: z.string().min(6),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ['confirmPassword'],
+  });
+
+type ActionState = 'LOADING' | 'SUCCESS' | 'ERROR' | 'IDLE';
+
+export default function ActionHandlerPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  // URL Parameters from Firebase
+  const mode = searchParams.get('mode'); // 'resetPassword' | 'verifyEmail' | 'recoverEmail'
+  const oobCode = searchParams.get('oobCode');
+
+  const [status, setStatus] = useState<ActionState>('LOADING');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [verifiedEmail, setVerifiedEmail] = useState<string | null>(null);
+
+  // --- Handlers ---
+
+  useEffect(() => {
+    if (!oobCode || !mode) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setStatus('ERROR');
+      setErrorMessage('Invalid link. Missing parameters.');
+      return;
+    }
+
+    // 1. Handle Email Verification Immediately
+    if (mode === 'verifyEmail') {
+      authClient
+        .verifyEmail(oobCode)
+        .then(() => setStatus('SUCCESS'))
+        .catch((err) => {
+          setStatus('ERROR');
+          setErrorMessage(err.message || 'Failed to verify email.');
+        });
+    }
+
+    // 2. Handle Password Reset Initialization
+    else if (mode === 'resetPassword') {
+      authClient
+        .verifyResetCode(oobCode)
+        .then((email) => {
+          setVerifiedEmail(email);
+          setStatus('IDLE'); // Ready to show form
+        })
+        .catch((err) => {
+          setStatus('ERROR');
+          setErrorMessage('This link has expired or has already been used.');
+        });
+    }
+  }, [mode, oobCode]);
+
+  // 3. Handle Password Reset Submission
+  const handleResetSubmit = async (data: z.infer<typeof ResetPasswordFormSchema>) => {
+    if (!oobCode) return;
+    try {
+      await authClient.confirmPasswordReset(oobCode, data.password);
+      setStatus('SUCCESS');
+      setTimeout(() => router.push('/login'), 3000);
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Failed to reset password.');
+    }
+  };
+
+  // --- Render ---
+
+  if (status === 'LOADING') {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 10 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (status === 'ERROR') {
+    return (
+      <Container maxWidth="sm" sx={{ mt: 10 }}>
+        <Alert severity="error">{errorMessage}</Alert>
+      </Container>
+    );
+  }
+
+  // Success State
+  if (status === 'SUCCESS') {
+    return (
+      <Container maxWidth="sm" sx={{ mt: 10, textAlign: 'center' }}>
+        <Alert severity="success" sx={{ mb: 2 }}>
+          {mode === 'verifyEmail'
+            ? 'Email verified successfully! You can now close this tab.'
+            : 'Password reset successfully! Redirecting to login...'}
+        </Alert>
+      </Container>
+    );
+  }
+
+  // Password Reset Form State (IDLE)
+  if (mode === 'resetPassword') {
+    return (
+      <Container maxWidth="sm" sx={{ mt: 8 }}>
+        <Box sx={{ mb: 4, textAlign: 'center' }}>
+          <Typography variant="h4" gutterBottom>
+            Reset Password
+          </Typography>
+          <Typography color="text.secondary">for {verifiedEmail}</Typography>
+        </Box>
+
+        <RNGForm
+          schema={ResetPasswordFormSchema}
+          uiSchema={[
+            {
+              type: 'password',
+              name: 'password',
+              label: 'New Password',
+              placeholder: 'Enter new password',
+            },
+            {
+              type: 'password',
+              name: 'confirmPassword',
+              label: 'Confirm Password',
+              placeholder: 'Re-enter new password',
+            },
+          ]}
+          onSubmit={handleResetSubmit}
+          submitLabel="Reset Password"
+        />
+      </Container>
+    );
+  }
+
+  return null;
+}

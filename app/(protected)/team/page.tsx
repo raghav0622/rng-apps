@@ -5,6 +5,7 @@ import { auth } from '@/lib/firebase/admin'; // Or your session helper
 import { Box, Container, Typography } from '@mui/material';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import ClientTeamPageWrapper from './ClientTeamPage';
 
 // Helper to get current user ID (adjust based on your auth implementation)
 async function getSession() {
@@ -47,7 +48,7 @@ export default async function TeamPage() {
           </Typography>
         </Box>
         {/* We use a Client Component wrapper for the "Add Member" button state */}
-        <ClientTeamPageWrapper orgId={user.orgId}>
+        <ClientTeamPageWrapper>
           <TeamList members={members} invites={invites} currentUserId={userId} />
         </ClientTeamPageWrapper>
       </Box>

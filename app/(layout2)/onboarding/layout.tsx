@@ -1,11 +1,13 @@
-import { getCurrentUser } from '@/core/auth/auth.actions';
+import { SessionService } from '@/core/auth/session.service';
 import { DEFAULT_LOGIN_REDIRECT } from '@/routes';
 import { Box, Container, Stack, Typography } from '@mui/material';
 import { redirect } from 'next/navigation';
 
 export default async function OnboardingLayout({ children }: { children: React.ReactNode }) {
-  const { user } = await getCurrentUser({ strictOrg: false });
+  // 🛡️ Use centralized session utility
+  const { user } = await SessionService.requireUserAndOrg({ strictOrg: false });
 
+  // If user is already in an org, they don't need onboarding layout
   if (user.orgId) redirect(DEFAULT_LOGIN_REDIRECT);
 
   return (

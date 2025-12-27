@@ -1,13 +1,14 @@
 import AppHeader from '@/app/(protected)/AppHeader';
-import { SessionPoller } from '@/app/(protected)/SessionPoller'; // Import SessionPoller
-import { getCurrentUser } from '@/core/auth/auth.actions';
+import { SessionPoller } from '@/app/(protected)/SessionPoller';
+import { SessionService } from '@/core/auth/session.service';
 import { AuthProvider } from '@/core/auth/auth.context';
 import { OrgProvider } from '@/core/organization/organization.context';
 import { Toolbar } from '@mui/material';
 import { ReactNode } from 'react';
 
 export default async function Layout2({ children }: { children: ReactNode }) {
-  const { org, user } = await getCurrentUser({ strictOrg: false });
+  // 🛡️ Centralized session and profile retrieval
+  const { org, user } = await SessionService.requireUserAndOrg({ strictOrg: false });
 
   return (
     <AuthProvider user={user}>

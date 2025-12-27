@@ -135,48 +135,45 @@ class AuthService extends AbstractService {
         user = await userRepository.getByEmail(email);
       }
 
-      if (!user) {
-        // NEW USER FLOW
-        if (!password) {
-          return {
-            type: 'password_required',
-            email,
-            name: name || '',
-            picture: picture || '',
-            idToken,
-          };
-        }
-
-        // We have a password, complete registration
-        await auth().updateUser(uid, {
-          password: password,
-          emailVerified: true,
-        });
-
-        const newUser = await userRepository.create(uid, {
-          email: email,
-          displayName: name || '',
-          photoURL: picture || undefined,
-          orgRole: UserRoleInOrg.NOT_IN_ORG,
-          orgId: null,
-          isOnboarded: false,
-        });
-        
-        // Use the ID from the newly created user doc
+      if (user) {
+        // EXISTING USER FLOW
         const expiresIn = SESSION_DURATION_MS;
         const sessionCookie = await auth().createSessionCookie(idToken, { expiresIn });
         const sessionId = uuidv4();
-        await SessionService.createSession(newUser.id, sessionId, userAgent, ip);
+        await SessionService.createSession(user.id, sessionId, userAgent, ip);
         return { type: 'success', sessionCookie, expiresIn, sessionId };
       }
 
-      // 3. Establish Session for existing user
+      // NEW USER FLOW
+      if (!password) {
+        return {
+          type: 'password_required',
+          email,
+          name: name || '',
+          picture: picture || '',
+          idToken,
+        };
+      }
+
+      // Complete registration with password
+      await auth().updateUser(uid, {
+        password: password,
+        emailVerified: true,
+      });
+
+      const newUser = await userRepository.create(uid, {
+        email: email,
+        displayName: name || '',
+        photoURL: picture || undefined,
+        orgRole: UserRoleInOrg.NOT_IN_ORG,
+        orgId: null,
+        isOnboarded: false,
+      });
+
       const expiresIn = SESSION_DURATION_MS;
       const sessionCookie = await auth().createSessionCookie(idToken, { expiresIn });
       const sessionId = uuidv4();
-
-      await SessionService.createSession(user.id, sessionId, userAgent, ip);
-
+      await SessionService.createSession(newUser.id, sessionId, userAgent, ip);
       return { type: 'success', sessionCookie, expiresIn, sessionId };
     });
   }

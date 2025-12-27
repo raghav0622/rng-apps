@@ -8,9 +8,9 @@ import { Member, OfferOwnershipSchema, Organization } from '@/core/organization/
 import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';
-import { AlertBanner } from '@/ui/feedback/AlertBanner';
-import { AppModal } from '@/ui/modals/AppModal';
-import { Button, Card, CardContent, Stack, Typography } from '@mui/material';
+import { AlertBanner } from '@/ui/AlertBanner';
+import { AppModal } from '@/ui/AppModal';
+import { Button, Card, CardContent, Typography } from '@mui/material';
 
 interface TransferOwnershipProps {
   org: Organization;

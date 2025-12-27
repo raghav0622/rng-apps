@@ -32,10 +32,10 @@ class UserRepository extends FirestoreRepository<User> {
       where: [{ field: 'email', op: '==', value: email }],
       limit: 1,
     });
-    
-    if(!data[0]) throw new CustomError(AppErrorCode.NOT_FOUND, 'User not found'  )
 
-    return data[0] ;
+    if (!data[0]) throw new CustomError(AppErrorCode.NOT_FOUND, 'User not found');
+
+    return data[0];
   }
 }
 

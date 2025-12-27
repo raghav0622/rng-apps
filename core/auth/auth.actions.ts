@@ -1,16 +1,18 @@
 'use server';
 
-import { authService, MagicLinkResult } from '@/core/auth/auth.service';
+import { authService } from '@/core/auth/auth.service';
 import { SessionService } from '@/core/auth/session.service';
 import { actionClient, authActionClient } from '@/core/safe-action/safe-action';
 import { AUTH_SESSION_COOKIE_NAME, SESSION_ID_COOKIE_NAME } from '@/lib/constants';
 import { env } from '@/lib/env';
-import { Result } from '@/lib/types';
 import { DEFAULT_LOGIN_REDIRECT } from '@/routes';
+import { auth } from 'firebase-admin';
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
+import { organizationRepository } from '../organization/organization.repository';
 import { LoginSchema, SignUpSchema } from './auth.model';
+import { userRepository } from './user.repository';
 
 // --- Shared Cookie Helper ---
 async function setSessionCookies(sessionCookie: string, expiresIn: number, sessionId: string) {
@@ -25,6 +27,33 @@ async function setSessionCookies(sessionCookie: string, expiresIn: number, sessi
   cookieStore.set(AUTH_SESSION_COOKIE_NAME, sessionCookie, options);
   cookieStore.set(SESSION_ID_COOKIE_NAME, sessionId, options);
 }
+
+// --- getUser and getOrg helper
+
+export const getCurrentUser = async ({ strictOrg = false }) => {
+  const cookieStore = await cookies();
+  const sessionCookie = cookieStore.get(AUTH_SESSION_COOKIE_NAME)?.value;
+
+  if (!sessionCookie) redirect('/login');
+
+  const decodedToken = await auth().verifySessionCookie(sessionCookie, true);
+  const uid = decodedToken.uid;
+
+  const user = await userRepository.get(uid);
+  if (!user) redirect('/login');
+
+  if (strictOrg) {
+    if (!user.orgId || user.orgRole === 'NOT_IN_ORG' || user.isOnboarded === false) {
+      redirect('/onboarding');
+    }
+
+    const org = await organizationRepository.get(user.orgId);
+    if (!org) redirect('/onboarding');
+
+    return { org, user };
+  }
+  return { user, org: null };
+};
 
 // --- Auth Actions ---
 
@@ -53,35 +82,6 @@ export const loginAction = actionClient
       result.data.sessionId,
     );
     redirect(DEFAULT_LOGIN_REDIRECT);
-  });
-
-export const requestMagicLinkAction = actionClient
-  .metadata({ name: 'auth.requestMagicLink' })
-  .schema(z.object({ email: z.string().email() }))
-  .action(async ({ parsedInput }) => {
-    return await authService.requestMagicLink(parsedInput.email);
-  });
-
-export const verifyMagicLinkAction = actionClient
-  .metadata({ name: 'auth.verifyMagicLink' })
-  .schema(z.object({ token: z.string() })) // Password is no longer needed
-  .action(async ({ parsedInput }): Promise<Result<MagicLinkResult>> => {
-    const headersList = await headers();
-    const userAgent = headersList.get('user-agent') || undefined;
-    const ip = headersList.get('x-forwarded-for') || undefined;
-
-    const result = await authService.verifyMagicLink(parsedInput.token, userAgent, ip);
-
-    if (result.success && result.data.type === 'success') {
-      await setSessionCookies(
-        result.data.sessionCookie,
-        result.data.expiresIn,
-        result.data.sessionId,
-      );
-      redirect(DEFAULT_LOGIN_REDIRECT); // Redirect on success
-    }
-
-    return result;
   });
 
 export const logoutAction = actionClient.metadata({ name: 'auth.logout' }).action(async () => {

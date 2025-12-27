@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import AppProvider from './provider';
 
 export const metadata: Metadata = {
-  title: 'RNG App',
+  title: 'RNG Apps',
 };
 
 export default async function RootLayout({

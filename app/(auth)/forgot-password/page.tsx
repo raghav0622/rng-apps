@@ -1,10 +1,10 @@
 'use client';
 
+import { AuthCard } from '@/app/(auth)/AuthCard';
 import { authClient } from '@/core/auth/auth.client';
 import { ForgotPasswordSchema } from '@/core/auth/auth.model'; // Use Shared Model
 import { logError } from '@/lib/logger';
 import { RNGForm } from '@/rng-form/components/RNGForm';
-import { AuthCard } from '@/ui/auth/AuthCard';
 import { useSnackbar } from 'notistack';
 
 export default function ForgotPasswordPage() {

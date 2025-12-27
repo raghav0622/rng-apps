@@ -1,10 +1,10 @@
 'use client';
 
+import { AuthCard } from '@/app/(auth)/AuthCard';
 import { signUpAction } from '@/core/auth/auth.actions';
 import { SignUpSchema } from '@/core/auth/auth.model';
 import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
 import { RNGForm } from '@/rng-form/components/RNGForm';
-import { AuthCard } from '@/ui/auth/AuthCard';
 import { useRouter } from 'next/navigation';
 import { useSnackbar } from 'notistack';
 

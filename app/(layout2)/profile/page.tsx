@@ -1,8 +1,7 @@
 'use client';
 
-import { NotificationSettings } from '@/core/notifications/components/NotificationSettings';
 import { SessionManager } from '@/app/(protected)/profile/SessionManager';
-import { GoogleLinkCard } from './GoogleLinkCard';
+import { NotificationSettings } from '@/core/notifications/components/NotificationSettings';
 import { Box, Container, Typography } from '@mui/material';
 
 export default function ProfilePage() {
@@ -25,14 +24,6 @@ export default function ProfilePage() {
         <Typography variant="body2" color="text.secondary">
           (Profile Update Form Coming Soon)
         </Typography>
-      </Box>
-
-      {/* Social Linking */}
-      <Box mb={6}>
-        <Typography variant="h6" gutterBottom>
-          Connected Accounts
-        </Typography>
-        <GoogleLinkCard />
       </Box>
 
       {/* Notification Preferences */}

@@ -119,9 +119,7 @@ export function NotificationSettings() {
                     <FormControlLabel
                       control={
                         <Checkbox
-                          checked={preferences.channels[topic]?.includes(
-                            NotificationChannel.EMAIL,
-                          )}
+                          checked={preferences.channels[topic]?.includes(NotificationChannel.EMAIL)}
                           onChange={() => handleToggle(topic, NotificationChannel.EMAIL)}
                         />
                       }

@@ -6,8 +6,7 @@ import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';
 import { AuthCard } from '@/ui/auth/AuthCard';
-import { GoogleSignInButton } from '@/ui/auth/GoogleSignInButton';
-import { Alert, Divider, Link, Typography, Box } from '@mui/material';
+import { Alert, Box, Divider, Link, Typography } from '@mui/material';
 import NextLink from 'next/link';
 import { useState } from 'react';
 
@@ -59,7 +58,8 @@ export default function LoginPage() {
         </Alert>
       )}
 
-      <GoogleSignInButton />
+      {/* Google Sign In Button Removed */}
+      {/* <GoogleSignInButton /> */}
 
       <Divider sx={{ my: 2 }}>
         <Typography variant="body2" color="text.secondary">
@@ -70,7 +70,7 @@ export default function LoginPage() {
       <RNGForm
         schema={LoginSchema}
         uiSchema={formConfig}
-        onValuesChange={(vals) => setEmail(vals.email)}
+        onValuesChange={(vals) => setEmail(vals.email || '')}
         onSubmit={async (data) => {
           await runAction(data);
         }}

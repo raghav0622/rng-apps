@@ -1,6 +1,6 @@
 'use server';
 
-import { authService, GoogleSignInResult, MagicLinkResult } from '@/core/auth/auth.service';
+import { authService, MagicLinkResult } from '@/core/auth/auth.service';
 import { SessionService } from '@/core/auth/session.service';
 import { actionClient, authActionClient } from '@/core/safe-action/safe-action';
 import { AUTH_SESSION_COOKIE_NAME, SESSION_ID_COOKIE_NAME } from '@/lib/constants';
@@ -52,40 +52,6 @@ export const loginAction = actionClient
     redirect(DEFAULT_LOGIN_REDIRECT);
   });
 
-export const googleSignInAction = actionClient
-  .metadata({ name: 'auth.googleSignIn' })
-  .schema(z.object({ idToken: z.string(), password: z.string().optional() }))
-  .action(async ({ parsedInput }): Promise<Result<GoogleSignInResult>> => {
-    const headersList = await headers();
-    const userAgent = headersList.get('user-agent') || undefined;
-    const ip = headersList.get('x-forwarded-for') || undefined;
-
-    const result = await authService.handleGoogleSignIn(
-      parsedInput.idToken,
-      parsedInput.password,
-      userAgent,
-      ip,
-    );
-
-    if (result.success && result.data.type === 'success') {
-      await setSessionCookies(
-        result.data.sessionCookie,
-        result.data.expiresIn,
-        result.data.sessionId,
-      );
-      // We don't redirect here, we let the client handle it if they need to show the password form
-    }
-
-    return result;
-  });
-
-export const linkGoogleAction = authActionClient
-  .metadata({ name: 'auth.linkGoogle' })
-  .schema(z.object({ idToken: z.string() }))
-  .action(async ({ ctx, parsedInput }) => {
-    return await authService.linkGoogleAccount(ctx.user.id, parsedInput.idToken);
-  });
-
 export const requestMagicLinkAction = actionClient
   .metadata({ name: 'auth.requestMagicLink' })
   .schema(z.object({ email: z.string().email() }))
@@ -95,7 +61,7 @@ export const requestMagicLinkAction = actionClient
 
 export const verifyMagicLinkAction = actionClient
   .metadata({ name: 'auth.verifyMagicLink' })
-  .schema(z.object({ token: z.string(), password: z.string().optional() }))
+  .schema(z.object({ token: z.string() })) // Password is no longer needed
   .action(async ({ parsedInput }): Promise<Result<MagicLinkResult>> => {
     const headersList = await headers();
     const userAgent = headersList.get('user-agent') || undefined;
@@ -103,7 +69,6 @@ export const verifyMagicLinkAction = actionClient
 
     const result = await authService.verifyMagicLink(
       parsedInput.token,
-      parsedInput.password,
       userAgent,
       ip,
     );
@@ -114,6 +79,7 @@ export const verifyMagicLinkAction = actionClient
         result.data.expiresIn,
         result.data.sessionId,
       );
+      redirect(DEFAULT_LOGIN_REDIRECT); // Redirect on success
     }
 
     return result;

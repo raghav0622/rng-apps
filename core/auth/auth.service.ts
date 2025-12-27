@@ -16,22 +16,14 @@ import { userRepository } from './user.repository';
 const GOOGLE_API_URL = 'https://identitytoolkit.googleapis.com/v1/accounts';
 const MAGIC_LINK_EXPIRY = 60 * 15; // 15 minutes
 
-export type GoogleSignInResult = 
-  | { type: 'success'; sessionCookie: string; expiresIn: number; sessionId: string }
-  | { type: 'password_required'; email: string; name: string; picture: string; idToken: string };
-
-export type MagicLinkResult = 
-  | { type: 'success'; sessionCookie: string; expiresIn: number; sessionId: string }
-  | { type: 'password_required'; email: string; token: string };
+export type MagicLinkResult = {
+  type: 'success';
+  sessionCookie: string;
+  expiresIn: number;
+  sessionId: string;
+};
 
 class AuthService extends AbstractService {
-  /**
-   * Generates a secure random password.
-   */
-  private generateSecurePassword(): string {
-    return randomBytes(16).toString('hex') + 'A1!'; // Ensure complexity
-  }
-
   /**
    * Registers a new user (Dual Write: Auth + Firestore).
    */
@@ -112,92 +104,17 @@ class AuthService extends AbstractService {
   }
 
   /**
-   * Handle Google Sign-In with Account Linking and Mandatory Password for new users.
-   */
-  async handleGoogleSignIn(
-    idToken: string,
-    password?: string,
-    userAgent?: string,
-    ip?: string,
-  ): Promise<Result<GoogleSignInResult>> {
-    return this.handleOperation('auth.googleSignIn', async () => {
-      // 1. Verify the ID Token from client
-      const decodedToken = await auth().verifyIdToken(idToken);
-      const { uid, email, name, picture } = decodedToken;
-
-      if (!email) {
-        throw new CustomError(AppErrorCode.INVALID_INPUT, 'Google account missing email.');
-      }
-
-      // 2. Check if user exists in Firestore
-      let user = await userRepository.get(uid);
-      if (!user) {
-        user = await userRepository.getByEmail(email);
-      }
-
-      if (user) {
-        // EXISTING USER FLOW
-        const expiresIn = SESSION_DURATION_MS;
-        const sessionCookie = await auth().createSessionCookie(idToken, { expiresIn });
-        const sessionId = uuidv4();
-        await SessionService.createSession(user.id, sessionId, userAgent, ip);
-        return { type: 'success', sessionCookie, expiresIn, sessionId };
-      }
-
-      // NEW USER FLOW
-      if (!password) {
-        return {
-          type: 'password_required',
-          email,
-          name: name || '',
-          picture: picture || '',
-          idToken,
-        };
-      }
-
-      // Complete registration with password
-      await auth().updateUser(uid, {
-        password: password,
-        emailVerified: true,
-      });
-
-      const newUser = await userRepository.create(uid, {
-        email: email,
-        displayName: name || '',
-        photoURL: picture || undefined,
-        orgRole: UserRoleInOrg.NOT_IN_ORG,
-        orgId: null,
-        isOnboarded: false,
-      });
-
-      const expiresIn = SESSION_DURATION_MS;
-      const sessionCookie = await auth().createSessionCookie(idToken, { expiresIn });
-      const sessionId = uuidv4();
-      await SessionService.createSession(newUser.id, sessionId, userAgent, ip);
-      return { type: 'success', sessionCookie, expiresIn, sessionId };
-    });
-  }
-
-  /**
-   * Links a Google ID token to an existing authenticated user.
-   */
-  async linkGoogleAccount(userId: string, idToken: string): Promise<Result<void>> {
-    return this.handleOperation('auth.linkGoogle', async () => {
-      const decodedToken = await auth().verifyIdToken(idToken);
-      const { picture, name } = decodedToken;
-      
-      await userRepository.update(userId, {
-        photoURL: picture,
-        displayName: name,
-      });
-    });
-  }
-
-  /**
-   * Request Magic Link (Redis Token + Resend Email)
+   * Request Magic Link (Only for Existing Users)
    */
   async requestMagicLink(email: string): Promise<Result<void>> {
     return this.handleOperation('auth.requestMagicLink', async () => {
+      // 1. Check if user exists first.
+      const user = await userRepository.getByEmail(email);
+      if (!user) {
+        // Silently fail to prevent email enumeration attacks.
+        return;
+      }
+
       const token = randomBytes(32).toString('hex');
       const key = `magic:token:${token}`;
 
@@ -222,60 +139,35 @@ class AuthService extends AbstractService {
   }
 
   /**
-   * Verify Magic Link and Login (Auto-Signup + Password Set Requirement)
+   * Verify Magic Link and Login (Sign-In ONLY)
    */
   async verifyMagicLink(
     token: string,
-    password?: string,
     userAgent?: string,
     ip?: string,
   ): Promise<Result<MagicLinkResult>> {
     return this.handleOperation('auth.verifyMagicLink', async () => {
       const key = `magic:token:${token}`;
 
-      // 1. Validate Token
       const email = await redisClient.get<string>(key);
       if (!email) {
         throw new CustomError(AppErrorCode.INVALID_INPUT, 'Invalid or expired magic link.');
       }
 
-      // 2. Get or Create User
-      let authUserUid: string;
-      try {
-        const authUser = await auth().getUserByEmail(email);
-        authUserUid = authUser.uid;
-      } catch (e: any) {
-        if (e.code === 'auth/user-not-found') {
-          // NEW USER flow for magic link
-          if (!password) {
-            return { type: 'password_required', email, token };
-          }
-
-          // Complete registration with provided password
-          const newAuthUser = await auth().createUser({
-            email,
-            emailVerified: true,
-            password: password,
-          });
-
-          await userRepository.create(newAuthUser.uid, {
-            email,
-            orgRole: UserRoleInOrg.NOT_IN_ORG,
-            orgId: null,
-            isOnboarded: false,
-          });
-          
-          authUserUid = newAuthUser.uid;
-        } else {
-          throw e;
-        }
-      }
-
-      // 3. Cleanup Token
+      // Cleanup token immediately (one-time use)
       await redisClient.del(key);
 
-      // 4. Token Exchange for Session Cookie
-      const customToken = await auth().createCustomToken(authUserUid);
+      // 2. Get User - MUST exist
+      let authUser;
+      try {
+        authUser = await auth().getUserByEmail(email);
+      } catch (e: any) {
+        // This should not happen if requestMagicLink is working correctly, but as a safeguard:
+        throw new CustomError(AppErrorCode.NOT_FOUND, 'Account not found. Please sign up first.');
+      }
+
+      // 3. Token Exchange for Session Cookie
+      const customToken = await auth().createCustomToken(authUser.uid);
       const signInUrl = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=${env.NEXT_PUBLIC_FIREBASE_API_KEY}`;
       
       const response = await fetch(signInUrl, {
@@ -285,13 +177,13 @@ class AuthService extends AbstractService {
       });
       
       const data = await response.json();
-      if (!response.ok) throw new Error(data.error?.message || 'Token exchange failed');
+      if (!response.ok) throw new Error(data.error?.message || 'Authentication failed');
 
       const expiresIn = SESSION_DURATION_MS;
       const sessionCookie = await auth().createSessionCookie(data.idToken, { expiresIn });
       const sessionId = uuidv4();
 
-      await SessionService.createSession(authUserUid, sessionId, userAgent, ip);
+      await SessionService.createSession(authUser.uid, sessionId, userAgent, ip);
 
       return { type: 'success', sessionCookie, expiresIn, sessionId };
     });

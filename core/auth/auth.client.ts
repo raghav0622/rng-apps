@@ -3,36 +3,12 @@ import {
   applyActionCode,
   checkActionCode,
   confirmPasswordReset,
-  GoogleAuthProvider,
-  linkWithPopup,
   sendEmailVerification,
   sendPasswordResetEmail,
-  signInWithPopup,
   verifyPasswordResetCode,
 } from 'firebase/auth';
 
 export const authClient = {
-  /**
-   * Trigger Google Sign-In Popup.
-   */
-  async signInWithGoogle() {
-    const provider = new GoogleAuthProvider();
-    const result = await signInWithPopup(auth, provider);
-    const idToken = await result.user.getIdToken();
-    return { idToken };
-  },
-
-  /**
-   * Links Google account to the currently signed-in user.
-   */
-  async linkGoogle() {
-    if (!auth.currentUser) throw new Error('No user signed in');
-    const provider = new GoogleAuthProvider();
-    const result = await linkWithPopup(auth.currentUser, provider);
-    const idToken = await result.user.getIdToken();
-    return { idToken };
-  },
-
   /**
    * Trigger the "Forgot Password" email.
    */

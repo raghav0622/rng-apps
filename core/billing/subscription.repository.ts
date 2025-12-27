@@ -18,6 +18,14 @@ class SubscriptionRepository extends FirestoreRepository<Subscription> {
     });
     return data[0] || null;
   }
+
+  async getBySubscriptionId(subId: string): Promise<Subscription | null> {
+    const { data } = await this.list({
+      where: [{ field: 'subscriptionId', op: '==', value: subId }],
+      limit: 1,
+    });
+    return data[0] || null;
+  }
 }
 
 export const subscriptionRepository = new SubscriptionRepository();

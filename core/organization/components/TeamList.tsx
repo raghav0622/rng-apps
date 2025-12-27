@@ -6,7 +6,7 @@ import {
   updateMemberRoleAction,
 } from '@/core/organization/organization.actions';
 import { Invite, Member } from '@/core/organization/organization.model';
-import { useRNGServerAction as useRngAction } from '@/core/safe-action/use-rng-action';
+import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
 import { UserRoleInOrg } from '@/lib/action-policies';
 import CancelIcon from '@mui/icons-material/Cancel';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -35,9 +35,15 @@ interface TeamListProps {
 }
 
 export function TeamList({ members, invites, currentUserId }: TeamListProps) {
-  const { execute: updateRole } = useRngAction(updateMemberRoleAction);
-  const { execute: removeMember } = useRngAction(removeMemberAction);
-  const { execute: revokeInvite } = useRngAction(revokeInviteAction);
+  const { runAction: updateRole } = useRNGServerAction(updateMemberRoleAction, {
+    successMessage: 'Role updated successfully',
+  });
+  const { runAction: removeMember } = useRNGServerAction(removeMemberAction, {
+    successMessage: 'Member removed',
+  });
+  const { runAction: revokeInvite } = useRNGServerAction(revokeInviteAction, {
+    successMessage: 'Invite revoked',
+  });
 
   return (
     <Box sx={{ mt: 4 }}>

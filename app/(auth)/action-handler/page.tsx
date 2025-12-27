@@ -1,6 +1,7 @@
 'use client';
 
 import { authClient } from '@/core/auth/auth.client';
+import { ResetPasswordSchema } from '@/core/auth/auth.model'; // Use Shared Model
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';
 import { Alert, Box, CircularProgress, Container, Typography } from '@mui/material';
@@ -8,19 +9,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { z } from 'zod';
 
-// Schema for the "New Password" form
-const ResetPasswordFormSchema = z
-  .object({
-    password: z.string().min(6, 'Password must be at least 6 characters'),
-    confirmPassword: z.string().min(6),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords don't match",
-    path: ['confirmPassword'],
-  });
-
 // DSL Config
-const formConfig = defineForm<typeof ResetPasswordFormSchema>((f) => [
+const formConfig = defineForm<typeof ResetPasswordSchema>((f) => [
   f.password('password', { label: 'New Password', placeholder: 'Enter new password' }),
   f.password('confirmPassword', {
     label: 'Confirm Password',
@@ -81,7 +71,7 @@ function ActionHandlerContent() {
   }, [mode, oobCode]);
 
   // 3. Handle Password Reset Submission
-  const handleResetSubmit = async (data: z.infer<typeof ResetPasswordFormSchema>) => {
+  const handleResetSubmit = async (data: z.infer<typeof ResetPasswordSchema>) => {
     if (!oobCode) return;
     try {
       await authClient.confirmPasswordReset(oobCode, data.password);
@@ -135,7 +125,7 @@ function ActionHandlerContent() {
         </Box>
 
         <RNGForm
-          schema={ResetPasswordFormSchema}
+          schema={ResetPasswordSchema}
           uiSchema={formConfig}
           onSubmit={handleResetSubmit}
           submitLabel="Reset Password"

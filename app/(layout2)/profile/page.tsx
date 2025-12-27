@@ -1,5 +1,6 @@
 'use client';
 
+import { NotificationSettings } from '@/core/notifications/components/NotificationSettings';
 import { SessionManager } from '@/app/(protected)/profile/SessionManager';
 import { Box, Container, Typography } from '@mui/material';
 
@@ -25,11 +26,13 @@ export default function ProfilePage() {
         </Typography>
       </Box>
 
+      {/* Notification Preferences */}
+      <Box mb={6}>
+        <NotificationSettings />
+      </Box>
+
       {/* Session Management */}
       <Box>
-        <Typography variant="h6" gutterBottom>
-          Security & Sessions
-        </Typography>
         <SessionManager />
       </Box>
     </Container>

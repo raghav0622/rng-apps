@@ -4,7 +4,9 @@ import { auditRepository } from '@/core/audit/audit.repository';
 import { billingService } from '@/core/billing/billing.service';
 import {
   AcceptInviteSchema,
+  AcceptOwnershipSchema,
   CreateOrgSchema,
+  OfferOwnershipSchema,
   RejectInviteSchema,
   RemoveMemberSchema,
   RevokeInviteSchema,
@@ -39,6 +41,31 @@ export const updateOrganizationAction = orgActionClient
     return result;
   });
 
+// --- Ownership Transfer Actions ---
+
+export const offerOwnershipAction = orgActionClient
+  .metadata({ name: 'org.offerOwnership', permissions: [AppPermission.ORG_TRANSFER_OWNERSHIP] })
+  .schema(OfferOwnershipSchema)
+  .action(async ({ ctx, parsedInput }) => {
+    const result = await organizationService.offerOwnership(
+      ctx.userId,
+      ctx.orgId,
+      parsedInput.targetUserId,
+    );
+    revalidatePath('/dashboard/settings');
+    return result;
+  });
+
+export const acceptOwnershipAction = orgActionClient
+  .metadata({ name: 'org.acceptOwnership', permissions: [AppPermission.ORG_UPDATE] }) // Assuming admin level perms needed to initiate accept? Or member? Technically only the *future* owner needs to accept.
+  .schema(AcceptOwnershipSchema)
+  .action(async ({ ctx }) => {
+    const result = await organizationService.acceptOwnership(ctx.userId, ctx.orgId);
+    revalidatePath('/dashboard/settings');
+    revalidatePath('/dashboard/team');
+    return result;
+  });
+
 // --- Billing Actions (Convenience) ---
 
 export const getSubscriptionAction = orgActionClient
@@ -48,6 +75,12 @@ export const getSubscriptionAction = orgActionClient
   });
 
 // --- Member Actions ---
+
+export const getMembersAction = orgActionClient
+  .metadata({ name: 'org.getMembers', permissions: [AppPermission.MEMBER_READ] })
+  .action(async ({ ctx }) => {
+    return await organizationService.getMembers(ctx.orgId);
+  });
 
 export const updateMemberRoleAction = orgActionClient
   .metadata({ name: 'org.updateMember', permissions: [AppPermission.MEMBER_UPDATE] })
@@ -76,7 +109,7 @@ export const removeMemberAction = orgActionClient
 
 export const sendInviteAction = orgActionClient
   .metadata({ name: 'org.sendInvite', permissions: [AppPermission.MEMBER_INVITE] })
-  .inputSchema(SendInviteSchema)
+  .schema(SendInviteSchema)
   .action(async ({ ctx, parsedInput }) => {
     const res = await organizationService.sendInvite(ctx.orgId, ctx.userId, parsedInput);
     revalidatePath('/dashboard/team');

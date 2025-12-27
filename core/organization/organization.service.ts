@@ -4,6 +4,8 @@ import { userRepository } from '@/core/auth/user.repository';
 import { SubscriptionPlan } from '@/core/billing/billing.model';
 import { subscriptionRepository } from '@/core/billing/subscription.repository';
 import { eventBus } from '@/core/events/event-bus.service';
+import { NotificationTopic } from '@/core/notifications/notification.model';
+import { notificationService } from '@/core/notifications/notification.service';
 import { AbstractService } from '@/lib/abstract-service/AbstractService';
 import { UserRoleInOrg } from '@/lib/action-policies';
 import { firestore } from '@/lib/firebase/admin';
@@ -153,6 +155,112 @@ class OrganizationService extends AbstractService {
   }
 
   // ===========================================================================
+  // 🤝 Safe Ownership Transfer
+  // ===========================================================================
+
+  async offerOwnership(
+    actorId: string,
+    orgId: string,
+    targetUserId: string,
+  ): Promise<Result<void>> {
+    return this.handleOperation('org.offerOwnership', async () => {
+      if (actorId === targetUserId) {
+        throw new CustomError(AppErrorCode.INVALID_INPUT, 'You already own this organization.');
+      }
+
+      const member = await organizationRepository.members(orgId).get(targetUserId);
+      if (!member) {
+        throw new CustomError(AppErrorCode.NOT_FOUND, 'Target user is not a member of this org.');
+      }
+
+      // Expires in 24 hours
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 24);
+
+      await organizationRepository.update(orgId, {
+        pendingOwnerId: targetUserId,
+        transferExpiresAt: expiresAt,
+      });
+
+      // Audit Log
+      await auditRepository.create(uuidv4(), {
+        orgId,
+        actorId,
+        action: AuditAction.ORG_UPDATE,
+        targetId: targetUserId,
+        metadata: { type: 'ownership_offer', expiresAt },
+      });
+
+      // 🔔 Notify Target User
+      await notificationService.send(targetUserId, {
+        topic: NotificationTopic.SECURITY,
+        title: 'Ownership Offer Received',
+        message: 'You have been offered ownership of the organization.',
+        link: '/dashboard/settings',
+        orgId,
+      });
+    });
+  }
+
+  async acceptOwnership(actorId: string, orgId: string): Promise<Result<void>> {
+    return this.handleOperation('org.acceptOwnership', async () => {
+      const org = await organizationRepository.get(orgId);
+
+      if (org.pendingOwnerId !== actorId) {
+        throw new CustomError(AppErrorCode.PERMISSION_DENIED, 'You do not have a pending ownership offer.');
+      }
+
+      if (org.transferExpiresAt && new Date() > org.transferExpiresAt) {
+        throw new CustomError(AppErrorCode.INVALID_INPUT, 'Ownership offer has expired.');
+      }
+
+      const oldOwnerId = org.ownerId;
+
+      // Transaction: Swap Roles
+      await firestore().runTransaction(async (t) => {
+        const orgRepoT = organizationRepository.withTransaction(t);
+        const memberRepoT = organizationRepository.members(orgId).withTransaction(t);
+        const userRepoT = userRepository.withTransaction(t);
+        const auditRepoT = auditRepository.withTransaction(t);
+
+        // 1. Update Org Owner
+        await orgRepoT.update(orgId, {
+          ownerId: actorId,
+          pendingOwnerId: null, // Clear offer
+          transferExpiresAt: null,
+        });
+
+        // 2. Demote Old Owner -> ADMIN
+        await memberRepoT.update(oldOwnerId, { role: UserRoleInOrg.ADMIN });
+        await userRepoT.update(oldOwnerId, { orgRole: UserRoleInOrg.ADMIN });
+
+        // 3. Promote New Owner -> OWNER
+        await memberRepoT.update(actorId, { role: UserRoleInOrg.OWNER });
+        await userRepoT.update(actorId, { orgRole: UserRoleInOrg.OWNER });
+
+        // 4. Audit
+        await auditRepoT.create(uuidv4(), {
+          orgId,
+          actorId,
+          action: AuditAction.ORG_UPDATE,
+          metadata: { type: 'ownership_transfer', from: oldOwnerId, to: actorId },
+        });
+      });
+
+      await userRepository.clearCache(org.ownerId);
+      await userRepository.clearCache(actorId);
+
+      // 🔔 Notify Old Owner
+      await notificationService.send(oldOwnerId, {
+        topic: NotificationTopic.SECURITY,
+        title: 'Ownership Transferred',
+        message: 'You have successfully transferred ownership and are now an Admin.',
+        orgId,
+      });
+    });
+  }
+
+  // ===========================================================================
   // 👥 Members (RBAC & Management)
   // ===========================================================================
 
@@ -210,6 +318,14 @@ class OrganizationService extends AbstractService {
       });
 
       await userRepository.clearCache(targetUserId);
+
+      // 🔔 Notify User
+      await notificationService.send(targetUserId, {
+        topic: NotificationTopic.TEAM,
+        title: 'Role Updated',
+        message: `Your role has been updated to ${newRole}.`,
+        orgId,
+      });
     });
   }
 
@@ -331,7 +447,11 @@ class OrganizationService extends AbstractService {
           return invite;
         })
         .then(async (invite) => {
-          // TODO: await emailService.sendInvite(input.email, token);
+          // Send Real Email Notification via Notification Service?
+          // Actually, NotificationService is internal.
+          // For External Invites, we should use a dedicated EmailService.
+          // But for now, let's assume we log it or send a system notification to the inviter?
+          
           await eventBus.publish('invite.created', { ...invite }, { orgId, actorId: inviterId });
           return invite;
         });
@@ -402,6 +522,14 @@ class OrganizationService extends AbstractService {
         { userId, orgId: invite.orgId },
         { orgId: invite.orgId, actorId: userId },
       );
+
+      // 🔔 Notify Inviter
+      await notificationService.send(invite.inviterId, {
+        topic: NotificationTopic.TEAM,
+        title: 'Invite Accepted',
+        message: `${user.email} has joined the organization.`,
+        orgId: invite.orgId,
+      });
     });
   }
 

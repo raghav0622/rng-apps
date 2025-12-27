@@ -1,20 +1,16 @@
 'use client';
 
 import { authClient } from '@/core/auth/auth.client';
+import { ForgotPasswordSchema } from '@/core/auth/auth.model'; // Use Shared Model
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';
 import { AuthCard } from '@/ui/auth/AuthCard';
 import { Link, Typography } from '@mui/material';
 import NextLink from 'next/link';
 import { useState } from 'react';
-import { z } from 'zod';
-
-const RequestResetSchema = z.object({
-  email: z.string().email('Please enter a valid email'),
-});
 
 // Define the Form Layout
-const formConfig = defineForm<typeof RequestResetSchema>((f) => [
+const formConfig = defineForm<typeof ForgotPasswordSchema>((f) => [
   f.text('email', {
     label: 'Email Address',
     placeholder: 'you@example.com',
@@ -73,7 +69,7 @@ export default function ForgotPasswordPage() {
       }
     >
       <RNGForm
-        schema={RequestResetSchema}
+        schema={ForgotPasswordSchema}
         uiSchema={formConfig}
         onSubmit={handleSubmit}
         submitLabel={isLoading ? 'Sending...' : 'Send Reset Link'}

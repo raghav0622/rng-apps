@@ -12,7 +12,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLayoutContext } from './LayoutContext';
 
-// Dynamic import prevents hydration mismatch for user-specific content
+// Dynamic imports to prevent hydration mismatches and reduce initial bundle size
 const UserMenu = dynamic(() => import('@/app/(protected)/UserMenu').then((mod) => mod.UserMenu), {
   ssr: false,
   loading: () => (
@@ -20,10 +20,21 @@ const UserMenu = dynamic(() => import('@/app/(protected)/UserMenu').then((mod) =
   ),
 });
 
-export default function AppHeader({ drawerDisabled = false }: { drawerDisabled?: boolean }) {
-  // Consuming the updated Context
-  const { handleDrawerToggle } = useLayoutContext();
+const NotificationBell = dynamic(
+  () =>
+    import('@/core/notifications/components/NotificationBell').then(
+      (mod) => mod.NotificationBell,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <Box sx={{ width: 40, height: 40, bgcolor: 'action.hover', borderRadius: '50%' }} />
+    ),
+  },
+);
 
+export default function AppHeader({ drawerDisabled = false }: { drawerDisabled?: boolean }) {
+  const { handleDrawerToggle } = useLayoutContext();
   const { user } = useRNGAuth();
   const { org } = useOrg();
   const pathname = usePathname();
@@ -36,16 +47,12 @@ export default function AppHeader({ drawerDisabled = false }: { drawerDisabled?:
       sx={{
         borderBottom: 1,
         borderColor: 'divider',
-        // Ensure Header sits ABOVE the Drawer (Clipped Drawer pattern)
         zIndex: (theme) => theme.zIndex.drawer + 1,
         bgcolor: 'background.paper',
         color: 'text.primary',
       }}
     >
       <Toolbar variant="dense" sx={{ gap: 1 }}>
-        {/* MENU TOGGLE BUTTON 
-           Visible on ALL screens (Mobile & Desktop) to support collapsible sidebar.
-        */}
         {!drawerDisabled && (
           <IconButton
             edge="start"
@@ -57,10 +64,8 @@ export default function AppHeader({ drawerDisabled = false }: { drawerDisabled?:
           </IconButton>
         )}
 
-        {/* LOGO */}
         <Logo />
 
-        {/* ORG NAME (Desktop Only) */}
         {org?.name && (
           <Box sx={{ display: { xs: 'none', sm: 'flex' }, alignItems: 'center', gap: 1 }}>
             <Box sx={{ borderLeft: 1, borderColor: 'divider', height: 24 }} />
@@ -72,7 +77,6 @@ export default function AppHeader({ drawerDisabled = false }: { drawerDisabled?:
 
         <Box sx={{ flexGrow: 1 }} />
 
-        {/* RIGHT ACTIONS */}
         <Stack direction="row" spacing={1} alignItems="center">
           {pathname === '/profile' && (
             <Tooltip title="Go To Dashboard">
@@ -80,6 +84,13 @@ export default function AppHeader({ drawerDisabled = false }: { drawerDisabled?:
                 <Dashboard />
               </IconButton>
             </Tooltip>
+          )}
+
+          {!isAuthPage && user && (
+            <>
+              {/* Notification Bell */}
+              <NotificationBell />
+            </>
           )}
 
           <DarkModeToggle />

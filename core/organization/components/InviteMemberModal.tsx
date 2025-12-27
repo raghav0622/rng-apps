@@ -2,7 +2,7 @@
 
 import { sendInviteAction } from '@/core/organization/organization.actions'; // Ensure absolute path
 import { SendInviteSchema } from '@/core/organization/organization.model';
-import { useRNGServerAction as useRngAction } from '@/core/safe-action/use-rng-action'; // Updated import based on typical naming
+import { useRNGServerAction } from '@/core/safe-action/use-rng-action'; // Updated import based on typical naming
 import { UserRoleInOrg } from '@/lib/action-policies';
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';
@@ -29,7 +29,7 @@ const formConfig = defineForm<typeof SendInviteSchema>((f) => [
 ]);
 
 export function InviteMemberModal() {
-  const { runAction: execute, status } = useRngAction(sendInviteAction, {
+  const { runAction: execute, isExecuting } = useRNGServerAction(sendInviteAction, {
     successMessage: 'Invite Sent Successfully',
     errorMessage: 'Failed to send invite',
   });
@@ -48,13 +48,14 @@ export function InviteMemberModal() {
           schema={SendInviteSchema}
           uiSchema={formConfig}
           defaultValues={{ role: UserRoleInOrg.MEMBER }}
-          submitLabel="Send Invite"
+          submitLabel={isExecuting ? 'Sending...' : 'Send Invite'}
           // Disable submit while action is executing
-          readOnly={status === 'executing'}
+          readOnly={isExecuting}
           onSubmit={async (data) => {
-            await execute(data);
-
-            setOpen(false); // ✅ Close modal on success
+            const result = await execute(data);
+            if (result) {
+              setOpen(false); // ✅ Close modal on success
+            }
           }}
         />
       )}

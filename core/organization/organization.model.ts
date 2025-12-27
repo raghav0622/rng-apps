@@ -7,6 +7,11 @@ export const OrganizationSchema = z.object({
   id: z.string(),
   name: z.string().min(2, 'Name must be at least 2 characters').max(50),
   ownerId: z.string(),
+  
+  // Ownership Transfer (Pending Offer)
+  pendingOwnerId: z.string().optional().nullable(),
+  transferExpiresAt: z.date().optional().nullable(),
+
   createdAt: z.date(),
   updatedAt: z.date(),
   deletedAt: z.date().nullable(),
@@ -21,7 +26,7 @@ export const UpdateOrgSchema = CreateOrgSchema.partial();
 export type CreateOrgInput = z.infer<typeof CreateOrgSchema>;
 export type UpdateOrgInput = z.infer<typeof UpdateOrgSchema>;
 
-// --- Members (New) ---
+// --- Members ---
 export const MemberSchema = z.object({
   id: z.string(), // Matches userId
   orgId: z.string(),
@@ -87,3 +92,10 @@ export const UpdateMemberRoleSchema = z.object({
 export const RemoveMemberSchema = z.object({
   userId: z.string(),
 });
+
+// --- Ownership Transfer Actions ---
+export const OfferOwnershipSchema = z.object({
+  targetUserId: z.string(),
+});
+
+export const AcceptOwnershipSchema = z.object({}); // No payload, just context

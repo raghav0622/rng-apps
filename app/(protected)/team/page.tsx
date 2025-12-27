@@ -1,4 +1,5 @@
 import { SessionService } from '@/core/auth/session.service';
+import { InviteMemberModal } from '@/core/organization/components/InviteMemberModal';
 import { TeamList } from '@/core/organization/components/TeamList';
 import {
   getMembersAction,
@@ -6,7 +7,6 @@ import {
 } from '@/core/organization/organization.actions';
 import { Invite, MemberWithProfile } from '@/core/organization/organization.model';
 import { Box, Divider, Typography } from '@mui/material';
-import ClientTeamPageWrapper from './ClientTeamPage';
 
 export default async function TeamPage() {
   const session = await SessionService.requireServerSession();
@@ -43,7 +43,7 @@ export default async function TeamPage() {
             Manage your organization members, roles, and pending invitations.
           </Typography>
         </Box>
-        <ClientTeamPageWrapper />
+        <InviteMemberModal />
       </Box>
 
       <Divider sx={{ mb: 4 }} />

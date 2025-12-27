@@ -19,6 +19,7 @@ export const FIELD_CONFIG: Record<AnyFieldType, FieldConfig> = {
   calculated: { hasInternalLabel: true },
 
   // Selection
+  select: { hasInternalLabel: true },
   switch: { hasInternalLabel: false },
   'checkbox-group': { hasInternalLabel: false },
   radio: { hasInternalLabel: false },

@@ -11,7 +11,8 @@ export function RNGCheckboxGroup<S extends FormSchema>({ item }: RNGCheckboxGrou
   const {
     options,
     getOptionLabel = (opt: any) => (typeof opt === 'string' ? opt : opt.label || String(opt)),
-    getOptionValue = (opt: any) => (typeof opt === 'string' ? opt : opt.value !== undefined ? opt.value : opt),
+    getOptionValue = (opt: any) =>
+      typeof opt === 'string' ? opt : opt.value !== undefined ? opt.value : opt,
   } = item;
 
   return (
@@ -23,8 +24,6 @@ export function RNGCheckboxGroup<S extends FormSchema>({ item }: RNGCheckboxGrou
           if (checked) {
             field.onChange([...value, optionValue]);
           } else {
-            // Note: Simple equality check for removal. 
-            // In case of objects, users should provide primitive values or we'd need isOptionEqualToValue.
             field.onChange(value.filter((v) => v !== optionValue));
           }
         };
@@ -34,7 +33,7 @@ export function RNGCheckboxGroup<S extends FormSchema>({ item }: RNGCheckboxGrou
             {options.map((option, index) => {
               const label = getOptionLabel(option);
               const optValue = getOptionValue(option);
-              
+
               return (
                 <FormControlLabel
                   key={`${item.name}-checkbox-${index}`}

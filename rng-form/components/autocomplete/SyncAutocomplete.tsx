@@ -3,8 +3,6 @@ import { FieldWrapper } from '@/rng-form/components/FieldWrapper';
 import { FormSchema, InputItem } from '@/rng-form/types';
 import { Autocomplete, TextField } from '@mui/material';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 interface RNGAutocompleteProps<S extends FormSchema> {
   item: InputItem<S> & { type: 'autocomplete' };
   pathPrefix?: string;
@@ -17,29 +15,54 @@ export function RNGAutocomplete<S extends FormSchema>({
   const {
     options,
     getOptionLabel = (opt: any) => (typeof opt === 'string' ? opt : opt.label || String(opt)),
-    getOptionValue = (opt: any) => (typeof opt === 'string' ? opt : opt.value !== undefined ? opt.value : opt),
+    getOptionValue = (opt: any) =>
+      typeof opt === 'string' ? opt : opt.value !== undefined ? opt.value : opt,
     isOptionEqualToValue = (opt: any, val: any) => {
-      if (!val) return false;
+      if (val === null || val === undefined) return false;
       const optVal = getOptionValue(opt);
       const fieldVal = typeof val === 'object' && val !== null ? getOptionValue(val) : val;
       return optVal === fieldVal;
-    }
+    },
   } = item;
+
+  const safeGetOptionLabel = (opt: any) => {
+    if (typeof opt !== 'object' || opt === null) return String(opt);
+    return getOptionLabel(opt) || String(opt);
+  };
 
   return (
     <FieldWrapper item={item} name={item.name} pathPrefix={pathPrefix}>
       {(field, fieldState, mergedItem) => {
-        const value = field.value === undefined ? (mergedItem.multiple ? [] : null) : field.value;
+        let value = field.value === undefined ? (mergedItem.multiple ? [] : null) : field.value;
+
+        if (value && !mergedItem.multiple && typeof value !== 'object') {
+          const found = options.find((opt) => getOptionValue(opt) === value);
+          if (found) value = found;
+        } else if (value && mergedItem.multiple && Array.isArray(value)) {
+          value = value.map((val) =>
+            typeof val !== 'object'
+              ? options.find((opt) => getOptionValue(opt) === val) || val
+              : val,
+          );
+        }
 
         return (
           <Autocomplete
-            {...field}
+            // 🛡️ Correct props for MUI Autocomplete
+            ref={field.ref}
+            onBlur={field.onBlur}
             value={value}
             multiple={mergedItem.multiple}
             options={options as readonly any[]}
-            getOptionLabel={getOptionLabel}
+            getOptionLabel={safeGetOptionLabel}
             isOptionEqualToValue={isOptionEqualToValue}
-            onChange={(_, data) => field.onChange(data)}
+            onChange={(_, data) => {
+              if (Array.isArray(data)) {
+                field.onChange(data.map((opt) => getOptionValue(opt)));
+              } else {
+                field.onChange(data ? getOptionValue(data) : null);
+              }
+            }}
             disabled={mergedItem.disabled}
             renderInput={(params) => (
               <TextField

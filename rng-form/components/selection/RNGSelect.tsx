@@ -12,35 +12,42 @@ export function RNGSelect<S extends FormSchema>({ item }: RNGSelectProps<S>) {
   const {
     options,
     getOptionLabel = (opt: any) => (typeof opt === 'string' ? opt : opt.label || String(opt)),
-    getOptionValue = (opt: any) => (typeof opt === 'string' ? opt : opt.value !== undefined ? opt.value : opt),
+    getOptionValue = (opt: any) =>
+      typeof opt === 'string' ? opt : opt.value !== undefined ? opt.value : opt,
+    isOptionEqualToValue, // Destructured to exclude from spread
     placeholder,
+    ...restItem
   } = item;
 
   return (
     <FieldWrapper item={item} name={item.name}>
-      {(field, fieldState, mergedItem) => (
-        <TextField
-          {...field}
-          select
-          fullWidth
-          error={!!fieldState.error}
-          placeholder={placeholder}
-          // Mapping value to empty string if null/undefined for controlled safety
-          value={field.value ?? ''}
-          {...mergedItem}
-        >
-          {options.map((option, index) => {
-            const label = getOptionLabel(option);
-            const value = getOptionValue(option);
-            
-            return (
-              <MenuItem key={`${item.name}-opt-${index}`} value={value}>
-                {label}
-              </MenuItem>
-            );
-          })}
-        </TextField>
-      )}
+      {(field, fieldState, mergedItem) => {
+        return (
+          <TextField
+            {...field}
+            select
+            fullWidth
+            error={!!fieldState.error}
+            placeholder={placeholder}
+            value={field.value ?? ''}
+            // 🛡️ Spread only valid MUI props from mergedItem
+            autoFocus={mergedItem.autoFocus}
+            disabled={mergedItem.disabled}
+            label={mergedItem.label}
+          >
+            {options.map((option, index) => {
+              const label = getOptionLabel(option);
+              const value = getOptionValue(option);
+
+              return (
+                <MenuItem key={`${item.name}-opt-${index}`} value={value}>
+                  {label}
+                </MenuItem>
+              );
+            })}
+          </TextField>
+        );
+      }}
     </FieldWrapper>
   );
 }

@@ -24,7 +24,7 @@ const formConfig = defineForm<typeof SendInviteSchema>((f) => [
     placeholder: 'colleague@example.com',
     autoFocus: true,
   }),
-  f.autocomplete('role', ROLE_OPTIONS, {
+  f.select('role', ROLE_OPTIONS, {
     label: 'Role',
     // --- Standardized Option Helpers ---
     getOptionLabel: (opt: any) => opt.label,
@@ -55,7 +55,7 @@ export function InviteMemberModal() {
           submitLabel={isExecuting ? 'Sending...' : 'Send Invite'}
           readOnly={isExecuting}
           onSubmit={async (data) => {
-            // Data will contain the raw role value (e.g. 'ADMIN') 
+            // Data will contain the raw role value (e.g. 'ADMIN')
             // because autocomplete's onChange in RNG-Form handles it.
             const result = await execute(data);
             if (result) {

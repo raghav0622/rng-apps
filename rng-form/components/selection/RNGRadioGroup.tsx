@@ -11,17 +11,18 @@ export function RNGRadioGroup<S extends FormSchema>({ item }: RNGRadioGroupProps
   const {
     options,
     getOptionLabel = (opt: any) => (typeof opt === 'string' ? opt : opt.label || String(opt)),
-    getOptionValue = (opt: any) => (typeof opt === 'string' ? opt : opt.value !== undefined ? opt.value : opt),
+    getOptionValue = (opt: any) =>
+      typeof opt === 'string' ? opt : opt.value !== undefined ? opt.value : opt,
   } = item;
 
   return (
     <FieldWrapper item={item} name={item.name}>
       {(field, _fieldState, mergedItem) => (
-        <RadioGroup {...field} row={mergedItem.row}>
+        <RadioGroup {...field} row={mergedItem.row} name={field.name} value={field.value ?? ''}>
           {options.map((option, index) => {
             const label = getOptionLabel(option);
             const value = getOptionValue(option);
-            
+
             return (
               <FormControlLabel
                 key={`${item.name}-radio-${index}`}

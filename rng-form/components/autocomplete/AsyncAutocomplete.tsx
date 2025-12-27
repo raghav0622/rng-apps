@@ -6,8 +6,6 @@ import { Autocomplete, CircularProgress, TextField } from '@mui/material';
 import React, { useEffect, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 interface RNGAsyncAutocompleteProps<S extends FormSchema> {
   item: InputItem<S> & { type: 'async-autocomplete' };
   pathPrefix?: string;
@@ -25,15 +23,22 @@ export function RNGAsyncAutocomplete<S extends FormSchema>({
   const { getValues } = useFormContext();
 
   const {
-    getOptionLabel = (opt: any) => (typeof opt === 'string' ? opt : opt.label || opt.name || String(opt)),
-    getOptionValue = (opt: any) => (typeof opt === 'string' ? opt : opt.value !== undefined ? opt.value : opt),
+    getOptionLabel = (opt: any) =>
+      typeof opt === 'string' ? opt : opt.label || opt.name || String(opt),
+    getOptionValue = (opt: any) =>
+      typeof opt === 'string' ? opt : opt.value !== undefined ? opt.value : opt,
     isOptionEqualToValue = (opt: any, val: any) => {
       if (!val) return false;
       const optVal = getOptionValue(opt);
       const fieldVal = typeof val === 'object' && val !== null ? getOptionValue(val) : val;
       return optVal === fieldVal;
-    }
+    },
   } = item;
+
+  const safeGetOptionLabel = (opt: any) => {
+    if (typeof opt !== 'object' || opt === null) return String(opt);
+    return getOptionLabel(opt) || String(opt);
+  };
 
   useEffect(() => {
     let active = true;
@@ -66,11 +71,18 @@ export function RNGAsyncAutocomplete<S extends FormSchema>({
   return (
     <FieldWrapper item={item} name={item.name} pathPrefix={pathPrefix}>
       {(field, fieldState, mergedItem) => {
-        const value = field.value === undefined ? (mergedItem.multiple ? [] : null) : field.value;
+        let value = field.value === undefined ? (mergedItem.multiple ? [] : null) : field.value;
+
+        if (value && !mergedItem.multiple && typeof value !== 'object') {
+          const found = options.find((opt) => getOptionValue(opt) === value);
+          if (found) value = found;
+        }
 
         return (
           <Autocomplete
-            {...field}
+            // 🛡️ Correct MUI Autocomplete Props
+            ref={field.ref}
+            onBlur={field.onBlur}
             value={value}
             open={open}
             onOpen={() => setOpen(true)}
@@ -81,9 +93,15 @@ export function RNGAsyncAutocomplete<S extends FormSchema>({
             options={options}
             loading={loading}
             disabled={mergedItem.disabled}
-            getOptionLabel={getOptionLabel}
+            getOptionLabel={safeGetOptionLabel}
             isOptionEqualToValue={isOptionEqualToValue}
-            onChange={(_, data) => field.onChange(data)}
+            onChange={(_, data) => {
+              if (Array.isArray(data)) {
+                field.onChange(data.map((opt) => getOptionValue(opt)));
+              } else {
+                field.onChange(data ? getOptionValue(data) : null);
+              }
+            }}
             renderInput={(params) => (
               <TextField
                 {...params}

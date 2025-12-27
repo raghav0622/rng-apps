@@ -16,7 +16,6 @@
     "eslint.config.mjs": true,
     "next.config.ts": true,
     "tsconfig.json": true,
-    ".env.local": true,
     "rng-form": true,
     "lib": true,
     "core/safe-action": true
@@ -32,7 +31,6 @@
     "eslint.config.mjs",
     "next.config.ts",
     "tsconfig.json",
-    ".env.local",
     "rng-form",
     "lib",
     "core/safe-action"

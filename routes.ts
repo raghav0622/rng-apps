@@ -19,7 +19,7 @@ export const AUTH_ROUTES = new Set([
   '/login',
   '/signup',
   '/forgot-password',
-  '/auth-action-handler',
+  '/action-handler',
 ]);
 
 /**

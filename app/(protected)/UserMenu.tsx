@@ -14,6 +14,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
+import Link from 'next/link';
 import { useState } from 'react';
 
 export function UserMenu() {
@@ -97,7 +98,7 @@ export function UserMenu() {
         </Box>
         <Divider />
 
-        <MenuItem onClick={handleClose}>
+        <MenuItem component={Link} href="/profile" onClick={handleClose}>
           <ListItemIcon>
             <Person fontSize="small" />
           </ListItemIcon>

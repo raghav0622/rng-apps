@@ -122,3 +122,5 @@ export function useRNGServerAction<
     ...rest,
   };
 }
+
+export const useRngAction = useRNGServerAction

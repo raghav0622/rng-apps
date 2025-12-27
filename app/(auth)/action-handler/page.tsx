@@ -2,9 +2,10 @@
 
 import { authClient } from '@/core/auth/auth.client';
 import { RNGForm } from '@/rng-form/components/RNGForm';
+import { defineForm } from '@/rng-form/dsl';
 import { Alert, Box, CircularProgress, Container, Typography } from '@mui/material';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { z } from 'zod';
 
 // Schema for the "New Password" form
@@ -18,9 +19,18 @@ const ResetPasswordFormSchema = z
     path: ['confirmPassword'],
   });
 
+// DSL Config
+const formConfig = defineForm<typeof ResetPasswordFormSchema>((f) => [
+  f.password('password', { label: 'New Password', placeholder: 'Enter new password' }),
+  f.password('confirmPassword', {
+    label: 'Confirm Password',
+    placeholder: 'Re-enter new password',
+  }),
+]);
+
 type ActionState = 'LOADING' | 'SUCCESS' | 'ERROR' | 'IDLE';
 
-export default function ActionHandlerPage() {
+function ActionHandlerContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -36,7 +46,6 @@ export default function ActionHandlerPage() {
 
   useEffect(() => {
     if (!oobCode || !mode) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStatus('ERROR');
       setErrorMessage('Invalid link. Missing parameters.');
       return;
@@ -61,10 +70,13 @@ export default function ActionHandlerPage() {
           setVerifiedEmail(email);
           setStatus('IDLE'); // Ready to show form
         })
-        .catch((err) => {
+        .catch(() => {
           setStatus('ERROR');
           setErrorMessage('This link has expired or has already been used.');
         });
+    } else {
+      setStatus('ERROR');
+      setErrorMessage(`Unknown mode: ${mode}`);
     }
   }, [mode, oobCode]);
 
@@ -124,20 +136,7 @@ export default function ActionHandlerPage() {
 
         <RNGForm
           schema={ResetPasswordFormSchema}
-          uiSchema={[
-            {
-              type: 'password',
-              name: 'password',
-              label: 'New Password',
-              placeholder: 'Enter new password',
-            },
-            {
-              type: 'password',
-              name: 'confirmPassword',
-              label: 'Confirm Password',
-              placeholder: 'Re-enter new password',
-            },
-          ]}
+          uiSchema={formConfig}
           onSubmit={handleResetSubmit}
           submitLabel="Reset Password"
         />
@@ -146,4 +145,12 @@ export default function ActionHandlerPage() {
   }
 
   return null;
+}
+
+export default function ActionHandlerPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <ActionHandlerContent />
+    </Suspense>
+  );
 }

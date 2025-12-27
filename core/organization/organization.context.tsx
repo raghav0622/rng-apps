@@ -1,6 +1,6 @@
 'use client';
 
-import { Organization } from '@/core/org/org.model';
+import { Organization } from '@/core/organization/organization.model';
 import { createContext, ReactNode, useContext } from 'react';
 
 type OrgContextType = {

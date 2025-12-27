@@ -3,6 +3,7 @@ import {
   applyActionCode,
   checkActionCode,
   confirmPasswordReset,
+  sendEmailVerification,
   sendPasswordResetEmail,
   verifyPasswordResetCode,
 } from 'firebase/auth';
@@ -12,12 +13,27 @@ export const authClient = {
    * Trigger the "Forgot Password" email.
    */
   async sendPasswordResetLink(email: string) {
-    // Defines where the user is redirected after clicking the link
     const actionCodeSettings = {
-      url: `${window.location.origin}/login`, // Redirect to login after success
+      // The user will land on /action-handler?mode=resetPassword&oobCode=...
+      // We don't need to specify 'login' here because the handler page manages the flow.
+      url: `${window.location.origin}/login`,
       handleCodeInApp: true,
     };
     await sendPasswordResetEmail(auth, email, actionCodeSettings);
+  },
+
+  /**
+   * Send Verification Email to the *currently signed-in* user.
+   */
+  async sendVerificationEmail() {
+    if (!auth.currentUser) throw new Error('No user signed in');
+
+    const actionCodeSettings = {
+      // The user will land on /action-handler?mode=verifyEmail&oobCode=...
+      url: `${window.location.origin}/dashboard`,
+      handleCodeInApp: true,
+    };
+    await sendEmailVerification(auth.currentUser, actionCodeSettings);
   },
 
   /**

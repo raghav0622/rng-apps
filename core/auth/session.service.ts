@@ -1,74 +1,138 @@
 import { SESSION_PREFIX, SESSION_TTL_SECONDS } from '@/lib/constants';
-import { redisClient as redis } from '@/lib/redis'; // Ensure this matches your redis export
+import { redisClient as redis } from '@/lib/redis';
 import { Result } from '@/lib/types';
 import { AppErrorCode } from '@/lib/utils/errors';
+import { UAParser } from 'ua-parser-js';
 import 'server-only';
 
+export interface SessionData {
+  sessionId: string;
+  createdAt: string;
+  ip?: string;
+  device?: string;
+  browser?: string;
+  os?: string;
+  isCurrent?: boolean;
+}
+
 export class SessionService {
+  /**
+   * Registers a new session upon login with Metadata (User Agent, IP).
+   */
+  static async createSession(
+    userId: string,
+    sessionId: string,
+    userAgent?: string,
+    ip?: string,
+  ): Promise<void> {
+    const key = `${SESSION_PREFIX}${userId}:${sessionId}`;
+
+    const ua = new UAParser(userAgent || '');
+    const metadata = {
+      createdAt: new Date().toISOString(),
+      ip: ip || 'Unknown',
+      browser: ua.getBrowser().name,
+      os: ua.getOS().name,
+      device: ua.getDevice().model || 'Desktop',
+    };
+
+    await redis.set(key, JSON.stringify(metadata), { ex: SESSION_TTL_SECONDS });
+  }
+
   /**
    * Validates if a session ID is currently active.
    */
   static async validateSession(userId: string, sessionId: string): Promise<boolean> {
-    if (!userId || !sessionId) {
-      console.warn('[Session] Validation failed: Missing userId or sessionId');
-      return false;
-    }
-
+    if (!userId || !sessionId) return false;
     const key = `${SESSION_PREFIX}${userId}:${sessionId}`;
-
-    try {
-      // 1. Check Redis
-      // We use 'get' to inspect the value (useful for debugging)
-      const value = await redis.get(key);
-
-      if (!value) {
-        console.warn(`[Session] Key not found: ${key}`);
-        return false;
-      }
-
-      // 2. Refresh TTL (Optional: Slide expiry on activity)
-      // await redis.expire(key, SESSION_TTL_SECONDS);
-
-      return true; // Any value means it exists and is valid
-    } catch (error) {
-      console.error('[Session] Redis Error during validation:', error);
-      // Fail closed for security
-      return false;
-    }
+    const exists = await redis.exists(key);
+    return exists === 1;
   }
 
   /**
-   * Registers a new session upon login.
+   * List all active sessions for a user.
    */
-  static async createSession(userId: string, sessionId: string): Promise<void> {
-    const key = `${SESSION_PREFIX}${userId}:${sessionId}`;
-    // Store 'true' or a timestamp. We prefer timestamp for debugging.
-    await redis.set(key, new Date().toISOString(), { ex: SESSION_TTL_SECONDS });
+  static async listSessions(userId: string, currentSessionId: string): Promise<Result<SessionData[]>> {
+    try {
+      const pattern = `${SESSION_PREFIX}${userId}:*`;
+      const keys = await redis.keys(pattern);
+
+      if (keys.length === 0) return { success: true, data: [] };
+
+      // Batch fetch values
+      const values = await redis.mget<string[]>(...keys);
+
+      const sessions: SessionData[] = keys.map((key, index) => {
+        const sessionId = key.split(':')[2]; // session:uid:sessionId
+        const rawData = values[index];
+        let metadata = { createdAt: new Date().toISOString() };
+
+        if (rawData) {
+          try {
+            // Backward compatibility: If stored as string date or JSON
+            if (rawData.startsWith('{')) {
+              metadata = JSON.parse(rawData);
+            } else {
+              metadata = { ...metadata, createdAt: rawData };
+            }
+          } catch (e) {
+            // ignore parse error
+          }
+        }
+
+        return {
+          sessionId,
+          isCurrent: sessionId === currentSessionId,
+          ...metadata,
+        };
+      });
+
+      // Sort: Current session first, then by date
+      sessions.sort((a, b) => {
+        if (a.isCurrent) return -1;
+        if (b.isCurrent) return 1;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+
+      return { success: true, data: sessions };
+    } catch (error) {
+      console.error('[Session] List Error:', error);
+      return {
+        success: false,
+        error: { code: AppErrorCode.INTERNAL_ERROR, message: 'Failed to list sessions' },
+      };
+    }
   }
 
   /**
    * Revokes a specific session.
    */
-  static async revokeSession(userId: string, sessionId: string): Promise<void> {
+  static async revokeSession(userId: string, sessionId: string): Promise<Result<void>> {
     const key = `${SESSION_PREFIX}${userId}:${sessionId}`;
     await redis.del(key);
+    return { success: true, data: undefined };
   }
 
   /**
-   * Revokes ALL sessions for a user.
+   * Revokes ALL sessions for a user except the current one.
    */
-  static async revokeAllUserSessions(userId: string): Promise<Result<void>> {
+  static async revokeAllSessions(userId: string, exceptSessionId?: string): Promise<Result<void>> {
     try {
       const pattern = `${SESSION_PREFIX}${userId}:*`;
       const keys = await redis.keys(pattern);
 
       if (keys.length > 0) {
-        await redis.del(...keys);
+        const keysToDelete = exceptSessionId
+          ? keys.filter((k) => !k.endsWith(exceptSessionId))
+          : keys;
+
+        if (keysToDelete.length > 0) {
+          await redis.del(...keysToDelete);
+        }
       }
 
       return { success: true, data: undefined };
     } catch (error) {
-      console.error('[Session] Revoke All Error:', error);
       return {
         success: false,
         error: { code: AppErrorCode.INTERNAL_ERROR, message: 'Failed to revoke sessions' },

@@ -58,6 +58,8 @@ class AuthService extends AbstractService {
   async login(
     email: string,
     password: string,
+    userAgent?: string,
+    ip?: string,
   ): Promise<Result<{ sessionCookie: string; expiresIn: number; sessionId: string }>> {
     return this.handleOperation('auth.login', async () => {
       const signInUrl = `${GOOGLE_API_URL}:signInWithPassword?key=${env.NEXT_PUBLIC_FIREBASE_API_KEY}`;
@@ -84,7 +86,9 @@ class AuthService extends AbstractService {
       const expiresIn = SESSION_DURATION_MS; // 5 days
       const sessionCookie = await auth().createSessionCookie(data.idToken, { expiresIn });
       const sessionId = uuidv4();
-      await SessionService.createSession(data.localId, sessionId);
+      
+      // Capture Metadata for Session Dashboard
+      await SessionService.createSession(data.localId, sessionId, userAgent, ip);
 
       return { sessionCookie, expiresIn, sessionId };
     });

@@ -18,6 +18,7 @@ const SECURITY_HEADERS = {
 export function middleware(request: NextRequest) {
   const { nextUrl } = request;
   const sessionToken = request.cookies.get(AUTH_SESSION_COOKIE_NAME)?.value;
+  // const sessionId = request.cookies.get(SESSION_ID_COOKIE_NAME)?.value; // Removed check to avoid confusion
   const isAuthenticated = !!sessionToken;
 
   const isAuthPage = isAuthRoute(nextUrl.pathname);
@@ -28,7 +29,6 @@ export function middleware(request: NextRequest) {
   // A. Logged-in User hitting Login/Signup -> Redirect to Dashboard
   if (isAuthPage && isAuthenticated) {
     // 🛑 CRITICAL FIX: Break Infinite Loops / Zombie Sessions 🛑
-    // If the client sends a "reason", explicitly clear cookies to allow re-login.
     if (nextUrl.searchParams.has('reason')) {
       const response = NextResponse.next();
       response.cookies.delete(AUTH_SESSION_COOKIE_NAME);
@@ -47,11 +47,6 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // C. Onboarding Check?
-  // NOTE: We do NOT check for 'orgId' or onboarding status here in Middleware.
-  // Checking Firestore/Claims at the edge is complex.
-  // Instead, 'app/(protected)/layout.tsx' handles the "Onboarding Wall" redirect.
-
   // --- Logic 2: Security Headers (Enterprise Grade) ---
   const response = NextResponse.next();
 
@@ -64,7 +59,6 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Apply to all routes except internal Next.js paths and static assets
     '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };

@@ -39,7 +39,10 @@ export default function LoginPage() {
           Don&apos;t have an account?{' '}
           <Link component={NextLink} href="/signup" underline="hover">
             Sign up
-          </Link>
+          </Link> |{' '}
+          <Link component={NextLink} href="/forgot-password" underline="hover">
+            Forgot Password?
+          </Link> 
         </>
       }
     >

@@ -6,8 +6,7 @@ import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';
 import { AuthCard } from '@/ui/auth/AuthCard';
-import { GoogleSignInButton } from '@/ui/auth/GoogleSignInButton';
-import { Divider, Link, Typography } from '@mui/material';
+import { Link } from '@mui/material';
 import NextLink from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSnackbar } from 'notistack';
@@ -43,14 +42,6 @@ export default function SignupPage() {
         </>
       }
     >
-      <GoogleSignInButton />
-
-      <Divider sx={{ my: 2 }}>
-        <Typography variant="body2" color="text.secondary">
-          OR
-        </Typography>
-      </Divider>
-
       <RNGForm
         schema={SignUpSchema}
         uiSchema={formConfig}

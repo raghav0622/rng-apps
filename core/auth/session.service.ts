@@ -57,14 +57,6 @@ export class SessionService {
     currentSessionId: string,
   ): Promise<Result<SessionData[]>> {
     try {
-      // 🛑 KEY FIX: We were using key.split(':')[2], but SESSION_PREFIX contains ':'
-      // SESSION_PREFIX is 'session:valid:' -> key is 'session:valid:USERID:SESSIONID'
-      // Splitting by ':' gives:
-      // [0] = 'session'
-      // [1] = 'valid'
-      // [2] = USERID
-      // [3] = SESSIONID
-
       const pattern = `${SESSION_PREFIX}${userId}:*`;
       const keys = await redis.keys(pattern);
 
@@ -74,10 +66,7 @@ export class SessionService {
       const values = await redis.mget<string[]>(...keys);
 
       const sessions: SessionData[] = keys.map((key, index) => {
-        // Fix: Correctly extract sessionId from the end of the key
-        const parts = key.split(':');
-        const sessionId = parts[parts.length - 1];
-
+        const sessionId = key.split(':')[2]; // session:uid:sessionId
         const rawData = values[index];
         let metadata = { createdAt: new Date().toISOString() };
 

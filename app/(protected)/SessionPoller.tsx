@@ -15,9 +15,7 @@ export function SessionPoller() {
         msg.includes('revoked') ||
         msg.includes('Session missing')
       ) {
-        // Force a hard reload which will trigger middleware -> auth checks -> redirect
-        // We append ?reason=session_expired to hint the middleware to clear cookies if needed
-        window.location.href = '/login?reason=session_expired';
+        window.location.reload();
       }
     },
   });

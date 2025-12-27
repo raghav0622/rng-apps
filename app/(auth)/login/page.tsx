@@ -1,15 +1,16 @@
 'use client';
 
-import { loginAction } from '@/core/auth/auth.actions';
+import { loginAction, requestMagicLinkAction } from '@/core/auth/auth.actions';
 import { LoginSchema } from '@/core/auth/auth.model';
 import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';
 import { AuthCard } from '@/ui/auth/AuthCard';
-import { Link } from '@mui/material';
+import { GoogleSignInButton } from '@/ui/auth/GoogleSignInButton';
+import { Alert, Divider, Link, Typography, Box } from '@mui/material';
 import NextLink from 'next/link';
+import { useState } from 'react';
 
-// Define the Form Layout (DSL)
 const formConfig = defineForm<typeof LoginSchema>((f) => [
   f.text('email', {
     label: 'Email Address',
@@ -23,6 +24,17 @@ const formConfig = defineForm<typeof LoginSchema>((f) => [
 
 export default function LoginPage() {
   const { runAction } = useRNGServerAction(loginAction);
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
+  const [email, setEmail] = useState('');
+
+  const magicLinkAction = useRNGServerAction(requestMagicLinkAction, {
+    onSuccess: () => setMagicLinkSent(true),
+  });
+
+  const handleMagicLink = async () => {
+    if (!email) return;
+    await magicLinkAction.runAction({ email });
+  };
 
   return (
     <AuthCard
@@ -41,14 +53,41 @@ export default function LoginPage() {
         </>
       }
     >
+      {magicLinkSent && (
+        <Alert severity="success" sx={{ mb: 3 }}>
+          Magic link sent! Check your email to sign in.
+        </Alert>
+      )}
+
+      <GoogleSignInButton />
+
+      <Divider sx={{ my: 2 }}>
+        <Typography variant="body2" color="text.secondary">
+          OR
+        </Typography>
+      </Divider>
+
       <RNGForm
         schema={LoginSchema}
         uiSchema={formConfig}
+        onValuesChange={(vals) => setEmail(vals.email)}
         onSubmit={async (data) => {
           await runAction(data);
         }}
         submitLabel="Sign In"
       />
+
+      <Box sx={{ mt: 2, textAlign: 'center' }}>
+        <Link
+          component="button"
+          variant="body2"
+          onClick={handleMagicLink}
+          disabled={magicLinkAction.isExecuting || !email}
+          sx={{ cursor: 'pointer' }}
+        >
+          {magicLinkAction.isExecuting ? 'Sending...' : 'Sign in with Magic Link'}
+        </Link>
+      </Box>
     </AuthCard>
   );
 }

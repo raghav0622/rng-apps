@@ -1,7 +1,7 @@
 import { logInfo } from '@/lib/logger';
 import * as admin from 'firebase-admin';
 import 'server-only';
-import { getServerEnv } from '../env';
+import { env } from '../env';
 
 /**
  * Initializes the Firebase Admin SDK.
@@ -15,15 +15,15 @@ function initializeAdmin() {
 
   // 1. Get Strict Server Environment
   // This will throw if keys are missing, which is what we want on the SERVER.
-  const serverEnv = getServerEnv();
+  const serverEnv = env;
 
   admin.initializeApp({
     credential: admin.credential.cert({
       projectId: serverEnv.FIREBASE_PROJECT_ID,
       clientEmail: serverEnv.FIREBASE_CLIENT_EMAIL,
-      privateKey: serverEnv.FIREBASE_PRIVATE_KEY, // Already formatted by getServerEnv
+      privateKey: serverEnv.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'), // Ensure proper formatting
     }),
-    storageBucket: serverEnv.FIREBASE_STORAGE_BUCKET,
+    storageBucket: serverEnv.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET, // Matches the key in env.ts
   });
 
   admin.firestore().settings({

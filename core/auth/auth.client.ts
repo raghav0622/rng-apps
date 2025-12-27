@@ -3,19 +3,29 @@ import {
   applyActionCode,
   checkActionCode,
   confirmPasswordReset,
+  GoogleAuthProvider,
   sendEmailVerification,
   sendPasswordResetEmail,
+  signInWithPopup,
   verifyPasswordResetCode,
 } from 'firebase/auth';
 
 export const authClient = {
   /**
+   * Trigger Google Sign-In Popup.
+   */
+  async signInWithGoogle() {
+    const provider = new GoogleAuthProvider();
+    const result = await signInWithPopup(auth, provider);
+    const idToken = await result.user.getIdToken();
+    return { idToken };
+  },
+
+  /**
    * Trigger the "Forgot Password" email.
    */
   async sendPasswordResetLink(email: string) {
     const actionCodeSettings = {
-      // The user will land on /action-handler?mode=resetPassword&oobCode=...
-      // We don't need to specify 'login' here because the handler page manages the flow.
       url: `${window.location.origin}/login`,
       handleCodeInApp: true,
     };
@@ -23,13 +33,12 @@ export const authClient = {
   },
 
   /**
-   * Send Verification Email to the *currently signed-in* user.
+   * Send Verification Email to the currently signed-in user.
    */
   async sendVerificationEmail() {
     if (!auth.currentUser) throw new Error('No user signed in');
 
     const actionCodeSettings = {
-      // The user will land on /action-handler?mode=verifyEmail&oobCode=...
       url: `${window.location.origin}/dashboard`,
       handleCodeInApp: true,
     };
@@ -37,15 +46,14 @@ export const authClient = {
   },
 
   /**
-   * Verify the code from the email URL to ensure it's valid
-   * and retrieve the associated email address (useful for UI).
+   * Verify the code from the email URL.
    */
   async verifyResetCode(code: string) {
     return await verifyPasswordResetCode(auth, code);
   },
 
   /**
-   * Complete the password reset process with the new password.
+   * Complete the password reset process.
    */
   async confirmPasswordReset(code: string, newPassword: string) {
     await confirmPasswordReset(auth, code, newPassword);
@@ -59,8 +67,7 @@ export const authClient = {
   },
 
   /**
-   * Generic check for any action code (reset, verify, recover).
-   * Returns metadata about the code.
+   * Generic check for any action code.
    */
   async checkActionCode(code: string) {
     return await checkActionCode(auth, code);

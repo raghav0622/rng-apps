@@ -12,11 +12,26 @@ import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { LoginSchema, SignUpSchema } from './auth.model';
 
+// --- Shared Cookie Helper ---
+async function setSessionCookies(sessionCookie: string, expiresIn: number, sessionId: string) {
+  const cookieStore = await cookies();
+  const options = {
+    maxAge: expiresIn / 1000,
+    httpOnly: true,
+    secure: env.NODE_ENV === 'production',
+    path: '/',
+    sameSite: 'lax' as const,
+  };
+  cookieStore.set(AUTH_SESSION_COOKIE_NAME, sessionCookie, options);
+  cookieStore.set(SESSION_ID_COOKIE_NAME, sessionId, options);
+}
+
+// --- Auth Actions ---
+
 export const signUpAction = actionClient
   .metadata({ name: 'auth.signup' })
   .schema(SignUpSchema)
   .action(async ({ parsedInput }) => {
-    // Keeps Atomic Transaction: Auth User + Firestore User Profile
     return await authService.signup(parsedInput);
   });
 
@@ -28,25 +43,50 @@ export const loginAction = actionClient
     const userAgent = headersList.get('user-agent') || undefined;
     const ip = headersList.get('x-forwarded-for') || undefined;
 
-    // Server-side login is required to generate the HTTP-Only Session Cookie
     const result = await authService.login(parsedInput.email, parsedInput.password, userAgent, ip);
 
     if (!result.success) return result;
 
-    const { sessionCookie, expiresIn, sessionId } = result.data;
-    const cookieStore = await cookies();
+    await setSessionCookies(result.data.sessionCookie, result.data.expiresIn, result.data.sessionId);
+    redirect(DEFAULT_LOGIN_REDIRECT);
+  });
 
-    const options = {
-      maxAge: expiresIn / 1000,
-      httpOnly: true,
-      secure: env.NODE_ENV === 'production',
-      path: '/',
-      sameSite: 'lax' as const,
-    };
+export const googleSignInAction = actionClient
+  .metadata({ name: 'auth.googleSignIn' })
+  .schema(z.object({ idToken: z.string() }))
+  .action(async ({ parsedInput }) => {
+    const headersList = await headers();
+    const userAgent = headersList.get('user-agent') || undefined;
+    const ip = headersList.get('x-forwarded-for') || undefined;
 
-    cookieStore.set(AUTH_SESSION_COOKIE_NAME, sessionCookie, options);
-    cookieStore.set(SESSION_ID_COOKIE_NAME, sessionId, options);
+    const result = await authService.handleGoogleSignIn(parsedInput.idToken, userAgent, ip);
 
+    if (!result.success) return result;
+
+    await setSessionCookies(result.data.sessionCookie, result.data.expiresIn, result.data.sessionId);
+    redirect(DEFAULT_LOGIN_REDIRECT);
+  });
+
+export const requestMagicLinkAction = actionClient
+  .metadata({ name: 'auth.requestMagicLink' })
+  .schema(z.object({ email: z.string().email() }))
+  .action(async ({ parsedInput }) => {
+    return await authService.requestMagicLink(parsedInput.email);
+  });
+
+export const verifyMagicLinkAction = actionClient
+  .metadata({ name: 'auth.verifyMagicLink' })
+  .schema(z.object({ token: z.string() }))
+  .action(async ({ parsedInput }) => {
+    const headersList = await headers();
+    const userAgent = headersList.get('user-agent') || undefined;
+    const ip = headersList.get('x-forwarded-for') || undefined;
+
+    const result = await authService.verifyMagicLink(parsedInput.token, userAgent, ip);
+
+    if (!result.success) return result;
+
+    await setSessionCookies(result.data.sessionCookie, result.data.expiresIn, result.data.sessionId);
     redirect(DEFAULT_LOGIN_REDIRECT);
   });
 
@@ -75,19 +115,11 @@ export const revokeSessionAction = authActionClient
 export const revokeAllSessionsAction = authActionClient
   .metadata({ name: 'auth.revokeAllSessions' })
   .action(async ({ ctx }) => {
-    // Revoke all except current
     return await SessionService.revokeAllSessions(ctx.user.id, ctx.sessionId);
   });
 
-/**
- * Checks if the current session is still valid in Redis.
- * Called by the client poller.
- */
 export const checkSessionAction = authActionClient
   .metadata({ name: 'auth.checkSession' })
-  .action(async ({ ctx }) => {
-    // Since 'authActionClient' middleware ALREADY checks for session validity via SessionService.validateSession,
-    // if we reach here, the session is valid.
-    // If invalid, the middleware would have thrown an error or returned failure.
+  .action(async () => {
     return { valid: true };
   });

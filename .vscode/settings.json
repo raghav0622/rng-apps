@@ -14,10 +14,7 @@
     "public": true,
     "eslint.config.mjs": true,
     "next.config.ts": true,
-    "tsconfig.json": true,
-    "rng-form": true,
-    "lib": true,
-    "core/safe-action": true
+    "tsconfig.json": true
   },
   "hide-files.files": [
     "node_modules",
@@ -28,10 +25,7 @@
     "public",
     "eslint.config.mjs",
     "next.config.ts",
-    "tsconfig.json",
-    "rng-form",
-    "lib",
-    "core/safe-action"
+    "tsconfig.json"
   ],
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {

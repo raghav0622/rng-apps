@@ -2,7 +2,7 @@
 import { LayoutProvider } from '@/app/(protected)/LayoutContext';
 import theme from '@/ui/theme';
 import { Close as CloseIcon } from '@mui/icons-material';
-import { Box, CssBaseline, IconButton, ThemeProvider } from '@mui/material';
+import { Box, CssBaseline, IconButton, ThemeProvider, Toolbar } from '@mui/material';
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
 import NextTopLoader from 'nextjs-toploader'; // <--- Import
 import { SnackbarKey, SnackbarProvider } from 'notistack';
@@ -51,9 +51,11 @@ function AppProvider({ children }: AppProviderProps) {
                 display: 'flex',
                 flexDirection: 'column',
                 bgcolor: 'background.default',
+                gap: 2,
               }}
             >
               {children}
+              <Toolbar variant="dense" />
             </Box>
           </LayoutProvider>
         </SnackbarProvider>

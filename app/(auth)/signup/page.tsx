@@ -4,19 +4,9 @@ import { signUpAction } from '@/core/auth/auth.actions';
 import { SignUpSchema } from '@/core/auth/auth.model';
 import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
 import { RNGForm } from '@/rng-form/components/RNGForm';
-import { defineForm } from '@/rng-form/dsl';
 import { AuthCard } from '@/ui/auth/AuthCard';
-import { Link } from '@mui/material';
-import NextLink from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSnackbar } from 'notistack';
-
-const formConfig = defineForm<typeof SignUpSchema>((f) => [
-  f.text('displayName', { label: 'Full Name', placeholder: 'John Doe' }),
-  f.text('email', { label: 'Email Address', placeholder: 'you@example.com' }),
-  f.password('password', { label: 'Password', description: 'At least 6 characters' }),
-  f.password('confirmPassword', { label: 'Confirm Password' }),
-]);
 
 export default function SignupPage() {
   const router = useRouter();
@@ -30,21 +20,35 @@ export default function SignupPage() {
   });
 
   return (
-    <AuthCard
-      title="Create Account"
-      description="Start your journey with us"
-      footer={
-        <>
-          Already have an account?{' '}
-          <Link component={NextLink} href="/login" underline="hover">
-            Log in
-          </Link>
-        </>
-      }
-    >
+    <AuthCard title="Create Account" description="Start your journey with us" footer>
       <RNGForm
         schema={SignUpSchema}
-        uiSchema={formConfig}
+        uiSchema={[
+          {
+            name: 'displayName',
+            label: 'Display Name',
+            type: 'text',
+            placeholder: 'John Doe',
+          },
+          {
+            name: 'email',
+            label: 'Email',
+            type: 'text',
+            placeholder: 'you@example.com',
+          },
+          {
+            name: 'password',
+            label: 'Password',
+            type: 'password',
+            placeholder: '••••••••',
+          },
+          {
+            name: 'confirmPassword',
+            label: 'Confirm Password',
+            type: 'password',
+            placeholder: '••••••••',
+          },
+        ]}
         onSubmit={async (data) => {
           await runAction(data);
         }}

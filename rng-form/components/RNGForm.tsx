@@ -126,12 +126,13 @@ export function RNGForm<S extends FormSchema>({
             )}
 
             <FormBuilder uiSchema={uiSchema} />
-            
+
             {children}
 
             {!readOnly && !hideSubmitButton && (
               <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>
                 <Button
+                  fullWidth
                   type="submit"
                   variant="contained"
                   color="primary"

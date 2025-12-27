@@ -1,18 +1,12 @@
-import { Box } from '@mui/material';
+import { Toolbar } from '@mui/material';
+import AppHeader from '../(protected)/AppHeader';
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <Box
-      sx={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        bgcolor: 'background.default',
-        p: 2,
-      }}
-    >
+    <>
+      <AppHeader drawerDisabled />
+      <Toolbar variant="dense" />
       {children}
-    </Box>
+    </>
   );
 }

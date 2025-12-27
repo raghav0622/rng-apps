@@ -2,83 +2,31 @@
 
 import { authClient } from '@/core/auth/auth.client';
 import { ForgotPasswordSchema } from '@/core/auth/auth.model'; // Use Shared Model
+import { logError } from '@/lib/logger';
 import { RNGForm } from '@/rng-form/components/RNGForm';
-import { defineForm } from '@/rng-form/dsl';
 import { AuthCard } from '@/ui/auth/AuthCard';
-import { Link, Typography } from '@mui/material';
-import NextLink from 'next/link';
-import { useState } from 'react';
-
-// Define the Form Layout
-const formConfig = defineForm<typeof ForgotPasswordSchema>((f) => [
-  f.text('email', {
-    label: 'Email Address',
-    placeholder: 'you@example.com',
-  }),
-]);
+import { useSnackbar } from 'notistack';
 
 export default function ForgotPasswordPage() {
-  const [isSuccess, setIsSuccess] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleSubmit = async (data: { email: string }) => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      await authClient.sendPasswordResetLink(data.email);
-      setIsSuccess(true);
-    } catch (err: any) {
-      if (err.code === 'auth/user-not-found') {
-        // Security: Don't reveal user existence
-        setIsSuccess(true);
-      } else {
-        setError(err.message || 'Failed to send reset email.');
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  if (isSuccess) {
-    return (
-      <AuthCard
-        title="Check your email"
-        description="We sent you a link to reset your password."
-        footer={
-          <Link component={NextLink} href="/login" underline="hover">
-            Back to login
-          </Link>
-        }
-      >
-        <Typography variant="body1" color="success.main" textAlign="center">
-          If an account exists with that email, you will receive a reset link shortly.
-        </Typography>
-      </AuthCard>
-    );
-  }
-
+  const { enqueueSnackbar } = useSnackbar();
   return (
-    <AuthCard
-      title="Reset Password"
-      description="Enter your email to receive a reset link."
-      footer={
-        <Link component={NextLink} href="/login" underline="hover">
-          Back to login
-        </Link>
-      }
-    >
+    <AuthCard title="Reset Password" description="Enter your email to receive a reset link." footer>
       <RNGForm
         schema={ForgotPasswordSchema}
-        uiSchema={formConfig}
-        onSubmit={handleSubmit}
-        submitLabel={isLoading ? 'Sending...' : 'Send Reset Link'}
+        uiSchema={[
+          { name: 'email', type: 'text', label: 'Email Address', placeholder: 'you@example.com' },
+        ]}
+        onSubmit={async (data: { email: string }) => {
+          try {
+            await authClient.sendPasswordResetLink(data.email);
+            enqueueSnackbar('Password reset link sent to your email.', { variant: 'success' });
+          } catch (err: any) {
+            enqueueSnackbar('Failed to send password reset link.');
+            logError(err.message);
+          }
+        }}
+        submitLabel="Send Reset Link"
       />
-      {error && (
-        <Typography color="error" variant="body2" sx={{ mt: 2, textAlign: 'center' }}>
-          {error}
-        </Typography>
-      )}
     </AuthCard>
   );
 }

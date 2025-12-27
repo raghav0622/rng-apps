@@ -6,7 +6,7 @@ import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';
 import { Alert, Box, CircularProgress, Container, Typography } from '@mui/material';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { z } from 'zod';
 
 // DSL Config
@@ -36,6 +36,7 @@ function ActionHandlerContent() {
 
   useEffect(() => {
     if (!oobCode || !mode) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setStatus('ERROR');
       setErrorMessage('Invalid link. Missing parameters.');
       return;
@@ -94,7 +95,7 @@ function ActionHandlerContent() {
 
   if (status === 'ERROR') {
     return (
-      <Container maxWidth="sm" sx={{ mt: 10 }}>
+      <Container maxWidth="xs" sx={{ mt: 10 }}>
         <Alert severity="error">{errorMessage}</Alert>
       </Container>
     );
@@ -103,7 +104,7 @@ function ActionHandlerContent() {
   // Success State
   if (status === 'SUCCESS') {
     return (
-      <Container maxWidth="sm" sx={{ mt: 10, textAlign: 'center' }}>
+      <Container maxWidth="xs" sx={{ mt: 10, textAlign: 'center' }}>
         <Alert severity="success" sx={{ mb: 2 }}>
           {mode === 'verifyEmail'
             ? 'Email verified successfully! You can now close this tab.'
@@ -116,7 +117,7 @@ function ActionHandlerContent() {
   // Password Reset Form State (IDLE)
   if (mode === 'resetPassword') {
     return (
-      <Container maxWidth="sm" sx={{ mt: 8 }}>
+      <Container maxWidth="xs" sx={{ mt: 8 }}>
         <Box sx={{ mb: 4, textAlign: 'center' }}>
           <Typography variant="h4" gutterBottom>
             Reset Password
@@ -138,9 +139,5 @@ function ActionHandlerContent() {
 }
 
 export default function ActionHandlerPage() {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <ActionHandlerContent />
-    </Suspense>
-  );
+  return <ActionHandlerContent />;
 }

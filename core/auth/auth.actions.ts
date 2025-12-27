@@ -5,13 +5,12 @@ import { SessionService } from '@/core/auth/session.service';
 import { actionClient, authActionClient } from '@/core/safe-action/safe-action';
 import { AUTH_SESSION_COOKIE_NAME, SESSION_ID_COOKIE_NAME } from '@/lib/constants';
 import { env } from '@/lib/env';
+import { Result } from '@/lib/types';
 import { DEFAULT_LOGIN_REDIRECT } from '@/routes';
-import { headers } from 'next/headers';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { LoginSchema, SignUpSchema } from './auth.model';
-import { Result } from '@/lib/types';
 
 // --- Shared Cookie Helper ---
 async function setSessionCookies(sessionCookie: string, expiresIn: number, sessionId: string) {
@@ -38,7 +37,7 @@ export const signUpAction = actionClient
 
 export const loginAction = actionClient
   .metadata({ name: 'auth.login' })
-  .schema(LoginSchema)
+  .inputSchema(LoginSchema)
   .action(async ({ parsedInput }) => {
     const headersList = await headers();
     const userAgent = headersList.get('user-agent') || undefined;
@@ -48,7 +47,11 @@ export const loginAction = actionClient
 
     if (!result.success) return result;
 
-    await setSessionCookies(result.data.sessionCookie, result.data.expiresIn, result.data.sessionId);
+    await setSessionCookies(
+      result.data.sessionCookie,
+      result.data.expiresIn,
+      result.data.sessionId,
+    );
     redirect(DEFAULT_LOGIN_REDIRECT);
   });
 
@@ -67,11 +70,7 @@ export const verifyMagicLinkAction = actionClient
     const userAgent = headersList.get('user-agent') || undefined;
     const ip = headersList.get('x-forwarded-for') || undefined;
 
-    const result = await authService.verifyMagicLink(
-      parsedInput.token,
-      userAgent,
-      ip,
-    );
+    const result = await authService.verifyMagicLink(parsedInput.token, userAgent, ip);
 
     if (result.success && result.data.type === 'success') {
       await setSessionCookies(

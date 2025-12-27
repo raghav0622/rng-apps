@@ -72,8 +72,21 @@ export function useRNGServerAction<
       const msg =
         (response.serverError as any)?.message || options.errorMessage || 'Something went wrong';
 
+      // 🚨 INTERCEPT UNAUTHENTICATED ERRORS 🚨
+      // If the error code is UNAUTHENTICATED or the message implies it, we MUST reload/redirect.
+      // This is the Catch-All for session revocation.
+      const code = (response.serverError as any)?.code as AppErrorCode;
+      if (
+        code === AppErrorCode.UNAUTHENTICATED ||
+        msg.toLowerCase().includes('revoked') ||
+        msg.toLowerCase().includes('session missing')
+      ) {
+        window.location.href = '/login?reason=session_expired';
+        return; // Stop execution
+      }
+
       if (options.onError) {
-        options.onError(msg, (response.serverError as any)?.code as AppErrorCode);
+        options.onError(msg, code);
         return;
       } else {
         throw new FormError(msg);
@@ -94,6 +107,12 @@ export function useRNGServerAction<
 
     if (!appResult.success) {
       const errorMsg = appResult.error.message || options.errorMessage || 'Operation failed';
+
+      // 🚨 Check for Unauthenticated in logic errors too (rare but possible)
+      if (appResult.error.code === AppErrorCode.UNAUTHENTICATED) {
+        window.location.href = '/login?reason=session_expired';
+        return;
+      }
 
       if (options.onError) {
         options.onError(errorMsg, appResult.error.code);
@@ -123,4 +142,4 @@ export function useRNGServerAction<
   };
 }
 
-export const useRngAction = useRNGServerAction
+export const useRngAction = useRNGServerAction;

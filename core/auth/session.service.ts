@@ -2,8 +2,8 @@ import { SESSION_PREFIX, SESSION_TTL_SECONDS } from '@/lib/constants';
 import { redisClient as redis } from '@/lib/redis';
 import { Result } from '@/lib/types';
 import { AppErrorCode } from '@/lib/utils/errors';
-import { UAParser } from 'ua-parser-js';
 import 'server-only';
+import { UAParser } from 'ua-parser-js';
 
 export interface SessionData {
   sessionId: string;
@@ -52,8 +52,19 @@ export class SessionService {
   /**
    * List all active sessions for a user.
    */
-  static async listSessions(userId: string, currentSessionId: string): Promise<Result<SessionData[]>> {
+  static async listSessions(
+    userId: string,
+    currentSessionId: string,
+  ): Promise<Result<SessionData[]>> {
     try {
+      // 🛑 KEY FIX: We were using key.split(':')[2], but SESSION_PREFIX contains ':'
+      // SESSION_PREFIX is 'session:valid:' -> key is 'session:valid:USERID:SESSIONID'
+      // Splitting by ':' gives:
+      // [0] = 'session'
+      // [1] = 'valid'
+      // [2] = USERID
+      // [3] = SESSIONID
+
       const pattern = `${SESSION_PREFIX}${userId}:*`;
       const keys = await redis.keys(pattern);
 
@@ -63,13 +74,15 @@ export class SessionService {
       const values = await redis.mget<string[]>(...keys);
 
       const sessions: SessionData[] = keys.map((key, index) => {
-        const sessionId = key.split(':')[2]; // session:uid:sessionId
+        // Fix: Correctly extract sessionId from the end of the key
+        const parts = key.split(':');
+        const sessionId = parts[parts.length - 1];
+
         const rawData = values[index];
         let metadata = { createdAt: new Date().toISOString() };
 
         if (rawData) {
           try {
-            // Backward compatibility: If stored as string date or JSON
             if (rawData.startsWith('{')) {
               metadata = JSON.parse(rawData);
             } else {

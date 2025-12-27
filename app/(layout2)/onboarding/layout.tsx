@@ -1,6 +1,13 @@
+import { getCurrentUser } from '@/core/auth/auth.actions';
+import { DEFAULT_LOGIN_REDIRECT } from '@/routes';
 import { Box, Container, Stack, Typography } from '@mui/material';
+import { redirect } from 'next/navigation';
 
 export default async function OnboardingLayout({ children }: { children: React.ReactNode }) {
+  const { user } = await getCurrentUser({ strictOrg: false });
+
+  if (user.orgId) redirect(DEFAULT_LOGIN_REDIRECT);
+
   return (
     <Container maxWidth="sm">
       <Box

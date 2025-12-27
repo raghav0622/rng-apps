@@ -6,22 +6,29 @@ import {
   listPendingInvitesAction,
 } from '@/core/organization/organization.actions';
 import { Invite, MemberWithProfile } from '@/core/organization/organization.model';
-import { Box, Divider, Typography } from '@mui/material';
+import { AppPermission, hasPermission } from '@/lib/action-policies';
+import { Box, Container, Divider, Typography } from '@mui/material';
 
 export default async function TeamPage() {
-  const session = await SessionService.requireServerSession();
-  const userId = session.uid;
+  // 🛡️ Centralized Session & Profile Retrieval
+  const { user } = await SessionService.requireUserAndOrg({ strictOrg: true });
+  const userRole = user.orgRole;
 
-  const [membersRes, invitesRes] = await Promise.all([
-    getMembersAction(),
-    listPendingInvitesAction(),
-  ]);
+  // Calculate Permissions for UI rendering
+  const canInvite = hasPermission(userRole, AppPermission.MEMBER_INVITE);
+  const canUpdateRole = hasPermission(userRole, AppPermission.MEMBER_UPDATE);
+  const canRemoveMember = hasPermission(userRole, AppPermission.MEMBER_REMOVE);
+  const canViewInvites = hasPermission(userRole, AppPermission.MEMBER_VIEW);
 
-  if (membersRes?.serverError || invitesRes?.serverError) {
-    console.error('[TeamPage] Server Error:', membersRes?.serverError || invitesRes?.serverError);
+  // --- Fetch Data ---
+  const membersRes = await getMembersAction();
+  
+  let invitesRes: any = null;
+  if (canViewInvites) {
+    invitesRes = await listPendingInvitesAction();
   }
 
-  // Proper extraction with type safety
+  // --- Extract Data Safely ---
   const members: MemberWithProfile[] =
     membersRes?.data && 'success' in membersRes.data && membersRes.data.success
       ? membersRes.data.data
@@ -33,22 +40,34 @@ export default async function TeamPage() {
       : [];
 
   return (
-    <>
-      <Box>
-        <Typography variant="h4" fontWeight={700} gutterBottom>
-          Team Management
-        </Typography>
-        <Typography color="text.secondary" variant="body1">
-          Manage your organization members, roles, and pending invitations.
-        </Typography>
+    <Container maxWidth="lg" sx={{ py: 6 }}>
+      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <Box>
+          <Typography variant="h4" fontWeight={700} gutterBottom>
+            Team Management
+          </Typography>
+          <Typography color="text.secondary" variant="body1">
+            Manage your organization members, roles, and pending invitations.
+          </Typography>
+        </Box>
+
+        {canInvite && <InviteMemberModal />}
       </Box>
-      <InviteMemberModal />
 
       <Divider sx={{ mb: 4 }} />
 
       <Box>
-        <TeamList members={members} invites={invites} currentUserId={userId} />
+        <TeamList
+          members={members}
+          invites={invites}
+          currentUserId={user.id}
+          permissions={{
+            canUpdateRole,
+            canRemoveMember,
+            canViewInvites,
+          }}
+        />
       </Box>
-    </>
+    </Container>
   );
 }

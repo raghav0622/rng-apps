@@ -7,6 +7,9 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import 'server-only';
 import { UAParser } from 'ua-parser-js';
+import { userRepository } from './user.repository';
+import { organizationRepository } from '../organization/organization.repository';
+import { UserRoleInOrg } from '@/lib/action-policies';
 
 export interface SessionData {
   sessionId: string;
@@ -22,14 +25,13 @@ export class SessionService {
   /**
    * 🛡️ Server-Side Session Helper
    * Gets the current session from cookies and verifies it.
-   * Works in Server Components, Server Actions, and Route Handlers.
    */
   static async getServerSession() {
-    const sessionCookie = (await cookies()).get(AUTH_SESSION_COOKIE_NAME)?.value;
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get(AUTH_SESSION_COOKIE_NAME)?.value;
     if (!sessionCookie) return null;
 
     try {
-      // Verify session cookie with Firebase Admin
       const decodedClaims = await auth().verifySessionCookie(sessionCookie, true);
       return decodedClaims;
     } catch (error) {
@@ -40,8 +42,6 @@ export class SessionService {
 
   /**
    * 🛡️ Server-Side Required Session
-   * Redirects to login if session is invalid or missing.
-   * Best used in Server Components (Page.tsx).
    */
   static async requireServerSession() {
     const session = await this.getServerSession();
@@ -49,6 +49,30 @@ export class SessionService {
       redirect('/login');
     }
     return session;
+  }
+
+  /**
+   * 🛡️ Requirement: Full User Profile & Org Context
+   * Fetches user data and validates organization status.
+   */
+  static async requireUserAndOrg({ strictOrg = true } = {}) {
+    const session = await this.requireServerSession();
+    const user = await userRepository.get(session.uid);
+    
+    if (!user) redirect('/login');
+
+    if (strictOrg) {
+      if (!user.orgId || user.orgRole === UserRoleInOrg.NOT_IN_ORG || user.isOnboarded === false) {
+        redirect('/onboarding');
+      }
+
+      const org = await organizationRepository.get(user.orgId);
+      if (!org) redirect('/onboarding');
+
+      return { user, org };
+    }
+
+    return { user, org: null };
   }
 
   /**
@@ -97,11 +121,10 @@ export class SessionService {
 
       if (keys.length === 0) return { success: true, data: [] };
 
-      // Batch fetch values
       const values = await redis.mget<string[]>(...keys);
 
       const sessions: SessionData[] = keys.map((key, index) => {
-        const sessionId = key.split(':')[2]; // session:uid:sessionId
+        const sessionId = key.split(':')[2]; 
         const rawData = values[index];
         let metadata = { createdAt: new Date().toISOString() };
 
@@ -113,7 +136,7 @@ export class SessionService {
               metadata = { ...metadata, createdAt: rawData };
             }
           } catch (e) {
-            // ignore parse error
+            // ignore
           }
         }
 
@@ -124,7 +147,6 @@ export class SessionService {
         };
       });
 
-      // Sort: Current session first, then by date
       sessions.sort((a, b) => {
         if (a.isCurrent) return -1;
         if (b.isCurrent) return 1;

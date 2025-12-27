@@ -32,9 +32,14 @@ interface TeamListProps {
   members: MemberWithProfile[];
   invites: Invite[];
   currentUserId: string;
+  permissions: {
+    canUpdateRole: boolean;
+    canRemoveMember: boolean;
+    canViewInvites: boolean;
+  };
 }
 
-export function TeamList({ members, invites, currentUserId }: TeamListProps) {
+export function TeamList({ members, invites, currentUserId, permissions }: TeamListProps) {
   const { runAction: updateRole } = useRNGServerAction(updateMemberRoleAction, {
     successMessage: 'Role updated successfully',
   });
@@ -45,13 +50,13 @@ export function TeamList({ members, invites, currentUserId }: TeamListProps) {
     successMessage: 'Invite revoked',
   });
 
+  const showActionsColumn = permissions.canUpdateRole || permissions.canRemoveMember;
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       {/* --- Active Members Section --- */}
       <Card variant="outlined" sx={{ borderRadius: 2 }}>
-        <Box
-          sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'action.hover' }}
-        >
+        <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'action.hover' }}>
           <Typography variant="subtitle1" fontWeight={600}>
             Active Members ({members.length})
           </Typography>
@@ -63,9 +68,9 @@ export function TeamList({ members, invites, currentUserId }: TeamListProps) {
                 <TableCell sx={{ fontWeight: 600 }}>User</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>Role</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>Joined</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 600 }}>
-                  Actions
-                </TableCell>
+                {showActionsColumn && (
+                  <TableCell align="right" sx={{ fontWeight: 600 }}>Actions</TableCell>
+                )}
               </TableRow>
             </TableHead>
             <TableBody>
@@ -73,8 +78,8 @@ export function TeamList({ members, invites, currentUserId }: TeamListProps) {
                 <TableRow key={member.id} hover>
                   <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                      <Avatar
-                        src={member.user?.photoURL}
+                      <Avatar 
+                        src={member.user?.photoURL} 
                         alt={member.user?.displayName}
                         sx={{ width: 40, height: 40, border: '1px solid', borderColor: 'divider' }}
                       >
@@ -84,13 +89,7 @@ export function TeamList({ members, invites, currentUserId }: TeamListProps) {
                         <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
                           {member.user?.displayName || 'Unknown User'}
                           {member.userId === currentUserId && (
-                            <Chip
-                              label="You"
-                              size="small"
-                              sx={{ ml: 1, height: 20, fontSize: '0.65rem' }}
-                              color="primary"
-                              variant="outlined"
-                            />
+                            <Chip label="You" size="small" sx={{ ml: 1, height: 20, fontSize: '0.65rem' }} color="primary" variant="outlined" />
                           )}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
@@ -104,7 +103,9 @@ export function TeamList({ members, invites, currentUserId }: TeamListProps) {
                       size="small"
                       value={member.role}
                       disabled={
-                        member.userId === currentUserId || member.role === UserRoleInOrg.OWNER
+                        !permissions.canUpdateRole ||
+                        member.userId === currentUserId || 
+                        member.role === UserRoleInOrg.OWNER
                       }
                       onChange={(e) =>
                         updateRole({
@@ -112,19 +113,16 @@ export function TeamList({ members, invites, currentUserId }: TeamListProps) {
                           role: e.target.value as UserRoleInOrg,
                         })
                       }
-                      sx={{
-                        minWidth: 120,
+                      sx={{ 
+                        minWidth: 120, 
                         fontSize: '0.875rem',
                         '& .MuiOutlinedInput-notchedOutline': { border: 'none' },
-                        '&:hover .MuiOutlinedInput-notchedOutline': {
-                          border: '1px solid',
-                          borderColor: 'divider',
-                        },
+                        '&:hover .MuiOutlinedInput-notchedOutline': { border: permissions.canUpdateRole ? '1px solid' : 'none', borderColor: 'divider' },
                         bgcolor: 'action.hover',
-                        borderRadius: 1,
+                        borderRadius: 1
                       }}
                     >
-                      <MenuItem value={UserRoleInOrg.OWNER}>Owner</MenuItem>
+                      <MenuItem value={UserRoleInOrg.OWNER} disabled>Owner</MenuItem>
                       <MenuItem value={UserRoleInOrg.ADMIN}>Admin</MenuItem>
                       <MenuItem value={UserRoleInOrg.MEMBER}>Member</MenuItem>
                     </Select>
@@ -134,22 +132,26 @@ export function TeamList({ members, invites, currentUserId }: TeamListProps) {
                       {new Date(member.joinedAt).toLocaleDateString()}
                     </Typography>
                   </TableCell>
-                  <TableCell align="right">
-                    <IconButton
-                      size="small"
-                      color="error"
-                      disabled={
-                        member.userId === currentUserId || member.role === UserRoleInOrg.OWNER
-                      }
-                      onClick={() => {
-                        if (confirm('Are you sure you want to remove this member?')) {
-                          removeMember({ userId: member.userId });
+                  {showActionsColumn && (
+                    <TableCell align="right">
+                      <IconButton
+                        size="small"
+                        color="error"
+                        disabled={
+                          !permissions.canRemoveMember ||
+                          member.userId === currentUserId || 
+                          member.role === UserRoleInOrg.OWNER
                         }
-                      }}
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </TableCell>
+                        onClick={() => {
+                          if (confirm('Are you sure you want to remove this member?')) {
+                            removeMember({ userId: member.userId });
+                          }
+                        }}
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </TableCell>
+                  )}
                 </TableRow>
               ))}
             </TableBody>
@@ -158,16 +160,9 @@ export function TeamList({ members, invites, currentUserId }: TeamListProps) {
       </Card>
 
       {/* --- Pending Invites Section --- */}
-      {invites.length > 0 && (
+      {permissions.canViewInvites && invites.length > 0 && (
         <Card variant="outlined" sx={{ borderRadius: 2 }}>
-          <Box
-            sx={{
-              p: 2,
-              borderBottom: '1px solid',
-              borderColor: 'divider',
-              bgcolor: 'action.hover',
-            }}
-          >
+           <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'action.hover' }}>
             <Typography variant="subtitle1" fontWeight={600}>
               Pending Invitations ({invites.length})
             </Typography>
@@ -179,9 +174,7 @@ export function TeamList({ members, invites, currentUserId }: TeamListProps) {
                   <TableCell sx={{ fontWeight: 600 }}>Email Address</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Assigned Role</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Sent At</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 600 }}>
-                    Actions
-                  </TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600 }}>Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -191,10 +184,10 @@ export function TeamList({ members, invites, currentUserId }: TeamListProps) {
                       <Typography variant="subtitle2">{invite.email}</Typography>
                     </TableCell>
                     <TableCell>
-                      <Chip
-                        label={invite.role}
-                        size="small"
-                        variant="outlined"
+                      <Chip 
+                        label={invite.role} 
+                        size="small" 
+                        variant="outlined" 
                         sx={{ textTransform: 'capitalize' }}
                       />
                     </TableCell>
@@ -209,6 +202,7 @@ export function TeamList({ members, invites, currentUserId }: TeamListProps) {
                         color="error"
                         size="small"
                         startIcon={<CancelIcon />}
+                        disabled={!permissions.canRemoveMember} // Revoking is akin to removing
                         onClick={() => revokeInvite({ inviteId: invite.id })}
                         sx={{ fontSize: '0.75rem' }}
                       >

@@ -1,6 +1,6 @@
 'use server';
 
-import { authService } from '@/core/auth/auth.service';
+import { authService, GoogleSignInResult, MagicLinkResult } from '@/core/auth/auth.service';
 import { SessionService } from '@/core/auth/session.service';
 import { actionClient, authActionClient } from '@/core/safe-action/safe-action';
 import { AUTH_SESSION_COOKIE_NAME, SESSION_ID_COOKIE_NAME } from '@/lib/constants';
@@ -11,6 +11,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { LoginSchema, SignUpSchema } from './auth.model';
+import { Result } from '@/lib/types';
 
 // --- Shared Cookie Helper ---
 async function setSessionCookies(sessionCookie: string, expiresIn: number, sessionId: string) {
@@ -53,18 +54,36 @@ export const loginAction = actionClient
 
 export const googleSignInAction = actionClient
   .metadata({ name: 'auth.googleSignIn' })
-  .schema(z.object({ idToken: z.string() }))
-  .action(async ({ parsedInput }) => {
+  .schema(z.object({ idToken: z.string(), password: z.string().optional() }))
+  .action(async ({ parsedInput }): Promise<Result<GoogleSignInResult>> => {
     const headersList = await headers();
     const userAgent = headersList.get('user-agent') || undefined;
     const ip = headersList.get('x-forwarded-for') || undefined;
 
-    const result = await authService.handleGoogleSignIn(parsedInput.idToken, userAgent, ip);
+    const result = await authService.handleGoogleSignIn(
+      parsedInput.idToken,
+      parsedInput.password,
+      userAgent,
+      ip,
+    );
 
-    if (!result.success) return result;
+    if (result.success && result.data.type === 'success') {
+      await setSessionCookies(
+        result.data.sessionCookie,
+        result.data.expiresIn,
+        result.data.sessionId,
+      );
+      // We don't redirect here, we let the client handle it if they need to show the password form
+    }
 
-    await setSessionCookies(result.data.sessionCookie, result.data.expiresIn, result.data.sessionId);
-    redirect(DEFAULT_LOGIN_REDIRECT);
+    return result;
+  });
+
+export const linkGoogleAction = authActionClient
+  .metadata({ name: 'auth.linkGoogle' })
+  .schema(z.object({ idToken: z.string() }))
+  .action(async ({ ctx, parsedInput }) => {
+    return await authService.linkGoogleAccount(ctx.user.id, parsedInput.idToken);
   });
 
 export const requestMagicLinkAction = actionClient
@@ -76,18 +95,28 @@ export const requestMagicLinkAction = actionClient
 
 export const verifyMagicLinkAction = actionClient
   .metadata({ name: 'auth.verifyMagicLink' })
-  .schema(z.object({ token: z.string() }))
-  .action(async ({ parsedInput }) => {
+  .schema(z.object({ token: z.string(), password: z.string().optional() }))
+  .action(async ({ parsedInput }): Promise<Result<MagicLinkResult>> => {
     const headersList = await headers();
     const userAgent = headersList.get('user-agent') || undefined;
     const ip = headersList.get('x-forwarded-for') || undefined;
 
-    const result = await authService.verifyMagicLink(parsedInput.token, userAgent, ip);
+    const result = await authService.verifyMagicLink(
+      parsedInput.token,
+      parsedInput.password,
+      userAgent,
+      ip,
+    );
 
-    if (!result.success) return result;
+    if (result.success && result.data.type === 'success') {
+      await setSessionCookies(
+        result.data.sessionCookie,
+        result.data.expiresIn,
+        result.data.sessionId,
+      );
+    }
 
-    await setSessionCookies(result.data.sessionCookie, result.data.expiresIn, result.data.sessionId);
-    redirect(DEFAULT_LOGIN_REDIRECT);
+    return result;
   });
 
 export const logoutAction = actionClient.metadata({ name: 'auth.logout' }).action(async () => {

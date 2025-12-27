@@ -16,7 +16,22 @@ import { userRepository } from './user.repository';
 const GOOGLE_API_URL = 'https://identitytoolkit.googleapis.com/v1/accounts';
 const MAGIC_LINK_EXPIRY = 60 * 15; // 15 minutes
 
+export type GoogleSignInResult = 
+  | { type: 'success'; sessionCookie: string; expiresIn: number; sessionId: string }
+  | { type: 'password_required'; email: string; name: string; picture: string; idToken: string };
+
+export type MagicLinkResult = 
+  | { type: 'success'; sessionCookie: string; expiresIn: number; sessionId: string }
+  | { type: 'password_required'; email: string; token: string };
+
 class AuthService extends AbstractService {
+  /**
+   * Generates a secure random password.
+   */
+  private generateSecurePassword(): string {
+    return randomBytes(16).toString('hex') + 'A1!'; // Ensure complexity
+  }
+
   /**
    * Registers a new user (Dual Write: Auth + Firestore).
    */
@@ -49,7 +64,6 @@ class AuthService extends AbstractService {
         });
         return newUser;
       } catch (dbError) {
-        // Rollback Auth User if DB creation fails
         await auth().deleteUser(authUser.uid);
         throw new CustomError(AppErrorCode.INTERNAL_ERROR, 'Failed to create user profile.');
       }
@@ -87,11 +101,10 @@ class AuthService extends AbstractService {
         throw new Error(msg);
       }
 
-      const expiresIn = SESSION_DURATION_MS; // 5 days
+      const expiresIn = SESSION_DURATION_MS;
       const sessionCookie = await auth().createSessionCookie(data.idToken, { expiresIn });
       const sessionId = uuidv4();
 
-      // Capture Metadata for Session Dashboard
       await SessionService.createSession(data.localId, sessionId, userAgent, ip);
 
       return { sessionCookie, expiresIn, sessionId };
@@ -99,51 +112,87 @@ class AuthService extends AbstractService {
   }
 
   /**
-   * Handle Google Sign-In (Server Side Verification + Dual Write)
+   * Handle Google Sign-In with Account Linking and Mandatory Password for new users.
    */
   async handleGoogleSignIn(
     idToken: string,
+    password?: string,
     userAgent?: string,
     ip?: string,
-  ): Promise<Result<{ sessionCookie: string; expiresIn: number; sessionId: string }>> {
+  ): Promise<Result<GoogleSignInResult>> {
     return this.handleOperation('auth.googleSignIn', async () => {
-      // 1. Verify the ID Token from Google
+      // 1. Verify the ID Token from client
       const decodedToken = await auth().verifyIdToken(idToken);
-      const { uid, email, name, picture, email_verified } = decodedToken;
+      const { uid, email, name, picture } = decodedToken;
 
       if (!email) {
         throw new CustomError(AppErrorCode.INVALID_INPUT, 'Google account missing email.');
       }
 
-      // 2. Check if user already exists in Firestore
+      // 2. Check if user exists in Firestore
       let user = await userRepository.get(uid);
-
       if (!user) {
-        // First time Google Sign-In -> Dual Write
-        try {
-          user = await userRepository.create(uid, {
-            email: email,
-            displayName: name || '',
-            photoURL: picture || undefined,
-            orgRole: UserRoleInOrg.NOT_IN_ORG,
-            orgId: null,
-            isOnboarded: false,
-          });
-        } catch (dbError) {
-          // If Firestore fails, we might still have the Auth user.
-          // Firebase creates the Auth user automatically on the client when signInWithPopup is called.
-          throw new CustomError(AppErrorCode.INTERNAL_ERROR, 'Failed to sync user profile.');
-        }
+        user = await userRepository.getByEmail(email);
       }
 
-      // 3. Generate Session Cookie
+      if (!user) {
+        // NEW USER FLOW
+        if (!password) {
+          return {
+            type: 'password_required',
+            email,
+            name: name || '',
+            picture: picture || '',
+            idToken,
+          };
+        }
+
+        // We have a password, complete registration
+        await auth().updateUser(uid, {
+          password: password,
+          emailVerified: true,
+        });
+
+        const newUser = await userRepository.create(uid, {
+          email: email,
+          displayName: name || '',
+          photoURL: picture || undefined,
+          orgRole: UserRoleInOrg.NOT_IN_ORG,
+          orgId: null,
+          isOnboarded: false,
+        });
+        
+        // Use the ID from the newly created user doc
+        const expiresIn = SESSION_DURATION_MS;
+        const sessionCookie = await auth().createSessionCookie(idToken, { expiresIn });
+        const sessionId = uuidv4();
+        await SessionService.createSession(newUser.id, sessionId, userAgent, ip);
+        return { type: 'success', sessionCookie, expiresIn, sessionId };
+      }
+
+      // 3. Establish Session for existing user
       const expiresIn = SESSION_DURATION_MS;
       const sessionCookie = await auth().createSessionCookie(idToken, { expiresIn });
       const sessionId = uuidv4();
 
-      await SessionService.createSession(uid, sessionId, userAgent, ip);
+      await SessionService.createSession(user.id, sessionId, userAgent, ip);
 
-      return { sessionCookie, expiresIn, sessionId };
+      return { type: 'success', sessionCookie, expiresIn, sessionId };
+    });
+  }
+
+  /**
+   * Links a Google ID token to an existing authenticated user.
+   */
+  async linkGoogleAccount(userId: string, idToken: string): Promise<Result<void>> {
+    return this.handleOperation('auth.linkGoogle', async () => {
+      const decodedToken = await auth().verifyIdToken(idToken);
+      const { picture, name } = decodedToken;
+      
+      await userRepository.update(userId, {
+        photoURL: picture,
+        displayName: name,
+      });
     });
   }
 
@@ -152,14 +201,11 @@ class AuthService extends AbstractService {
    */
   async requestMagicLink(email: string): Promise<Result<void>> {
     return this.handleOperation('auth.requestMagicLink', async () => {
-      // 1. Generate Secure Token
       const token = randomBytes(32).toString('hex');
       const key = `magic:token:${token}`;
 
-      // 2. Store in Redis with TTL
       await redisClient.set(key, email, { ex: MAGIC_LINK_EXPIRY });
 
-      // 3. Send Email via Resend
       const magicLink = `${env.NEXT_PUBLIC_APP_URL}/magic-link?token=${token}`;
 
       await resend.emails.send({
@@ -167,22 +213,26 @@ class AuthService extends AbstractService {
         to: email,
         subject: 'Sign in to RNG App',
         html: `
-          <p>Click the link below to sign in to your account. This link expires in 15 minutes.</p>
-          <p><a href="${magicLink}"><strong>Sign in to RNG App</strong></a></p>
-          <p>If you didn't request this, you can safely ignore this email.</p>
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Sign in to RNG App</h2>
+            <p>Click the button below to sign in to your account. This link will expire in 15 minutes.</p>
+            <a href="${magicLink}" style="display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; font-weight: bold;">Sign in now</a>
+            <p style="margin-top: 24px; color: #666; font-size: 14px;">If you didn't request this, you can safely ignore this email.</p>
+          </div>
         `,
       });
     });
   }
 
   /**
-   * Verify Magic Link and Login
+   * Verify Magic Link and Login (Auto-Signup + Password Set Requirement)
    */
   async verifyMagicLink(
     token: string,
+    password?: string,
     userAgent?: string,
     ip?: string,
-  ): Promise<Result<{ sessionCookie: string; expiresIn: number; sessionId: string }>> {
+  ): Promise<Result<MagicLinkResult>> {
     return this.handleOperation('auth.verifyMagicLink', async () => {
       const key = `magic:token:${token}`;
 
@@ -192,57 +242,61 @@ class AuthService extends AbstractService {
         throw new CustomError(AppErrorCode.INVALID_INPUT, 'Invalid or expired magic link.');
       }
 
-      // 2. Cleanup Token (One-time use)
-      await redisClient.del(key);
-
-      // 3. Get or Create User
-      let authUser;
+      // 2. Get or Create User
+      let authUserUid: string;
       try {
-        authUser = await auth().getUserByEmail(email);
+        const authUser = await auth().getUserByEmail(email);
+        authUserUid = authUser.uid;
       } catch (e: any) {
         if (e.code === 'auth/user-not-found') {
-          // Auto-Signup for new users
-          authUser = await auth().createUser({
+          // NEW USER flow for magic link
+          if (!password) {
+            return { type: 'password_required', email, token };
+          }
+
+          // Complete registration with provided password
+          const newAuthUser = await auth().createUser({
             email,
-            emailVerified: true, // They verified by clicking the link
+            emailVerified: true,
+            password: password,
           });
 
-          await userRepository.create(authUser.uid, {
+          await userRepository.create(newAuthUser.uid, {
             email,
             orgRole: UserRoleInOrg.NOT_IN_ORG,
             orgId: null,
             isOnboarded: false,
           });
+          
+          authUserUid = newAuthUser.uid;
         } else {
           throw e;
         }
       }
 
-      // 4. Generate Session Cookie
-      // Since we don't have an ID Token from the client here, we create a custom token
-      // and use it to get an ID Token via REST API to then create a session cookie.
-      // Alternatively, we can just use createCustomToken and have the client sign in.
-      // But for a pure server-side flow, we'll do this:
-      const customToken = await auth().createCustomToken(authUser.uid);
+      // 3. Cleanup Token
+      await redisClient.del(key);
 
-      // Exchange Custom Token for ID Token
+      // 4. Token Exchange for Session Cookie
+      const customToken = await auth().createCustomToken(authUserUid);
       const signInUrl = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithCustomToken?key=${env.NEXT_PUBLIC_FIREBASE_API_KEY}`;
+      
       const response = await fetch(signInUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: customToken, returnSecureToken: true }),
       });
+      
       const data = await response.json();
-
       if (!response.ok) throw new Error(data.error?.message || 'Token exchange failed');
 
       const expiresIn = SESSION_DURATION_MS;
       const sessionCookie = await auth().createSessionCookie(data.idToken, { expiresIn });
       const sessionId = uuidv4();
 
-      await SessionService.createSession(authUser.uid, sessionId, userAgent, ip);
+      await SessionService.createSession(authUserUid, sessionId, userAgent, ip);
 
-      return { sessionCookie, expiresIn, sessionId };
+      return { type: 'success', sessionCookie, expiresIn, sessionId };
     });
   }
 }

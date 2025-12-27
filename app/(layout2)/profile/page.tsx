@@ -2,6 +2,7 @@
 
 import { NotificationSettings } from '@/core/notifications/components/NotificationSettings';
 import { SessionManager } from '@/app/(protected)/profile/SessionManager';
+import { GoogleLinkCard } from './GoogleLinkCard';
 import { Box, Container, Typography } from '@mui/material';
 
 export default function ProfilePage() {
@@ -16,7 +17,7 @@ export default function ProfilePage() {
         </Typography>
       </Box>
 
-      {/* Placeholder for Profile Form (Name, Avatar) */}
+      {/* Profile Form Placeholder */}
       <Box mb={6}>
         <Typography variant="h6" gutterBottom>
           Profile Details
@@ -26,13 +27,27 @@ export default function ProfilePage() {
         </Typography>
       </Box>
 
+      {/* Social Linking */}
+      <Box mb={6}>
+        <Typography variant="h6" gutterBottom>
+          Connected Accounts
+        </Typography>
+        <GoogleLinkCard />
+      </Box>
+
       {/* Notification Preferences */}
       <Box mb={6}>
+        <Typography variant="h6" gutterBottom>
+          Notifications
+        </Typography>
         <NotificationSettings />
       </Box>
 
       {/* Session Management */}
       <Box>
+        <Typography variant="h6" gutterBottom>
+          Security & Sessions
+        </Typography>
         <SessionManager />
       </Box>
     </Container>

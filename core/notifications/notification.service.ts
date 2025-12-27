@@ -1,4 +1,4 @@
-import { userRepository } from '@/core/auth/user.repository'; // Import user repo
+import { userRepository } from '@/core/auth/user.repository';
 import { AbstractService } from '@/lib/abstract-service/AbstractService';
 import { EMAIL_FROM, resend } from '@/lib/email';
 import { Result } from '@/lib/types';
@@ -53,28 +53,38 @@ class NotificationService extends AbstractService {
 
       // 2. Email Notification (Real Resend Integration)
       if (enabledChannels.includes(NotificationChannel.EMAIL)) {
-        // Fetch user email
         const user = await userRepository.get(userId);
         if (user && user.email) {
-          try {
-            await resend.emails.send({
-              from: EMAIL_FROM,
-              to: user.email,
-              subject: payload.title,
-              html: `
-                <p><strong>${payload.title}</strong></p>
-                <p>${payload.message}</p>
-                ${payload.link ? `<p><a href="${process.env.NEXT_PUBLIC_APP_URL}${payload.link}">View Details</a></p>` : ''}
-                <hr />
-                <p style="font-size: 12px; color: #666;">
+          const { data, error } = await resend.emails.send({
+            from: EMAIL_FROM,
+            to: user.email,
+            subject: payload.title,
+            html: `
+              <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #eee; padding: 20px; border-radius: 8px;">
+                <h2 style="color: #333;">${payload.title}</h2>
+                <p style="color: #555; line-height: 1.6;">${payload.message}</p>
+                ${payload.link ? `
+                  <div style="margin: 30px 0;">
+                    <a href="${process.env.NEXT_PUBLIC_APP_URL}${payload.link}" 
+                       style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">
+                       View Details
+                    </a>
+                  </div>
+                ` : ''}
+                <hr style="border: 0; border-top: 1px solid #eee; margin: 30px 0;" />
+                <p style="font-size: 12px; color: #999;">
                   You received this email because you have notifications enabled for <strong>${payload.topic}</strong>.
-                  <a href="${process.env.NEXT_PUBLIC_APP_URL}/profile">Manage Preferences</a>
+                  <br />
+                  <a href="${process.env.NEXT_PUBLIC_APP_URL}/profile" style="color: #007bff;">Manage Notification Preferences</a>
                 </p>
-              `,
-            });
-          } catch (error) {
-            console.error('[Notification] Failed to send email:', error);
-            // Don't throw, just log. Notification failure shouldn't block the main flow.
+              </div>
+            `,
+          });
+
+          if (error) {
+            console.error('[Notification] Resend Error:', error);
+          } else {
+            console.log('[Notification] Email sent via Resend:', data?.id);
           }
         }
       }
@@ -109,7 +119,6 @@ class NotificationService extends AbstractService {
         ],
       });
 
-      // Batch update (Optimization: Use Firestore batch in real app)
       await Promise.all(
         unread.data.map((n) =>
           notificationRepository.update(n.id, { isRead: true, readAt: new Date() }),

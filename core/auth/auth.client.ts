@@ -4,6 +4,7 @@ import {
   checkActionCode,
   confirmPasswordReset,
   GoogleAuthProvider,
+  linkWithPopup,
   sendEmailVerification,
   sendPasswordResetEmail,
   signInWithPopup,
@@ -17,6 +18,17 @@ export const authClient = {
   async signInWithGoogle() {
     const provider = new GoogleAuthProvider();
     const result = await signInWithPopup(auth, provider);
+    const idToken = await result.user.getIdToken();
+    return { idToken };
+  },
+
+  /**
+   * Links Google account to the currently signed-in user.
+   */
+  async linkGoogle() {
+    if (!auth.currentUser) throw new Error('No user signed in');
+    const provider = new GoogleAuthProvider();
+    const result = await linkWithPopup(auth.currentUser, provider);
     const idToken = await result.user.getIdToken();
     return { idToken };
   },

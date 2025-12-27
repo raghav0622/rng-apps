@@ -1,5 +1,6 @@
 import { FirestoreRepository } from '@/lib/firestore-repository/firestore-repository';
 import { upstashCache } from '@/lib/firestore-repository/redis-adapter';
+import { AppErrorCode, CustomError } from '@/lib/utils/errors';
 import { cache } from 'react';
 import { User, UserSchema } from './auth.model';
 
@@ -31,7 +32,10 @@ class UserRepository extends FirestoreRepository<User> {
       where: [{ field: 'email', op: '==', value: email }],
       limit: 1,
     });
-    return data[0] || null;
+    
+    if(!data[0]) throw new CustomError(AppErrorCode.NOT_FOUND, 'User not found'  )
+
+    return data[0] ;
   }
 }
 

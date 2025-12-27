@@ -9,8 +9,8 @@ import {
   Typography,
   TypographyProps,
 } from '@mui/material';
-import { useState } from 'react';
-import { FormProvider, SubmitHandler, useForm, UseFormProps } from 'react-hook-form';
+import { ReactNode, useEffect, useState } from 'react';
+import { FormProvider, SubmitHandler, useForm, UseFormProps, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { FormItem, FormSchema } from '../types';
 import { FormError } from '../utils';
@@ -22,6 +22,8 @@ interface RNGFormProps<S extends FormSchema> {
   uiSchema: FormItem<S>[];
   defaultValues?: UseFormProps<z.infer<S>>['defaultValues'];
   onSubmit: (data: z.infer<S>) => void | Promise<void>;
+  /** Callback fired whenever any form value changes */
+  onValuesChange?: (values: z.infer<S>) => void;
   title?: string;
   titleProps?: TypographyProps;
   description?: string;
@@ -35,6 +37,20 @@ interface RNGFormProps<S extends FormSchema> {
    * @default true
    */
   requireChanges?: boolean;
+  children?: ReactNode;
+}
+
+/**
+ * Internal component to watch values and trigger the callback
+ * to avoid re-rendering the entire RNGForm on every keystroke
+ * if the parent doesn't need the values for its own render logic.
+ */
+function FormWatcher({ onValuesChange }: { onValuesChange: (values: any) => void }) {
+  const values = useWatch();
+  useEffect(() => {
+    onValuesChange(values);
+  }, [values, onValuesChange]);
+  return null;
 }
 
 export function RNGForm<S extends FormSchema>({
@@ -42,22 +58,21 @@ export function RNGForm<S extends FormSchema>({
   uiSchema,
   defaultValues,
   onSubmit,
+  onValuesChange,
   title,
   submitLabel = 'Submit',
   readOnly = false,
   hideSubmitButton = false,
-  requireChanges = true, // Default to true as requested
+  requireChanges = true,
   titleProps,
   description,
   descriptionProps,
   submitingLablel = 'Submiting....',
+  children,
 }: RNGFormProps<S>) {
   const [submissionError, setSubmissionError] = useState<string | null>(null);
 
   const methods = useForm<z.infer<S>>({
-    // We cast to any because hook-form resolver types are sometimes slightly mismatched
-    // with strict Zod inference, though it works at runtime.
-
     resolver: zodResolver(schema) as any,
     defaultValues,
     mode: 'onBlur',
@@ -66,8 +81,6 @@ export function RNGForm<S extends FormSchema>({
   const { isSubmitting, isDirty } = methods.formState;
 
   const handleFormSubmit: SubmitHandler<z.infer<S>> = async (data) => {
-    // Double-check: If requireChanges is strictly true and form is not dirty, abort.
-    // This prevents enter-key submission bypassing the disabled button.
     if (requireChanges && !isDirty) {
       return;
     }
@@ -75,20 +88,14 @@ export function RNGForm<S extends FormSchema>({
     setSubmissionError(null);
     try {
       await onSubmit(data);
-
-      // Optional: Reset dirty state after successful submission
-      // methods.reset(data); // Uncomment if you want the form to be "clean" after save
     } catch (error) {
       if (error instanceof FormError) {
-        // Handle targeted field errors
         if (error.path) {
           methods.setError(error.path as any, { message: error.message });
         } else {
-          // Handle general form errors
           setSubmissionError(error.message);
         }
       } else if (error instanceof Error) {
-        // Handle generic JS errors
         setSubmissionError(error.message);
       } else {
         setSubmissionError('An unexpected error occurred. Please try again.');
@@ -96,13 +103,13 @@ export function RNGForm<S extends FormSchema>({
     }
   };
 
-  // Logic: Disable if explicitly submitting, OR if (changes are required AND form is clean)
   const isSubmitDisabled = isSubmitting || (requireChanges && !isDirty);
 
   return (
     <RNGFormProvider value={{ formId: 'rng-form', methods, readOnly }}>
       <FormProvider {...methods}>
         <form onSubmit={methods.handleSubmit(handleFormSubmit)} noValidate>
+          {onValuesChange && <FormWatcher onValuesChange={onValuesChange} />}
           <Stack spacing={3}>
             {isSubmitting && <LinearProgress />}
             {title && (
@@ -119,6 +126,8 @@ export function RNGForm<S extends FormSchema>({
             )}
 
             <FormBuilder uiSchema={uiSchema} />
+            
+            {children}
 
             {!readOnly && !hideSubmitButton && (
               <Box sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end' }}>

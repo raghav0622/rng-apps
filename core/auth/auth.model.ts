@@ -2,15 +2,15 @@ import { UserRoleInOrg } from '@/lib/action-policies';
 import { BaseEntity } from '@/lib/firestore-repository/types';
 import { z } from 'zod';
 
+// --- Shared Field Definitions ---
+const emailField = z.string().email('Invalid email address');
+const passwordField = z.string().min(6, 'Password must be at least 6 characters').max(100);
+
 // --- Entities ---
 
-/**
- * 🔒 User Entity
- * Represents a global user in the system.
- */
 export const UserSchema = z.object({
   id: z.string(),
-  email: z.string().email(),
+  email: emailField,
   displayName: z.string().optional(),
   photoURL: z.string().url().optional(),
 
@@ -32,46 +32,35 @@ export type User = z.infer<typeof UserSchema> & BaseEntity;
 // --- Input Schemas ---
 
 export const LoginSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(1, 'Password is required'),
+  email: emailField,
+  password: z.string().min(1, 'Password is required'), // Allow legacy weak passwords for login if any
 });
 
 export const SignUpSchema = z
   .object({
-    displayName: z.string().min(3).max(50),
-    email: z.string().email(),
-    password: z.string().min(6).max(100),
-    confirmPassword: z.string().min(6).max(100),
+    displayName: z.string().min(3, 'Name is too short').max(50),
+    email: emailField,
+    password: passwordField,
+    confirmPassword: z.string(),
   })
-  .superRefine(({ password, confirmPassword }, ctx) => {
-    if (password !== confirmPassword) {
-      ctx.addIssue({
-        message: 'Passwords do not match',
-        code: 'custom',
-        path: ['confirmPassword'],
-      });
-    }
-  });
-
-export const ForgotPasswordSchema = z.object({
-  email: z.string().email(),
-});
-
-export const ResetPasswordSchema = z
-  .object({
-    oobCode: z.string().min(1, 'Reset code is missing'),
-    newPassword: z.string().min(6, 'Password must be at least 6 characters'),
-    confirmPassword: z.string().min(6),
-  })
-  .refine((data) => data.newPassword === data.confirmPassword, {
+  .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",
     path: ['confirmPassword'],
   });
 
-export const VerifyEmailSchema = z.object({
-  oobCode: z.string().min(1, 'Verification code is missing'),
+export const ForgotPasswordSchema = z.object({
+  email: emailField,
 });
+
+export const ResetPasswordSchema = z
+  .object({
+    password: passwordField,
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ['confirmPassword'],
+  });
 
 export type SignUpInput = z.infer<typeof SignUpSchema>;
 export type ForgotPasswordInput = z.infer<typeof ForgotPasswordSchema>;
-export type ResetPasswordInput = z.infer<typeof ResetPasswordSchema>;

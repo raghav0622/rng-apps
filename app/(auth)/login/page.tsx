@@ -1,19 +1,13 @@
 'use client';
 
 import { loginAction } from '@/core/auth/auth.actions';
+import { LoginSchema } from '@/core/auth/auth.model';
 import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';
 import { AuthCard } from '@/ui/auth/AuthCard';
 import { Link } from '@mui/material';
 import NextLink from 'next/link';
-import { z } from 'zod';
-
-// Define strict schema for the form
-const LoginSchema = z.object({
-  email: z.email(),
-  password: z.string().min(1),
-});
 
 // Define the Form Layout (DSL)
 const formConfig = defineForm<typeof LoginSchema>((f) => [
@@ -39,10 +33,11 @@ export default function LoginPage() {
           Don&apos;t have an account?{' '}
           <Link component={NextLink} href="/signup" underline="hover">
             Sign up
-          </Link> |{' '}
+          </Link>{' '}
+          |{' '}
           <Link component={NextLink} href="/forgot-password" underline="hover">
             Forgot Password?
-          </Link> 
+          </Link>
         </>
       }
     >

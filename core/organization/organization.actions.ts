@@ -17,6 +17,7 @@ import {
 import { organizationService } from '@/core/organization/organization.service';
 import { authActionClient, orgActionClient } from '@/core/safe-action/safe-action';
 import { AppPermission } from '@/lib/action-policies';
+import { AppErrorCode, CustomError } from '@/lib/utils/errors';
 import { revalidatePath } from 'next/cache';
 
 // --- Org Actions ---
@@ -110,8 +111,19 @@ export const removeMemberAction = orgActionClient
 export const listPendingInvitesAction = orgActionClient
   .metadata({ name: 'org.listInvites', permissions: [AppPermission.MEMBER_VIEW] })
   .action(async ({ ctx }) => {
-    // Service already returns Result<Invite[]>
     return await organizationService.listPendingInvites(ctx.orgId);
+  });
+
+/**
+ * 📨 Action: Get all pending invites for the logged-in user.
+ */
+export const getUserPendingInvitesAction = authActionClient
+  .metadata({ name: 'org.getUserPendingInvites' })
+  .action(async ({ ctx }) => {
+    if (!ctx.email) {
+      throw new CustomError(AppErrorCode.INVALID_INPUT, 'User email not found in session.');
+    }
+    return await organizationService.getUserPendingInvites(ctx.email);
   });
 
 export const sendInviteAction = orgActionClient

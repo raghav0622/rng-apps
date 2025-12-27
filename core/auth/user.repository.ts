@@ -1,6 +1,5 @@
 import { FirestoreRepository } from '@/lib/firestore-repository/firestore-repository';
 import { upstashCache } from '@/lib/firestore-repository/redis-adapter';
-import { AppErrorCode, CustomError } from '@/lib/utils/errors';
 import { cache } from 'react';
 import { User, UserSchema } from './auth.model';
 
@@ -21,11 +20,17 @@ class UserRepository extends FirestoreRepository<User> {
    * Fetch user including soft-deleted ones (for Auth checks).
    */
   async getUserIncludeDeleted(uid: string): Promise<User | null> {
-    return await this.get(uid, { includeDeleted: true });
+    try {
+      return await this.get(uid, { includeDeleted: true });
+    } catch (e) {
+      return null;
+    }
   }
 
   /**
    * Find a user by email.
+   * Standardized to return null if not found instead of throwing,
+   * to avoid tripping circuit breakers on common lookups.
    */
   async getByEmail(email: string): Promise<User | null> {
     const { data } = await this.list({
@@ -33,9 +38,7 @@ class UserRepository extends FirestoreRepository<User> {
       limit: 1,
     });
 
-    if (!data[0]) throw new CustomError(AppErrorCode.NOT_FOUND, 'User not found');
-
-    return data[0];
+    return data[0] || null;
   }
 }
 

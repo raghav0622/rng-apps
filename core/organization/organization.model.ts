@@ -38,11 +38,6 @@ export const MemberSchema = z.object({
   orgId: z.string(),
   userId: z.string(),
   
-  // 🚫 REDUNDANT DATA REMOVED (Normalize)
-  // email: z.string().email(),
-  // displayName: z.string().optional(),
-  // photoURL: z.string().optional(),
-
   role: z.nativeEnum(UserRoleInOrg),
   joinedAt: z.date(),
   status: z.enum(['ACTIVE', 'INACTIVE']).default('ACTIVE'),
@@ -51,7 +46,6 @@ export const MemberSchema = z.object({
   deletedAt: z.date().nullable(),
 });
 
-// We define a type for UI consumption that includes the joined User data
 export type Member = z.infer<typeof MemberSchema> & BaseEntity;
 
 export type MemberWithProfile = Member & {
@@ -86,6 +80,10 @@ export const InviteSchema = z.object({
 });
 
 export type Invite = z.infer<typeof InviteSchema> & BaseEntity;
+
+export type InviteWithOrg = Invite & {
+  organizationName?: string;
+};
 
 // --- Actions ---
 export const SendInviteSchema = z.object({

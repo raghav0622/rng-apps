@@ -17,6 +17,7 @@ import {
   CreateOrgInput,
   Invite,
   InviteStatus,
+  InviteWithOrg,
   Member,
   MemberWithProfile,
   Organization,
@@ -371,7 +372,6 @@ class OrganizationService extends AbstractService {
           actorId,
           action: AuditAction.MEMBER_REMOVE,
           targetId: targetUserId,
-          // metadata: { email: targetMember.email }, // 🚫 Removed redundant email access
           metadata: { userId: targetUserId },
         });
       });
@@ -385,7 +385,7 @@ class OrganizationService extends AbstractService {
   // 📩 Invites
   // ===========================================================================
 
-  async listPendingInvites(orgId: string) {
+  async listPendingInvites(orgId: string): Promise<Result<Invite[]>> {
     return this.handleOperation('org.listInvites', async () => {
       const { data } = await inviteRepository.list({
         where: [
@@ -398,23 +398,54 @@ class OrganizationService extends AbstractService {
     });
   }
 
+  /**
+   * Gets all pending invites for a specific user email.
+   * Joins organization names.
+   */
+  async getUserPendingInvites(email: string): Promise<Result<InviteWithOrg[]>> {
+    return this.handleOperation('org.getUserInvites', async () => {
+      const invites = await inviteRepository.findByEmail(email);
+
+      // Join Org Names
+      const invitesWithOrgs = await Promise.all(
+        invites.map(async (invite) => {
+          try {
+            const org = await organizationRepository.get(invite.orgId);
+            return {
+              ...invite,
+              organizationName: org.name,
+            } as InviteWithOrg;
+          } catch (e) {
+            return invite as InviteWithOrg;
+          }
+        }),
+      );
+
+      return invitesWithOrgs;
+    });
+  }
+
   async sendInvite(
     orgId: string,
     inviterId: string,
     input: SendInviteInput,
   ): Promise<Result<Invite>> {
     return this.handleOperation('org.sendInvite', async () => {
+      // 1. Check if an active invite already exists for this email in this org
       if (await inviteRepository.existsActiveInvite(orgId, input.email)) {
         throw new CustomError(AppErrorCode.ALREADY_EXISTS, 'Invite already exists.');
       }
 
+      // 2. Check if user is already in another organization
       const existingUser = await userRepository.getByEmail(input.email);
-      if (existingUser?.orgId) {
+      if (existingUser && existingUser.orgId) {
         throw new CustomError(AppErrorCode.INVALID_INPUT, 'User is already in an organization.');
       }
 
+      // 3. BILLING CHECK: Ensure we have space
       await this.checkSeatLimits(orgId);
 
+      // 4. Create Invite & Audit (Atomic)
       return await firestore()
         .runTransaction(async (t) => {
           const inviteRepoT = inviteRepository.withTransaction(t);

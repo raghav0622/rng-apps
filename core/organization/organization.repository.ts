@@ -55,6 +55,20 @@ class InviteRepository extends FirestoreRepository<Invite> {
     return invite;
   }
 
+  async findByEmail(email: string): Promise<Invite[]> {
+    const { data } = await this.list({
+      where: [
+        { field: 'email', op: '==', value: email },
+        { field: 'status', op: '==', value: 'PENDING' },
+      ],
+      limit: 10,
+    });
+    
+    // Filter out expired invites
+    const now = new Date();
+    return data.filter(invite => invite.expiresAt > now);
+  }
+
   async existsActiveInvite(orgId: string, email: string): Promise<boolean> {
     const { data } = await this.list({
       where: [

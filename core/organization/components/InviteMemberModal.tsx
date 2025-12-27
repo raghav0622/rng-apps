@@ -1,8 +1,8 @@
 'use client';
 
-import { sendInviteAction } from '@/core/organization/organization.actions'; // Ensure absolute path
+import { sendInviteAction } from '@/core/organization/organization.actions';
 import { SendInviteSchema } from '@/core/organization/organization.model';
-import { useRNGServerAction } from '@/core/safe-action/use-rng-action'; // Updated import based on typical naming
+import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
 import { UserRoleInOrg } from '@/lib/action-policies';
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';
@@ -10,8 +10,10 @@ import { AppModal } from '@/ui/AppModal';
 import AddIcon from '@mui/icons-material/Add';
 import { Button } from '@mui/material';
 
-// Use the Enum directly for options to ensure Zod validation passes on server
-const ROLE_OPTIONS = Object.values(UserRoleInOrg).map((role) => ({
+// 🛡️ Restrict Role Options: Only allow inviting as ADMIN or MEMBER
+const ALLOWED_INVITE_ROLES = [UserRoleInOrg.ADMIN, UserRoleInOrg.MEMBER];
+
+const ROLE_OPTIONS = ALLOWED_INVITE_ROLES.map((role) => ({
   label: role.charAt(0).toUpperCase() + role.slice(1).toLowerCase(), // "Member", "Admin"
   value: role,
 }));
@@ -22,7 +24,6 @@ const formConfig = defineForm<typeof SendInviteSchema>((f) => [
     placeholder: 'colleague@example.com',
     autoFocus: true,
   }),
-  // Use 'select' or 'autocomplete' depending on your UI preference
   f.autocomplete('role', ROLE_OPTIONS, {
     label: 'Role',
   }),
@@ -49,12 +50,11 @@ export function InviteMemberModal() {
           uiSchema={formConfig}
           defaultValues={{ role: UserRoleInOrg.MEMBER }}
           submitLabel={isExecuting ? 'Sending...' : 'Send Invite'}
-          // Disable submit while action is executing
           readOnly={isExecuting}
           onSubmit={async (data) => {
             const result = await execute(data);
             if (result) {
-              setOpen(false); // ✅ Close modal on success
+              setOpen(false);
             }
           }}
         />

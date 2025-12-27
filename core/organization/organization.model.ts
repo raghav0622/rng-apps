@@ -27,13 +27,22 @@ export type CreateOrgInput = z.infer<typeof CreateOrgSchema>;
 export type UpdateOrgInput = z.infer<typeof UpdateOrgSchema>;
 
 // --- Members ---
+/**
+ * 👥 Member Entity
+ * Represents a user's membership within an organization.
+ * Normalized: We only store IDs and organization-specific metadata (role, status).
+ * Profile data (name, email) is fetched from the User entity via userId.
+ */
 export const MemberSchema = z.object({
   id: z.string(), // Matches userId
   orgId: z.string(),
   userId: z.string(),
-  email: z.string().email(),
-  displayName: z.string().optional(),
-  photoURL: z.string().optional(),
+  
+  // 🚫 REDUNDANT DATA REMOVED (Normalize)
+  // email: z.string().email(),
+  // displayName: z.string().optional(),
+  // photoURL: z.string().optional(),
+
   role: z.nativeEnum(UserRoleInOrg),
   joinedAt: z.date(),
   status: z.enum(['ACTIVE', 'INACTIVE']).default('ACTIVE'),
@@ -42,7 +51,16 @@ export const MemberSchema = z.object({
   deletedAt: z.date().nullable(),
 });
 
+// We define a type for UI consumption that includes the joined User data
 export type Member = z.infer<typeof MemberSchema> & BaseEntity;
+
+export type MemberWithProfile = Member & {
+  user?: {
+    email: string;
+    displayName?: string;
+    photoURL?: string;
+  };
+};
 
 // --- Invites ---
 export enum InviteStatus {

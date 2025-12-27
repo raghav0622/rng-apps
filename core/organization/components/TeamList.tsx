@@ -5,7 +5,7 @@ import {
   revokeInviteAction,
   updateMemberRoleAction,
 } from '@/core/organization/organization.actions';
-import { Invite, Member } from '@/core/organization/organization.model';
+import { Invite, MemberWithProfile } from '@/core/organization/organization.model';
 import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
 import { UserRoleInOrg } from '@/lib/action-policies';
 import CancelIcon from '@mui/icons-material/Cancel';
@@ -29,7 +29,7 @@ import {
 } from '@mui/material';
 
 interface TeamListProps {
-  members: Member[];
+  members: MemberWithProfile[];
   invites: Invite[];
   currentUserId: string;
 }
@@ -66,16 +66,16 @@ export function TeamList({ members, invites, currentUserId }: TeamListProps) {
               <TableRow key={member.id}>
                 <TableCell>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Avatar src={member.photoURL} alt={member.displayName}>
-                      {member.displayName?.charAt(0) || member.email.charAt(0)}
+                    <Avatar src={member.user?.photoURL} alt={member.user?.displayName}>
+                      {member.user?.displayName?.charAt(0) || member.user?.email.charAt(0)}
                     </Avatar>
                     <Box>
                       <Typography variant="subtitle2">
-                        {member.displayName || 'Unknown'}
+                        {member.user?.displayName || 'Unknown'}
                         {member.userId === currentUserId && ' (You)'}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        {member.email}
+                        {member.user?.email}
                       </Typography>
                     </Box>
                   </Box>

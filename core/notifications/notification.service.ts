@@ -6,6 +6,7 @@ import { AppErrorCode, CustomError } from '@/lib/utils/errors';
 import { v4 as uuidv4 } from 'uuid';
 import {
   NotificationChannel,
+  NotificationPreferences,
   NotificationTopic,
   NotificationType,
 } from './notification.model';
@@ -124,6 +125,15 @@ class NotificationService extends AbstractService {
           notificationRepository.update(n.id, { isRead: true, readAt: new Date() }),
         ),
       );
+    });
+  }
+
+  /**
+   * Gets user notification preferences.
+   */
+  async getPreferences(userId: string): Promise<Result<NotificationPreferences>> {
+    return this.handleOperation('notification.getPreferences', async () => {
+      return await notificationPreferencesRepository.getPreferences(userId);
     });
   }
 

@@ -18,6 +18,7 @@ import {
   Invite,
   InviteStatus,
   Member,
+  MemberWithProfile,
   Organization,
   SendInviteSchema,
   UpdateOrgInput,
@@ -98,13 +99,10 @@ class OrganizationService extends AbstractService {
           ownerId: userId,
         });
 
-        // 3. Create Owner Member Doc
+        // 3. Create Owner Member Doc (NORMALIZED: No profile data)
         await memberRepoT.create(userId, {
           orgId,
           userId,
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL || '',
           role: UserRoleInOrg.OWNER,
           joinedAt: new Date(),
           status: 'ACTIVE',
@@ -121,7 +119,7 @@ class OrganizationService extends AbstractService {
         await auditRepoT.create(uuidv4(), {
           orgId,
           actorId: userId,
-          action: AuditAction.RESOURCE_CREATE, // Or explicit ORG_CREATE if added to enum
+          action: AuditAction.RESOURCE_CREATE,
           targetId: orgId,
           metadata: { name: input.name },
         });
@@ -135,8 +133,6 @@ class OrganizationService extends AbstractService {
 
   async updateOrganization(orgId: string, input: UpdateOrgInput): Promise<Result<void>> {
     return this.handleOperation('org.update', async () => {
-      // Note: Permission checks are handled by the Action Metadata/Policy
-
       await firestore().runTransaction(async (t) => {
         const orgRepoT = organizationRepository.withTransaction(t);
         const auditRepoT = auditRepository.withTransaction(t);
@@ -145,7 +141,7 @@ class OrganizationService extends AbstractService {
 
         await auditRepoT.create(uuidv4(), {
           orgId,
-          actorId: 'system', // Or pass actorId through context if available in service method
+          actorId: 'system',
           action: AuditAction.ORG_UPDATE,
           targetId: orgId,
           metadata: input,
@@ -173,7 +169,6 @@ class OrganizationService extends AbstractService {
         throw new CustomError(AppErrorCode.NOT_FOUND, 'Target user is not a member of this org.');
       }
 
-      // Expires in 24 hours
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 24);
 
@@ -182,7 +177,6 @@ class OrganizationService extends AbstractService {
         transferExpiresAt: expiresAt,
       });
 
-      // Audit Log
       await auditRepository.create(uuidv4(), {
         orgId,
         actorId,
@@ -191,7 +185,6 @@ class OrganizationService extends AbstractService {
         metadata: { type: 'ownership_offer', expiresAt },
       });
 
-      // 🔔 Notify Target User
       await notificationService.send(targetUserId, {
         topic: NotificationTopic.SECURITY,
         title: 'Ownership Offer Received',
@@ -216,29 +209,24 @@ class OrganizationService extends AbstractService {
 
       const oldOwnerId = org.ownerId;
 
-      // Transaction: Swap Roles
       await firestore().runTransaction(async (t) => {
         const orgRepoT = organizationRepository.withTransaction(t);
         const memberRepoT = organizationRepository.members(orgId).withTransaction(t);
         const userRepoT = userRepository.withTransaction(t);
         const auditRepoT = auditRepository.withTransaction(t);
 
-        // 1. Update Org Owner
         await orgRepoT.update(orgId, {
           ownerId: actorId,
-          pendingOwnerId: null, // Clear offer
+          pendingOwnerId: null,
           transferExpiresAt: null,
         });
 
-        // 2. Demote Old Owner -> ADMIN
         await memberRepoT.update(oldOwnerId, { role: UserRoleInOrg.ADMIN });
         await userRepoT.update(oldOwnerId, { orgRole: UserRoleInOrg.ADMIN });
 
-        // 3. Promote New Owner -> OWNER
         await memberRepoT.update(actorId, { role: UserRoleInOrg.OWNER });
         await userRepoT.update(actorId, { orgRole: UserRoleInOrg.OWNER });
 
-        // 4. Audit
         await auditRepoT.create(uuidv4(), {
           orgId,
           actorId,
@@ -250,7 +238,6 @@ class OrganizationService extends AbstractService {
       await userRepository.clearCache(org.ownerId);
       await userRepository.clearCache(actorId);
 
-      // 🔔 Notify Old Owner
       await notificationService.send(oldOwnerId, {
         topic: NotificationTopic.SECURITY,
         title: 'Ownership Transferred',
@@ -264,13 +251,38 @@ class OrganizationService extends AbstractService {
   // 👥 Members (RBAC & Management)
   // ===========================================================================
 
-  async getMembers(orgId: string): Promise<Result<Member[]>> {
+  /**
+   * List organization members with their user profiles.
+   * Utilizes the repository DataLoader for efficient N+1 joining.
+   */
+  async getMembers(orgId: string): Promise<Result<MemberWithProfile[]>> {
     return this.handleOperation('org.getMembers', async () => {
       const { data } = await organizationRepository.members(orgId).list({
-        orderBy: [{ field: 'role', direction: 'asc' }], // Owner first usually
+        orderBy: [{ field: 'role', direction: 'asc' }],
         limit: 100,
       });
-      return data;
+
+      // Join profile data from the userRepository (which is cached and batched via DataLoader)
+      const membersWithProfiles = await Promise.all(
+        data.map(async (member) => {
+          try {
+            const user = await userRepository.get(member.userId);
+            return {
+              ...member,
+              user: {
+                email: user.email,
+                displayName: user.displayName,
+                photoURL: user.photoURL,
+              },
+            } as MemberWithProfile;
+          } catch (e) {
+            // If user is missing (should not happen in a healthy system), return member with null user
+            return member as MemberWithProfile;
+          }
+        }),
+      );
+
+      return membersWithProfiles;
     });
   }
 
@@ -288,7 +300,6 @@ class OrganizationService extends AbstractService {
       const memberRepo = organizationRepository.members(orgId);
       const targetMember = await memberRepo.get(targetUserId);
 
-      // Safety: If demoting last owner
       if (newRole !== UserRoleInOrg.OWNER && targetMember.role === UserRoleInOrg.OWNER) {
         const { data: owners } = await memberRepo.list({
           where: [{ field: 'role', op: '==', value: UserRoleInOrg.OWNER }],
@@ -298,7 +309,6 @@ class OrganizationService extends AbstractService {
         }
       }
 
-      // Sync Role: Update Member Doc AND User Doc
       await firestore().runTransaction(async (t) => {
         const memberRepoT = memberRepo.withTransaction(t);
         const userRepoT = userRepository.withTransaction(t);
@@ -307,7 +317,6 @@ class OrganizationService extends AbstractService {
         await memberRepoT.update(targetUserId, { role: newRole });
         await userRepoT.update(targetUserId, { orgRole: newRole });
 
-        // Audit
         await auditRepoT.create(uuidv4(), {
           orgId,
           actorId,
@@ -319,7 +328,6 @@ class OrganizationService extends AbstractService {
 
       await userRepository.clearCache(targetUserId);
 
-      // 🔔 Notify User
       await notificationService.send(targetUserId, {
         topic: NotificationTopic.TEAM,
         title: 'Role Updated',
@@ -335,11 +343,8 @@ class OrganizationService extends AbstractService {
         throw new CustomError(AppErrorCode.INVALID_INPUT, 'Cannot remove yourself.');
 
       const memberRepo = organizationRepository.members(orgId);
-
-      // 1. Fetch Member to check role
       const targetMember = await memberRepo.get(targetUserId);
 
-      // 2. Safety: Cannot remove last OWNER
       if (targetMember.role === UserRoleInOrg.OWNER) {
         const { data: owners } = await memberRepo.list({
           where: [{ field: 'role', op: '==', value: UserRoleInOrg.OWNER }],
@@ -349,26 +354,25 @@ class OrganizationService extends AbstractService {
         }
       }
 
-      // 3. Transaction: Delete Member -> Update User -> Audit
       await firestore().runTransaction(async (t) => {
         const memberRepoT = memberRepo.withTransaction(t);
         const userRepoT = userRepository.withTransaction(t);
         const auditRepoT = auditRepository.withTransaction(t);
 
-        await memberRepoT.forceDelete(targetUserId); // Hard delete from org
+        await memberRepoT.forceDelete(targetUserId);
         await userRepoT.update(targetUserId, {
-          orgId: undefined, // Explicit null in Firestore
+          orgId: undefined,
           orgRole: UserRoleInOrg.NOT_IN_ORG,
           isOnboarded: false,
         });
 
-        // Audit
         await auditRepoT.create(uuidv4(), {
           orgId,
           actorId,
           action: AuditAction.MEMBER_REMOVE,
           targetId: targetUserId,
-          metadata: { email: targetMember.email },
+          // metadata: { email: targetMember.email }, // 🚫 Removed redundant email access
+          metadata: { userId: targetUserId },
         });
       });
 
@@ -378,7 +382,7 @@ class OrganizationService extends AbstractService {
   }
 
   // ===========================================================================
-  // 📩 Invites (Transactional + Billing)
+  // 📩 Invites
   // ===========================================================================
 
   async listPendingInvites(orgId: string) {
@@ -400,7 +404,6 @@ class OrganizationService extends AbstractService {
     input: SendInviteInput,
   ): Promise<Result<Invite>> {
     return this.handleOperation('org.sendInvite', async () => {
-      // 1. Logic Checks
       if (await inviteRepository.existsActiveInvite(orgId, input.email)) {
         throw new CustomError(AppErrorCode.ALREADY_EXISTS, 'Invite already exists.');
       }
@@ -410,10 +413,8 @@ class OrganizationService extends AbstractService {
         throw new CustomError(AppErrorCode.INVALID_INPUT, 'User is already in an organization.');
       }
 
-      // 2. BILLING CHECK: Ensure we have space
       await this.checkSeatLimits(orgId);
 
-      // 3. Create Invite & Audit (Atomic)
       return await firestore()
         .runTransaction(async (t) => {
           const inviteRepoT = inviteRepository.withTransaction(t);
@@ -442,16 +443,9 @@ class OrganizationService extends AbstractService {
             metadata: { email: input.email, role: input.role },
           });
 
-          // Side effect usually goes here or after transaction.
-          // We'll publish event after.
           return invite;
         })
         .then(async (invite) => {
-          // Send Real Email Notification via Notification Service?
-          // Actually, NotificationService is internal.
-          // For External Invites, we should use a dedicated EmailService.
-          // But for now, let's assume we log it or send a system notification to the inviter?
-          
           await eventBus.publish('invite.created', { ...invite }, { orgId, actorId: inviterId });
           return invite;
         });
@@ -467,50 +461,37 @@ class OrganizationService extends AbstractService {
       if (user.email !== invite.email)
         throw new CustomError(AppErrorCode.PERMISSION_DENIED, 'Email mismatch.');
       if (user.orgId) {
-        if (user.orgId === invite.orgId) return; // Idempotent
+        if (user.orgId === invite.orgId) return;
         throw new CustomError(AppErrorCode.PERMISSION_DENIED, 'Already in an org.');
       }
 
-      // Transaction: Accept Invite -> Create Member -> Update User -> Audit
       await firestore().runTransaction(async (t) => {
         const inviteRepoT = inviteRepository.withTransaction(t);
         const userRepoT = userRepository.withTransaction(t);
         const memberRepoT = organizationRepository.members(invite.orgId).withTransaction(t);
         const auditRepoT = auditRepository.withTransaction(t);
 
-        // 🛑 RACE CONDITION PROTECTION: Re-check limits inside the lock
-        // We manually count inside the transaction scope if strict consistency is needed.
-        // For now, we assume this optimistic check combined with `checkSeatLimits` logic is sufficient
-        // or we would use a counter field on the Org document for strictly atomic limit enforcement.
-        // await this.checkSeatLimits(invite.orgId); <--- This would need to be transaction-aware
-
-        // 1. Update Invite Status
         await inviteRepoT.update(invite.id, { status: InviteStatus.ACCEPTED });
 
-        // 2. Create Member Doc
+        // 🛑 NORMALIZED: No profile data copied here
         await memberRepoT.create(userId, {
           orgId: invite.orgId,
           userId: userId,
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL,
           role: invite.role,
           joinedAt: new Date(),
           status: 'ACTIVE',
         });
 
-        // 3. Update User Profile
         await userRepoT.update(userId, {
           orgId: invite.orgId,
           orgRole: invite.role,
           isOnboarded: true,
         });
 
-        // 4. Audit
         await auditRepoT.create(uuidv4(), {
           orgId: invite.orgId,
           actorId: userId,
-          action: AuditAction.RESOURCE_CREATE, // Member Added
+          action: AuditAction.RESOURCE_CREATE,
           targetId: userId,
           metadata: { email: user.email, source: 'invite' },
         });
@@ -523,7 +504,6 @@ class OrganizationService extends AbstractService {
         { orgId: invite.orgId, actorId: userId },
       );
 
-      // 🔔 Notify Inviter
       await notificationService.send(invite.inviterId, {
         topic: NotificationTopic.TEAM,
         title: 'Invite Accepted',

@@ -1,4 +1,5 @@
 import { FirestoreRepository } from '@/lib/firestore-repository/firestore-repository';
+import { RepositoryError } from '@/lib/firestore-repository/types';
 import {
   DEFAULT_NOTIFICATION_PREFERENCES,
   Notification,
@@ -51,14 +52,37 @@ class NotificationPreferencesRepository extends FirestoreRepository<Notification
    * Get user preferences, creating defaults if they don't exist.
    */
   async getPreferences(userId: string): Promise<NotificationPreferences> {
-    const prefs = await this.get(userId);
-    if (prefs) return prefs;
+    try {
+      // Try to get existing preferences
+      // This will throw RepositoryError('Not found', 'NOT_FOUND') if the document doesn't exist.
+      return await this.get(userId);
+    } catch (error: any) {
+      // If error is NOT_FOUND, we create defaults. Otherwise rethrow.
+      if (
+        (error instanceof RepositoryError && error.code === 'NOT_FOUND') ||
+        error.message === 'Not found' || 
+        error.message === 'Entity not found'
+      ) {
+        // Defaults not found, create them.
+        const defaultPrefsData = {
+          id: userId,
+          channels: DEFAULT_NOTIFICATION_PREFERENCES.channels!,
+        };
+        
+        await this.create(userId, defaultPrefsData);
 
-    // Create defaults
-    return await this.create(userId, {
-      id: userId,
-      channels: DEFAULT_NOTIFICATION_PREFERENCES.channels!,
-    });
+        // Return the in-memory object, conforming to the entity type.
+        return {
+          ...defaultPrefsData,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          deletedAt: null,
+        } as NotificationPreferences;
+      }
+
+      // Re-throw unexpected errors
+      throw error;
+    }
   }
 }
 

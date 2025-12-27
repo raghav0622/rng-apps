@@ -1,12 +1,4 @@
-/* eslint-disable no-console */
-import { config } from 'dotenv';
-import { resolve } from 'path';
-
-// Load environment variables from .env or .env.local
-config({ path: resolve(process.cwd(), '.env.local') });
-config({ path: resolve(process.cwd(), '.env') });
-
-const RESET_URL = process.env.NEXT_PUBLIC_APP_URL 
+const RESET_URL = process.env.NEXT_PUBLIC_APP_URL
   ? `${process.env.NEXT_PUBLIC_APP_URL}/api/reset-app`
   : 'http://localhost:3000/api/reset-app';
 

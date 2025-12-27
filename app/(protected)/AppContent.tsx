@@ -1,6 +1,6 @@
 'use client';
 
-import { Box, Toolbar, styled } from '@mui/material';
+import { Box, styled } from '@mui/material';
 import React from 'react';
 import { useLayoutContext } from './LayoutContext';
 
@@ -42,8 +42,7 @@ const AppContent: React.FC<{ children: React.ReactNode; drawerDisabled?: boolean
   return (
     <Main open={isShifted} drawerWidth={drawerWidth}>
       {/* Spacer to push content below fixed header */}
-      <Toolbar variant="dense" />
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>{children}</Box>
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, py: 4 }}>{children}</Box>
     </Main>
   );
 };

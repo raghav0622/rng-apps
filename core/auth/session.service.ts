@@ -1,7 +1,10 @@
-import { SESSION_PREFIX, SESSION_TTL_SECONDS } from '@/lib/constants';
+import { AUTH_SESSION_COOKIE_NAME, SESSION_PREFIX, SESSION_TTL_SECONDS } from '@/lib/constants';
+import { auth } from '@/lib/firebase/admin';
 import { redisClient as redis } from '@/lib/redis';
 import { Result } from '@/lib/types';
 import { AppErrorCode } from '@/lib/utils/errors';
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import 'server-only';
 import { UAParser } from 'ua-parser-js';
 
@@ -16,6 +19,38 @@ export interface SessionData {
 }
 
 export class SessionService {
+  /**
+   * 🛡️ Server-Side Session Helper
+   * Gets the current session from cookies and verifies it.
+   * Works in Server Components, Server Actions, and Route Handlers.
+   */
+  static async getServerSession() {
+    const sessionCookie = (await cookies()).get(AUTH_SESSION_COOKIE_NAME)?.value;
+    if (!sessionCookie) return null;
+
+    try {
+      // Verify session cookie with Firebase Admin
+      const decodedClaims = await auth().verifySessionCookie(sessionCookie, true);
+      return decodedClaims;
+    } catch (error) {
+      console.error('[SessionService] Verification failed:', error);
+      return null;
+    }
+  }
+
+  /**
+   * 🛡️ Server-Side Required Session
+   * Redirects to login if session is invalid or missing.
+   * Best used in Server Components (Page.tsx).
+   */
+  static async requireServerSession() {
+    const session = await this.getServerSession();
+    if (!session) {
+      redirect('/login');
+    }
+    return session;
+  }
+
   /**
    * Registers a new session upon login with Metadata (User Agent, IP).
    */

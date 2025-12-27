@@ -57,7 +57,7 @@ export const offerOwnershipAction = orgActionClient
   });
 
 export const acceptOwnershipAction = orgActionClient
-  .metadata({ name: 'org.acceptOwnership', permissions: [AppPermission.ORG_UPDATE] }) // Assuming admin level perms needed to initiate accept? Or member? Technically only the *future* owner needs to accept.
+  .metadata({ name: 'org.acceptOwnership', permissions: [AppPermission.ORG_UPDATE] })
   .schema(AcceptOwnershipSchema)
   .action(async ({ ctx }) => {
     const result = await organizationService.acceptOwnership(ctx.userId, ctx.orgId);
@@ -77,7 +77,7 @@ export const getSubscriptionAction = orgActionClient
 // --- Member Actions ---
 
 export const getMembersAction = orgActionClient
-  .metadata({ name: 'org.getMembers', permissions: [AppPermission.MEMBER_READ] })
+  .metadata({ name: 'org.getMembers', permissions: [AppPermission.MEMBER_VIEW] })
   .action(async ({ ctx }) => {
     return await organizationService.getMembers(ctx.orgId);
   });
@@ -107,6 +107,13 @@ export const removeMemberAction = orgActionClient
 
 // --- Invite Actions ---
 
+export const listPendingInvitesAction = orgActionClient
+  .metadata({ name: 'org.listInvites', permissions: [AppPermission.MEMBER_VIEW] })
+  .action(async ({ ctx }) => {
+    // Service already returns Result<Invite[]>
+    return await organizationService.listPendingInvites(ctx.orgId);
+  });
+
 export const sendInviteAction = orgActionClient
   .metadata({ name: 'org.sendInvite', permissions: [AppPermission.MEMBER_INVITE] })
   .schema(SendInviteSchema)
@@ -130,7 +137,6 @@ export const acceptInviteAction = authActionClient
   .schema(AcceptInviteSchema)
   .action(async ({ ctx, parsedInput }) => {
     const res = await organizationService.acceptInvite(ctx.userId, parsedInput.token);
-    // Client should handle redirect
     return res;
   });
 
@@ -147,5 +153,5 @@ export const getAuditLogsAction = orgActionClient
   .metadata({ name: 'org.auditLogs', permissions: [AppPermission.ORG_UPDATE] })
   .action(async ({ ctx }) => {
     const logs = await auditRepository.getOrgLogs(ctx.orgId);
-    return { success: true, data: logs }; // Wrap manually since repository doesn't return Result
+    return { success: true, data: logs };
   });

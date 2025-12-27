@@ -1,13 +1,7 @@
 'use client';
 
 import { useLayoutContext } from '@/app/(protected)/LayoutContext';
-import { useOrg } from '@/core/organization/organization.context';
-import {
-  Business as BusinessIcon,
-  Dashboard as DashboardIcon,
-  Group as GroupIcon,
-  Settings as SettingsIcon,
-} from '@mui/icons-material';
+import { Business as BusinessIcon, Dashboard as DashboardIcon } from '@mui/icons-material';
 import {
   Box,
   Divider,
@@ -24,18 +18,14 @@ import { usePathname } from 'next/navigation';
 
 const MENU_ITEMS = [
   { label: 'Dashboard', icon: <DashboardIcon />, href: '/dashboard' },
-  { label: 'Team Members', icon: <GroupIcon />, href: '/team' },
-  { label: 'Organization', icon: <BusinessIcon />, href: '/organization' },
-  { label: 'Settings', icon: <SettingsIcon />, href: '/settings' },
+  { label: 'Organization', icon: <BusinessIcon />, href: '/team' },
 ];
 
 export default function AppDrawer() {
-  // Consuming the NEW context values
   const { drawerOpen, mobile, handleDrawerClose, handleDrawerTransitionEnd, drawerWidth } =
     useLayoutContext();
 
   const pathname = usePathname();
-  const { org } = useOrg();
 
   const drawerContent = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>

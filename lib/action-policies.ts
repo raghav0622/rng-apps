@@ -10,6 +10,7 @@ export enum AppPermission {
   ORG_UPDATE = 'ORG_UPDATE',
   ORG_DELETE = 'ORG_DELETE',
   ORG_VIEW_SETTINGS = 'ORG_VIEW_SETTINGS',
+  ORG_TRANSFER_OWNERSHIP = 'ORG_TRANSFER_OWNERSHIP',
 
   // Member Management
   MEMBER_INVITE = 'MEMBER_INVITE',
@@ -39,6 +40,7 @@ export const ROLE_PERMISSIONS: Record<UserRoleInOrg, AppPermission[]> = {
     AppPermission.ORG_UPDATE,
     AppPermission.ORG_DELETE,
     AppPermission.ORG_VIEW_SETTINGS,
+    AppPermission.ORG_TRANSFER_OWNERSHIP,
     AppPermission.MEMBER_INVITE,
     AppPermission.MEMBER_UPDATE,
     AppPermission.MEMBER_REMOVE,

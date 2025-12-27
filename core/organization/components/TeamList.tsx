@@ -14,10 +14,10 @@ import {
   Avatar,
   Box,
   Button,
+  Card,
   Chip,
   IconButton,
   MenuItem,
-  Paper,
   Select,
   Table,
   TableBody,
@@ -46,112 +46,171 @@ export function TeamList({ members, invites, currentUserId }: TeamListProps) {
   });
 
   return (
-    <Box sx={{ mt: 4 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       {/* --- Active Members Section --- */}
-      <Typography variant="h6" gutterBottom>
-        Active Members
-      </Typography>
-      <TableContainer component={Paper} variant="outlined" sx={{ mb: 4 }}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>User</TableCell>
-              <TableCell>Role</TableCell>
-              <TableCell>Joined</TableCell>
-              <TableCell align="right">Actions</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {members.map((member) => (
-              <TableRow key={member.id}>
-                <TableCell>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <Avatar src={member.user?.photoURL} alt={member.user?.displayName}>
-                      {member.user?.displayName?.charAt(0) || member.user?.email.charAt(0)}
-                    </Avatar>
-                    <Box>
-                      <Typography variant="subtitle2">
-                        {member.user?.displayName || 'Unknown'}
-                        {member.userId === currentUserId && ' (You)'}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {member.user?.email}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </TableCell>
-                <TableCell>
-                  <Select
-                    size="small"
-                    value={member.role}
-                    disabled={
-                      member.userId === currentUserId || member.role === UserRoleInOrg.OWNER
-                    }
-                    onChange={(e) =>
-                      updateRole({
-                        userId: member.userId,
-                        role: e.target.value as UserRoleInOrg,
-                      })
-                    }
-                    sx={{ minWidth: 120 }}
-                  >
-                    <MenuItem value={UserRoleInOrg.ADMIN}>Admin</MenuItem>
-                    <MenuItem value={UserRoleInOrg.MEMBER}>Member</MenuItem>
-                  </Select>
-                </TableCell>
-                <TableCell>{new Date(member.joinedAt).toLocaleDateString()}</TableCell>
-                <TableCell align="right">
-                  <IconButton
-                    color="error"
-                    disabled={
-                      member.userId === currentUserId || member.role === UserRoleInOrg.OWNER
-                    }
-                    onClick={() => {
-                      if (confirm('Are you sure you want to remove this member?')) {
-                        removeMember({ userId: member.userId });
-                      }
-                    }}
-                  >
-                    <DeleteIcon />
-                  </IconButton>
+      <Card variant="outlined" sx={{ borderRadius: 2 }}>
+        <Box
+          sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'action.hover' }}
+        >
+          <Typography variant="subtitle1" fontWeight={600}>
+            Active Members ({members.length})
+          </Typography>
+        </Box>
+        <TableContainer>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 600 }}>User</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Role</TableCell>
+                <TableCell sx={{ fontWeight: 600 }}>Joined</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 600 }}>
+                  Actions
                 </TableCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+            </TableHead>
+            <TableBody>
+              {members.map((member) => (
+                <TableRow key={member.id} hover>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Avatar
+                        src={member.user?.photoURL}
+                        alt={member.user?.displayName}
+                        sx={{ width: 40, height: 40, border: '1px solid', borderColor: 'divider' }}
+                      >
+                        {member.user?.displayName?.charAt(0) || member.user?.email.charAt(0)}
+                      </Avatar>
+                      <Box>
+                        <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                          {member.user?.displayName || 'Unknown User'}
+                          {member.userId === currentUserId && (
+                            <Chip
+                              label="You"
+                              size="small"
+                              sx={{ ml: 1, height: 20, fontSize: '0.65rem' }}
+                              color="primary"
+                              variant="outlined"
+                            />
+                          )}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {member.user?.email}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Select
+                      size="small"
+                      value={member.role}
+                      disabled={
+                        member.userId === currentUserId || member.role === UserRoleInOrg.OWNER
+                      }
+                      onChange={(e) =>
+                        updateRole({
+                          userId: member.userId,
+                          role: e.target.value as UserRoleInOrg,
+                        })
+                      }
+                      sx={{
+                        minWidth: 120,
+                        fontSize: '0.875rem',
+                        '& .MuiOutlinedInput-notchedOutline': { border: 'none' },
+                        '&:hover .MuiOutlinedInput-notchedOutline': {
+                          border: '1px solid',
+                          borderColor: 'divider',
+                        },
+                        bgcolor: 'action.hover',
+                        borderRadius: 1,
+                      }}
+                    >
+                      <MenuItem value={UserRoleInOrg.OWNER}>Owner</MenuItem>
+                      <MenuItem value={UserRoleInOrg.ADMIN}>Admin</MenuItem>
+                      <MenuItem value={UserRoleInOrg.MEMBER}>Member</MenuItem>
+                    </Select>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" color="text.secondary">
+                      {new Date(member.joinedAt).toLocaleDateString()}
+                    </Typography>
+                  </TableCell>
+                  <TableCell align="right">
+                    <IconButton
+                      size="small"
+                      color="error"
+                      disabled={
+                        member.userId === currentUserId || member.role === UserRoleInOrg.OWNER
+                      }
+                      onClick={() => {
+                        if (confirm('Are you sure you want to remove this member?')) {
+                          removeMember({ userId: member.userId });
+                        }
+                      }}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Card>
 
       {/* --- Pending Invites Section --- */}
       {invites.length > 0 && (
-        <>
-          <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>
-            Pending Invitations
-          </Typography>
-          <TableContainer component={Paper} variant="outlined">
+        <Card variant="outlined" sx={{ borderRadius: 2 }}>
+          <Box
+            sx={{
+              p: 2,
+              borderBottom: '1px solid',
+              borderColor: 'divider',
+              bgcolor: 'action.hover',
+            }}
+          >
+            <Typography variant="subtitle1" fontWeight={600}>
+              Pending Invitations ({invites.length})
+            </Typography>
+          </Box>
+          <TableContainer>
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell>Email</TableCell>
-                  <TableCell>Role</TableCell>
-                  <TableCell>Sent At</TableCell>
-                  <TableCell align="right">Actions</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Email Address</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Assigned Role</TableCell>
+                  <TableCell sx={{ fontWeight: 600 }}>Sent At</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600 }}>
+                    Actions
+                  </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {invites.map((invite) => (
-                  <TableRow key={invite.id}>
-                    <TableCell>{invite.email}</TableCell>
+                  <TableRow key={invite.id} hover>
                     <TableCell>
-                      <Chip label={invite.role} size="small" />
+                      <Typography variant="subtitle2">{invite.email}</Typography>
                     </TableCell>
-                    <TableCell>{new Date(invite.createdAt).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <Chip
+                        label={invite.role}
+                        size="small"
+                        variant="outlined"
+                        sx={{ textTransform: 'capitalize' }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" color="text.secondary">
+                        {new Date(invite.createdAt).toLocaleDateString()}
+                      </Typography>
+                    </TableCell>
                     <TableCell align="right">
                       <Button
-                        variant="outlined"
+                        variant="text"
                         color="error"
                         size="small"
                         startIcon={<CancelIcon />}
                         onClick={() => revokeInvite({ inviteId: invite.id })}
+                        sx={{ fontSize: '0.75rem' }}
                       >
                         Revoke
                       </Button>
@@ -161,7 +220,7 @@ export function TeamList({ members, invites, currentUserId }: TeamListProps) {
               </TableBody>
             </Table>
           </TableContainer>
-        </>
+        </Card>
       )}
     </Box>
   );

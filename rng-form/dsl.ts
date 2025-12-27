@@ -136,6 +136,14 @@ export class FormBuilderDSL<S extends FormSchema> {
     return this.field('toggle-group', name, { options, ...props });
   }
 
+  select(
+    name: Path<z.infer<S>>,
+    options: InputFieldRegistry<S>['select']['options'],
+    props?: Omit<InputFieldRegistry<S>['select'], 'options'> & Partial<BaseFormItem<S>>,
+  ) {
+    return this.field('select', name, { options, ...props });
+  }
+
   slider(
     name: Path<z.infer<S>>,
     props?: InputFieldRegistry<S>['slider'] & Partial<BaseFormItem<S>>,

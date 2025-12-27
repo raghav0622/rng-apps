@@ -13,6 +13,7 @@ import { RNGNumberInput } from './primitives/RNGNumberInput';
 import { RNGTextInput } from './primitives/RNGTextInput';
 import { RNGCheckboxGroup } from './selection/RNGCheckboxGroup';
 import { RNGRadioGroup } from './selection/RNGRadioGroup';
+import { RNGSelect } from './selection/RNGSelect';
 import { RNGSwitch } from './selection/RNGSwitch';
 import { RNGToggleGroup } from './selection/RNGToggleGroup';
 import { RNGCalculatedField } from './special/CalculatedField';
@@ -22,7 +23,6 @@ import { RNGRichText } from './special/RichText';
 import { RNGSignature } from './special/Signature';
 import { RNGMaskedInput, RNGOtpInput } from './special/TextExtendedInputs';
 import { RNGTransferList } from './special/TransferList';
-// NEW
 import { RNGAvatarUpload } from './special/AvatarUpload';
 
 // =============================================================================
@@ -43,7 +43,6 @@ const LazyAsyncAutocomplete = lazy(() =>
   import('./autocomplete/AsyncAutocomplete').then((m) => ({ default: m.RNGAsyncAutocomplete })),
 );
 
-// NEW
 const LazyMultiImageEditor = lazy(() =>
   import('./special/MultiImageEditor').then((m) => ({ default: m.RNGMultiImageEditor })),
 );
@@ -95,6 +94,7 @@ export const INPUT_REGISTRY: Partial<Record<InputType, React.ComponentType<any>>
   radio: RNGRadioGroup,
   'checkbox-group': RNGCheckboxGroup,
   'toggle-group': RNGToggleGroup,
+  select: RNGSelect,
   slider: RNGSlider,
   rating: RNGRating,
   autocomplete: RNGAutocomplete,

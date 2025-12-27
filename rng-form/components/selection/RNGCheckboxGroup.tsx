@@ -8,35 +8,47 @@ interface RNGCheckboxGroupProps<S extends FormSchema> {
 }
 
 export function RNGCheckboxGroup<S extends FormSchema>({ item }: RNGCheckboxGroupProps<S>) {
+  const {
+    options,
+    getOptionLabel = (opt: any) => (typeof opt === 'string' ? opt : opt.label || String(opt)),
+    getOptionValue = (opt: any) => (typeof opt === 'string' ? opt : opt.value !== undefined ? opt.value : opt),
+  } = item;
+
   return (
     <FieldWrapper item={item} name={item.name}>
       {(field, _fieldState, mergedItem) => {
-        const value = (Array.isArray(field.value) ? field.value : []) as string[];
+        const value = (Array.isArray(field.value) ? field.value : []) as any[];
 
-        const handleToggle = (optionValue: string | number | boolean, checked: boolean) => {
-          const strValue = String(optionValue);
+        const handleToggle = (optionValue: any, checked: boolean) => {
           if (checked) {
-            field.onChange([...value, strValue]);
+            field.onChange([...value, optionValue]);
           } else {
-            field.onChange(value.filter((v) => v !== strValue));
+            // Note: Simple equality check for removal. 
+            // In case of objects, users should provide primitive values or we'd need isOptionEqualToValue.
+            field.onChange(value.filter((v) => v !== optionValue));
           }
         };
 
         return (
           <FormGroup row={mergedItem.row}>
-            {mergedItem.options.map((option) => (
-              <FormControlLabel
-                key={String(option.value)}
-                control={
-                  <Checkbox
-                    checked={value.includes(String(option.value))}
-                    onChange={(e) => handleToggle(option.value, e.target.checked)}
-                  />
-                }
-                label={option.label}
-                disabled={mergedItem.disabled}
-              />
-            ))}
+            {options.map((option, index) => {
+              const label = getOptionLabel(option);
+              const optValue = getOptionValue(option);
+              
+              return (
+                <FormControlLabel
+                  key={`${item.name}-checkbox-${index}`}
+                  control={
+                    <Checkbox
+                      checked={value.includes(optValue)}
+                      onChange={(e) => handleToggle(optValue, e.target.checked)}
+                    />
+                  }
+                  label={label}
+                  disabled={mergedItem.disabled}
+                />
+              );
+            })}
           </FormGroup>
         );
       }}

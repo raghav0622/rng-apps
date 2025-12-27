@@ -6,12 +6,9 @@ import { FormSchema } from './core';
 // PROP DEFINITIONS
 // =============================================================================
 
-export type AutocompleteOption = string | Record<string, unknown>;
-export type RadioOption = {
-  label: string;
-  value: string | number | boolean;
-  icon?: React.ReactNode;
-};
+export type AutocompleteOption = any;
+
+export type RadioOption = any;
 
 // eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export type EmptyProps = {};
@@ -126,21 +123,59 @@ export interface InputFieldRegistry<S extends FormSchema> {
   // Selection
   slider: { min?: number; max?: number; step?: number };
   rating: { max?: number; precision?: number };
-  radio: { options: RadioOption[]; row?: boolean };
-  'checkbox-group': { options: RadioOption[]; row?: boolean };
-  'toggle-group': { options: RadioOption[]; exclusive?: boolean };
-  'transfer-list': { options: RadioOption[]; titles?: [string, string] };
+  
+  radio: { 
+    options: readonly RadioOption[]; 
+    row?: boolean;
+    getOptionLabel?: (option: any) => string;
+    getOptionValue?: (option: any) => any;
+  };
+  
+  'checkbox-group': { 
+    options: readonly RadioOption[]; 
+    row?: boolean;
+    getOptionLabel?: (option: any) => string;
+    getOptionValue?: (option: any) => any;
+  };
+  
+  'toggle-group': { 
+    options: readonly RadioOption[]; 
+    exclusive?: boolean;
+    getOptionLabel?: (option: any) => string;
+    getOptionValue?: (option: any) => any;
+  };
+  
+  'transfer-list': { 
+    options: readonly RadioOption[]; 
+    titles?: [string, string];
+    getOptionLabel?: (option: any) => string;
+    getOptionValue?: (option: any) => any;
+    isOptionEqualToValue?: (option: any, value: any) => boolean;
+  };
+
+  select: {
+    options: readonly (string | Record<string, any>)[];
+    getOptionLabel?: (option: any) => string;
+    getOptionValue?: (option: any) => any;
+    isOptionEqualToValue?: (option: any, value: any) => boolean;
+    placeholder?: string;
+  };
 
   autocomplete: {
     options: readonly AutocompleteOption[];
-    getOptionLabel?: (option: AutocompleteOption) => string;
+    getOptionLabel?: (option: any) => string;
+    getOptionValue?: (option: any) => any;
+    isOptionEqualToValue?: (option: any, value: any) => boolean;
     creatable?: boolean;
     multiple?: boolean;
     placeholder?: string;
   };
+  
   'async-autocomplete': {
     loadOptions: (query: string, values: z.infer<S>) => Promise<AutocompleteOption[]>;
-    getOptionLabel?: (option: AutocompleteOption) => string;
+    getOptionLabel?: (option: any) => string;
+    getOptionValue?: (option: any) => any;
+    isOptionEqualToValue?: (option: any, value: any) => boolean;
     multiple?: boolean;
     placeholder?: string;
   };

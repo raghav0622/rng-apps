@@ -5,26 +5,30 @@ import { Autocomplete, TextField } from '@mui/material';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-const compareOptions = (opt: any, val: any) => {
-  if (!val) return false;
-  const optVal = typeof opt === 'string' ? opt : opt.value;
-  const fieldVal = typeof val === 'string' ? val : val.value;
-  return optVal === fieldVal;
-};
-
 interface RNGAutocompleteProps<S extends FormSchema> {
   item: InputItem<S> & { type: 'autocomplete' };
-  pathPrefix?: string; // <--- Added
+  pathPrefix?: string;
 }
 
 export function RNGAutocomplete<S extends FormSchema>({
   item,
   pathPrefix,
 }: RNGAutocompleteProps<S>) {
+  const {
+    options,
+    getOptionLabel = (opt: any) => (typeof opt === 'string' ? opt : opt.label || String(opt)),
+    getOptionValue = (opt: any) => (typeof opt === 'string' ? opt : opt.value !== undefined ? opt.value : opt),
+    isOptionEqualToValue = (opt: any, val: any) => {
+      if (!val) return false;
+      const optVal = getOptionValue(opt);
+      const fieldVal = typeof val === 'object' && val !== null ? getOptionValue(val) : val;
+      return optVal === fieldVal;
+    }
+  } = item;
+
   return (
     <FieldWrapper item={item} name={item.name} pathPrefix={pathPrefix}>
-      {(field, _, mergedItem) => {
-        // Fix: Default to null/[] if undefined to prevent controlled/uncontrolled error
+      {(field, fieldState, mergedItem) => {
         const value = field.value === undefined ? (mergedItem.multiple ? [] : null) : field.value;
 
         return (
@@ -32,20 +36,17 @@ export function RNGAutocomplete<S extends FormSchema>({
             {...field}
             value={value}
             multiple={mergedItem.multiple}
-            options={mergedItem.options as readonly any[]}
-            getOptionLabel={
-              mergedItem.getOptionLabel ||
-              ((opt) => (typeof opt === 'string' ? opt : (opt as any).label || ''))
-            }
-            isOptionEqualToValue={compareOptions}
+            options={options as readonly any[]}
+            getOptionLabel={getOptionLabel}
+            isOptionEqualToValue={isOptionEqualToValue}
             onChange={(_, data) => field.onChange(data)}
             disabled={mergedItem.disabled}
             renderInput={(params) => (
               <TextField
                 {...params}
-                placeholder={mergedItem.label}
+                placeholder={mergedItem.placeholder || mergedItem.label}
                 variant="outlined"
-                error={!!_?.error}
+                error={!!fieldState.error}
               />
             )}
           />

@@ -4,7 +4,7 @@ import {
   acceptOwnershipAction,
   offerOwnershipAction,
 } from '@/core/organization/organization.actions';
-import { Member, OfferOwnershipSchema, Organization } from '@/core/organization/organization.model';
+import { MemberWithProfile, OfferOwnershipSchema, Organization } from '@/core/organization/organization.model';
 import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';
@@ -14,7 +14,7 @@ import { Button, Card, CardContent, Typography } from '@mui/material';
 
 interface TransferOwnershipProps {
   org: Organization;
-  members: Member[];
+  members: MemberWithProfile[];
   currentUserId: string;
 }
 
@@ -37,15 +37,21 @@ export function TransferOwnership({ org, members, currentUserId }: TransferOwner
   );
 
   // Filter eligible members (Must be Admin, not current owner)
-  // In a real app, you'd check role === 'ADMIN'. Here we just exclude self.
+  // We use the joined user profile data for the label
   const eligibleMembers = members
     .filter((m) => m.userId !== currentUserId)
-    .map((m) => ({ label: m.email, value: m.userId }));
+    .map((m) => ({ 
+       label: m.user?.displayName || m.user?.email || 'Unknown User', 
+       value: m.userId 
+    }));
 
   const formConfig = defineForm<typeof OfferOwnershipSchema>((f) => [
     f.autocomplete('targetUserId', eligibleMembers, {
       label: 'Select New Owner',
       description: 'The selected member must accept the invitation to become the new owner.',
+      // --- Standardized Option Helpers ---
+      getOptionLabel: (opt: any) => opt.label,
+      getOptionValue: (opt: any) => opt.value,
     }),
   ]);
 

@@ -6,23 +6,7 @@ import { Autocomplete, CircularProgress, TextField } from '@mui/material';
 import React, { useEffect, useState } from 'react';
 import { useFormContext } from 'react-hook-form';
 
-// Helper to safely get value for comparison
-const getOptValue = (opt: any) => {
-  if (opt === null || opt === undefined) return opt;
-  if (typeof opt === 'object' && 'value' in opt) return opt.value;
-  return opt;
-};
-
-// Robust comparison
-const compareOptions = (opt: any, val: any) => {
-  if (val === null || val === undefined) return false;
-  // If strict equality works (primitives or same ref), return true
-  if (opt === val) return true;
-
-  const optVal = getOptValue(opt);
-  const fieldVal = getOptValue(val);
-  return optVal === fieldVal;
-};
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 interface RNGAsyncAutocompleteProps<S extends FormSchema> {
   item: InputItem<S> & { type: 'async-autocomplete' };
@@ -40,18 +24,19 @@ export function RNGAsyncAutocomplete<S extends FormSchema>({
 
   const { getValues } = useFormContext();
 
-  // SAFETY: Robust label getter default
-  const defaultGetOptionLabel = (opt: any) => {
-    if (typeof opt === 'string') return opt;
-    if (typeof opt === 'number') return String(opt);
-    return opt?.label || opt?.name || '';
-  };
-
-  const getLabel = item.getOptionLabel || defaultGetOptionLabel;
+  const {
+    getOptionLabel = (opt: any) => (typeof opt === 'string' ? opt : opt.label || opt.name || String(opt)),
+    getOptionValue = (opt: any) => (typeof opt === 'string' ? opt : opt.value !== undefined ? opt.value : opt),
+    isOptionEqualToValue = (opt: any, val: any) => {
+      if (!val) return false;
+      const optVal = getOptionValue(opt);
+      const fieldVal = typeof val === 'object' && val !== null ? getOptionValue(val) : val;
+      return optVal === fieldVal;
+    }
+  } = item;
 
   useEffect(() => {
     let active = true;
-    // Debounce happens via setTimeout, but logic runs only if Open
     if (!open) {
       return undefined;
     }
@@ -80,20 +65,8 @@ export function RNGAsyncAutocomplete<S extends FormSchema>({
 
   return (
     <FieldWrapper item={item} name={item.name} pathPrefix={pathPrefix}>
-      {(field, _, mergedItem) => {
-        // Fix: Default to null/[] if undefined to prevent controlled/uncontrolled error
+      {(field, fieldState, mergedItem) => {
         const value = field.value === undefined ? (mergedItem.multiple ? [] : null) : field.value;
-
-        // CRITICAL FIX: Ensure current value is in options if possible (for correct label rendering)
-        // If options are loaded but don't contain the current value, Autocomplete might show the ID or nothing.
-        // We merge the current value into options temporarily if it's not there.
-        // (Note: This is a simplistic fix; ideal solution requires 'prefetch' of single record)
-        const renderOptions = options;
-        if (value && !loading && options.length === 0) {
-          // If we have a value but no options (e.g. initial load),
-          // we can't easily "fake" the option without the label.
-          // We rely on 'getLabel' handling the raw value gracefully.
-        }
 
         return (
           <Autocomplete
@@ -105,16 +78,18 @@ export function RNGAsyncAutocomplete<S extends FormSchema>({
             inputValue={inputValue}
             onInputChange={(_, newInputValue) => setInputValue(newInputValue)}
             multiple={mergedItem.multiple}
-            options={renderOptions}
+            options={options}
             loading={loading}
             disabled={mergedItem.disabled}
-            getOptionLabel={getLabel}
-            isOptionEqualToValue={compareOptions}
+            getOptionLabel={getOptionLabel}
+            isOptionEqualToValue={isOptionEqualToValue}
             onChange={(_, data) => field.onChange(data)}
             renderInput={(params) => (
               <TextField
                 {...params}
                 label={mergedItem.label}
+                placeholder={mergedItem.placeholder}
+                error={!!fieldState.error}
                 slotProps={{
                   input: {
                     ...params.InputProps,

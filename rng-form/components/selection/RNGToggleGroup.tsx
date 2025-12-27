@@ -8,6 +8,12 @@ interface RNGToggleGroupProps<S extends FormSchema> {
 }
 
 export function RNGToggleGroup<S extends FormSchema>({ item }: RNGToggleGroupProps<S>) {
+  const {
+    options,
+    getOptionLabel = (opt: any) => (typeof opt === 'string' ? opt : opt.label || String(opt)),
+    getOptionValue = (opt: any) => (typeof opt === 'string' ? opt : opt.value !== undefined ? opt.value : opt),
+  } = item;
+
   return (
     <FieldWrapper item={item} name={item.name}>
       {(field, _fieldState, mergedItem) => (
@@ -19,12 +25,18 @@ export function RNGToggleGroup<S extends FormSchema>({ item }: RNGToggleGroupPro
           fullWidth
           disabled={mergedItem.disabled}
         >
-          {mergedItem.options.map((option) => (
-            <ToggleButton key={String(option.value)} value={option.value}>
-              {option.icon}
-              {option.label}
-            </ToggleButton>
-          ))}
+          {options.map((option, index) => {
+            const label = getOptionLabel(option);
+            const value = getOptionValue(option);
+            const icon = typeof option === 'object' ? (option as any).icon : undefined;
+            
+            return (
+              <ToggleButton key={`${item.name}-toggle-${index}`} value={value}>
+                {icon}
+                {label}
+              </ToggleButton>
+            );
+          })}
         </ToggleButtonGroup>
       )}
     </FieldWrapper>

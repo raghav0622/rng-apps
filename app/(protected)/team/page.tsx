@@ -34,17 +34,15 @@ export default async function TeamPage() {
 
   return (
     <>
-      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-        <Box>
-          <Typography variant="h4" fontWeight={700} gutterBottom>
-            Team Management
-          </Typography>
-          <Typography color="text.secondary" variant="body1">
-            Manage your organization members, roles, and pending invitations.
-          </Typography>
-        </Box>
-        <InviteMemberModal />
+      <Box>
+        <Typography variant="h4" fontWeight={700} gutterBottom>
+          Team Management
+        </Typography>
+        <Typography color="text.secondary" variant="body1">
+          Manage your organization members, roles, and pending invitations.
+        </Typography>
       </Box>
+      <InviteMemberModal />
 
       <Divider sx={{ mb: 4 }} />
 

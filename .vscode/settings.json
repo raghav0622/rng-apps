@@ -7,7 +7,6 @@
     "**/Thumbs.db": true,
     ".next": true,
     "node_modules": true,
-    ".gitignore": true,
     "package-lock.json": true,
     ".prettierrc": true,
     "next-env.d.ts": true,
@@ -22,7 +21,6 @@
   },
   "hide-files.files": [
     "node_modules",
-    ".gitignore",
     "package-lock.json",
     ".prettierrc",
     "next-env.d.ts",

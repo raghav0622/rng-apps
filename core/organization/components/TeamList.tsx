@@ -49,7 +49,13 @@ const ROLE_PRIORITY: Record<UserRoleInOrg, number> = {
   [UserRoleInOrg.NOT_IN_ORG]: 3,
 };
 
-export function TeamList({ members, invites, currentUserId, currentUserRole, permissions }: TeamListProps) {
+export function TeamList({
+  members,
+  invites,
+  currentUserId,
+  currentUserRole,
+  permissions,
+}: TeamListProps) {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [activeMemberId, setActiveMemberId] = useState<string | null>(null);
 
@@ -81,7 +87,7 @@ export function TeamList({ members, invites, currentUserId, currentUserRole, per
   };
 
   /**
-   * Hierarchical Rule: 
+   * Hierarchical Rule:
    * 1. Owners can modify anyone (except themselves).
    * 2. Admins can ONLY modify Members.
    * 3. Members cannot modify anyone.
@@ -103,7 +109,9 @@ export function TeamList({ members, invites, currentUserId, currentUserRole, per
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       {/* --- Active Members Section --- */}
       <Card variant="outlined" sx={{ borderRadius: 2 }}>
-        <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'action.hover' }}>
+        <Box
+          sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'action.hover' }}
+        >
           <Typography variant="subtitle1" fontWeight={600}>
             Active Members ({members.length})
           </Typography>
@@ -115,21 +123,28 @@ export function TeamList({ members, invites, currentUserId, currentUserRole, per
                 <TableCell sx={{ fontWeight: 600 }}>User</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>Role</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>Joined</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 600 }}>Actions</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 600 }}>
+                  Actions
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {sortedMembers.map((member) => {
                 const isModifiable = canModifyMember(member);
-                
+
                 return (
                   <TableRow key={member.id} hover>
                     <TableCell>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <Avatar 
-                          src={member.user?.photoURL} 
+                        <Avatar
+                          src={member.user?.photoURL}
                           alt={member.user?.displayName}
-                          sx={{ width: 40, height: 40, border: '1px solid', borderColor: 'divider' }}
+                          sx={{
+                            width: 40,
+                            height: 40,
+                            border: '1px solid',
+                            borderColor: 'divider',
+                          }}
                         >
                           {member.user?.displayName?.charAt(0) || member.user?.email.charAt(0)}
                         </Avatar>
@@ -137,7 +152,13 @@ export function TeamList({ members, invites, currentUserId, currentUserRole, per
                           <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
                             {member.user?.displayName || 'Unknown User'}
                             {member.userId === currentUserId && (
-                              <Chip label="You" size="small" sx={{ ml: 1, height: 20, fontSize: '0.65rem' }} color="primary" variant="outlined" />
+                              <Chip
+                                label="You"
+                                size="small"
+                                sx={{ ml: 1, height: 20, fontSize: '0.65rem' }}
+                                color="primary"
+                                variant="outlined"
+                              />
                             )}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
@@ -147,10 +168,9 @@ export function TeamList({ members, invites, currentUserId, currentUserRole, per
                       </Box>
                     </TableCell>
                     <TableCell>
-                      <Chip 
-                        label={member.role} 
-                        size="small" 
-                        variant="tonal" 
+                      <Chip
+                        label={member.role}
+                        size="small"
                         color={member.role === UserRoleInOrg.OWNER ? 'primary' : 'default'}
                         sx={{ fontWeight: 600, fontSize: '0.75rem', textTransform: 'capitalize' }}
                       />
@@ -194,11 +214,7 @@ export function TeamList({ members, invites, currentUserId, currentUserRole, per
       </Card>
 
       {/* Role Update Menu */}
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handleClose}
-      >
+      <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleClose}>
         <MenuItem onClick={() => handleRoleSelect(UserRoleInOrg.ADMIN)}>Admin</MenuItem>
         <MenuItem onClick={() => handleRoleSelect(UserRoleInOrg.MEMBER)}>Member</MenuItem>
       </Menu>
@@ -206,7 +222,14 @@ export function TeamList({ members, invites, currentUserId, currentUserRole, per
       {/* --- Pending Invites Section --- */}
       {permissions.canViewInvites && invites.length > 0 && (
         <Card variant="outlined" sx={{ borderRadius: 2 }}>
-           <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'action.hover' }}>
+          <Box
+            sx={{
+              p: 2,
+              borderBottom: '1px solid',
+              borderColor: 'divider',
+              bgcolor: 'action.hover',
+            }}
+          >
             <Typography variant="subtitle1" fontWeight={600}>
               Pending Invitations ({invites.length})
             </Typography>
@@ -218,7 +241,9 @@ export function TeamList({ members, invites, currentUserId, currentUserRole, per
                   <TableCell sx={{ fontWeight: 600 }}>Email Address</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Assigned Role</TableCell>
                   <TableCell sx={{ fontWeight: 600 }}>Sent At</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 600 }}>Actions</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 600 }}>
+                    Actions
+                  </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -228,10 +253,10 @@ export function TeamList({ members, invites, currentUserId, currentUserRole, per
                       <Typography variant="subtitle2">{invite.email}</Typography>
                     </TableCell>
                     <TableCell>
-                      <Chip 
-                        label={invite.role} 
-                        size="small" 
-                        variant="outlined" 
+                      <Chip
+                        label={invite.role}
+                        size="small"
+                        variant="outlined"
                         sx={{ textTransform: 'capitalize' }}
                       />
                     </TableCell>

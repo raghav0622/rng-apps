@@ -4,22 +4,22 @@ import {
   createCheckoutSessionAction,
   createPortalSessionAction,
 } from '@/core/billing/billing.actions';
-import { getSubscriptionAction } from '@/core/organization/organization.actions';
 import { Subscription, SubscriptionPlan } from '@/core/billing/billing.model';
-import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
+import { getSubscriptionAction } from '@/core/organization/organization.actions';
 import { useOrg } from '@/core/organization/organization.context';
-import { Check as CheckIcon, CreditCard as CardIcon } from '@mui/icons-material';
+import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
+import { CreditCard as CardIcon, Check as CheckIcon } from '@mui/icons-material';
 import {
   Box,
   Button,
   Card,
   CardContent,
   Chip,
+  Divider,
   Grid,
+  Skeleton,
   Stack,
   Typography,
-  Divider,
-  Skeleton,
 } from '@mui/material';
 import { useEffect, useState } from 'react';
 
@@ -53,9 +53,12 @@ export default function BillingPageContent() {
   const { org } = useOrg();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
 
-  const { runAction: fetchSub, isExecuting: isFetching } = useRNGServerAction(getSubscriptionAction, {
-    onSuccess: (data: any) => setSubscription(data),
-  });
+  const { runAction: fetchSub, isExecuting: isFetching } = useRNGServerAction(
+    getSubscriptionAction,
+    {
+      onSuccess: (data: any) => setSubscription(data),
+    },
+  );
 
   const { runAction: checkout, isExecuting: isCheckingOut } = useRNGServerAction(
     createCheckoutSessionAction,
@@ -83,7 +86,7 @@ export default function BillingPageContent() {
 
   return (
     <Box>
-       <Box sx={{ mb: 4 }}>
+      <Box sx={{ mb: 4 }}>
         <Typography variant="h5" fontWeight={700} gutterBottom>
           Billing & Plans
         </Typography>
@@ -94,13 +97,20 @@ export default function BillingPageContent() {
 
       {/* Current Plan Overview */}
       <Card variant="outlined" sx={{ mb: 6, borderRadius: 2, overflow: 'hidden' }}>
-        <Box sx={{ p: 2, bgcolor: 'action.hover', borderBottom: '1px solid', borderColor: 'divider' }}>
+        <Box
+          sx={{ p: 2, bgcolor: 'action.hover', borderBottom: '1px solid', borderColor: 'divider' }}
+        >
           <Typography variant="subtitle2" fontWeight={700} color="text.secondary">
             CURRENT SUBSCRIPTION
           </Typography>
         </Box>
         <CardContent sx={{ p: 4 }}>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={4} justifyContent="space-between" alignItems={{ xs: 'flex-start', md: 'center' }}>
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            spacing={4}
+            justifyContent="space-between"
+            alignItems={{ xs: 'flex-start', md: 'center' }}
+          >
             <Box>
               {isFetching && !subscription ? (
                 <Skeleton width={200} height={40} />
@@ -119,10 +129,9 @@ export default function BillingPageContent() {
                 </Stack>
               )}
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                {subscription?.cancelAtPeriodEnd 
+                {subscription?.cancelAtPeriodEnd
                   ? `Your plan will end on ${new Date(subscription.currentPeriodEnd).toLocaleDateString()}`
-                  : `Next billing date: ${subscription ? new Date(subscription.currentPeriodEnd).toLocaleDateString() : 'N/A'}`
-                }
+                  : `Next billing date: ${subscription ? new Date(subscription.currentPeriodEnd).toLocaleDateString() : 'N/A'}`}
               </Typography>
             </Box>
 
@@ -160,11 +169,11 @@ export default function BillingPageContent() {
         {PLANS.map((plan) => {
           const isCurrent = subscription?.planId === plan.id;
           const isPro = plan.id === SubscriptionPlan.PRO;
-          
+
           const showUpgrade = !isProduction || plan.id === SubscriptionPlan.FREE;
 
           return (
-            <Grid item xs={12} md={4} key={plan.id}>
+            <Grid size={{ xs: 12, md: 4 }} key={plan.id}>
               <Card
                 variant="outlined"
                 sx={{
@@ -175,38 +184,45 @@ export default function BillingPageContent() {
                   borderWidth: isCurrent ? 2 : 1,
                   transition: 'transform 0.2s',
                   '&:hover': { transform: 'translateY(-4px)' },
-                  opacity: !showUpgrade && !isCurrent ? 0.7 : 1
+                  opacity: !showUpgrade && !isCurrent ? 0.7 : 1,
                 }}
               >
                 {isPro && (
-                  <Chip 
-                    label="MOST POPULAR" 
-                    color="primary" 
-                    size="small" 
-                    sx={{ 
-                      position: 'absolute', 
-                      top: -12, 
-                      left: '50%', 
+                  <Chip
+                    label="MOST POPULAR"
+                    color="primary"
+                    size="small"
+                    sx={{
+                      position: 'absolute',
+                      top: -12,
+                      left: '50%',
                       transform: 'translateX(-50%)',
                       fontWeight: 800,
-                      fontSize: '0.65rem'
-                    }} 
+                      fontSize: '0.65rem',
+                    }}
                   />
                 )}
-                <CardContent sx={{ p: 4, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <CardContent
+                  sx={{ p: 4, height: '100%', display: 'flex', flexDirection: 'column' }}
+                >
                   <Typography variant="h6" fontWeight={700} gutterBottom>
                     {plan.name}
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
                     {plan.description}
                   </Typography>
-                  
+
                   <Box sx={{ mb: 4 }}>
                     <Typography component="span" variant="h3" fontWeight={800}>
                       {plan.price}
                     </Typography>
                     {plan.price !== 'Custom' && (
-                      <Typography component="span" variant="h6" color="text.secondary" sx={{ ml: 0.5 }}>
+                      <Typography
+                        component="span"
+                        variant="h6"
+                        color="text.secondary"
+                        sx={{ ml: 0.5 }}
+                      >
                         /mo
                       </Typography>
                     )}
@@ -218,7 +234,9 @@ export default function BillingPageContent() {
                     {plan.features.map((feature) => (
                       <Stack direction="row" spacing={1.5} alignItems="flex-start" key={feature}>
                         <CheckIcon color="primary" sx={{ fontSize: 18, mt: 0.3 }} />
-                        <Typography variant="body2" fontWeight={500}>{feature}</Typography>
+                        <Typography variant="body2" fontWeight={500}>
+                          {feature}
+                        </Typography>
                       </Stack>
                     ))}
                   </Stack>
@@ -231,7 +249,13 @@ export default function BillingPageContent() {
                     size="large"
                     sx={{ borderRadius: 2 }}
                   >
-                    {isCurrent ? 'Current Plan' : !showUpgrade ? 'Coming Soon' : plan.price === 'Custom' ? 'Contact Sales' : 'Upgrade Now'}
+                    {isCurrent
+                      ? 'Current Plan'
+                      : !showUpgrade
+                        ? 'Coming Soon'
+                        : plan.price === 'Custom'
+                          ? 'Contact Sales'
+                          : 'Upgrade Now'}
                   </Button>
                 </CardContent>
               </Card>

@@ -1,13 +1,7 @@
 'use client';
 
-import * as React from 'react';
-import {
-  DataGrid,
-  DataGridProps,
-  GridColDef,
-  GridToolbar,
-} from '@mui/x-data-grid';
-import { Box, Paper, alpha, useTheme } from '@mui/material';
+import { Paper, alpha, useTheme } from '@mui/material';
+import { DataGrid, DataGridProps, GridColDef, GridToolbar } from '@mui/x-data-grid';
 
 interface RNGDataGridProps extends Omit<DataGridProps, 'sx'> {
   /**
@@ -65,7 +59,7 @@ export function RNGDataGrid({
         columns={columns}
         loading={loading}
         slots={{
-          toolbar: showToolbar ? GridToolbar : null,
+          toolbar: showToolbar ? GridToolbar : undefined,
         }}
         slotProps={{
           toolbar: {

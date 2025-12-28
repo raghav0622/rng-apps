@@ -14,6 +14,6 @@ export const billingHandlers = {
     }
 
     logInfo(`[Event] Creating trial for Org: ${orgId}`);
-    await billingService.createTrial(orgId);
+    await billingService.initializeFreeTier(orgId);
   },
 };

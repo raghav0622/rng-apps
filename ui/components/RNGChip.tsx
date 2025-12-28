@@ -6,7 +6,14 @@ import { ReactElement } from 'react';
 /**
  * 🎨 RNGChip Status Types
  */
-export type RNGStatusVariant = 'success' | 'warning' | 'error' | 'info' | 'primary' | 'secondary' | 'neutral';
+export type RNGStatusVariant =
+  | 'success'
+  | 'warning'
+  | 'error'
+  | 'info'
+  | 'primary'
+  | 'secondary'
+  | 'neutral';
 
 interface RNGChipProps extends Omit<MuiChipProps, 'color' | 'variant'> {
   /**
@@ -15,7 +22,7 @@ interface RNGChipProps extends Omit<MuiChipProps, 'color' | 'variant'> {
    */
   status?: RNGStatusVariant;
   /**
-   * Visual style: 
+   * Visual style:
    * - 'filled': Solid background (MUI default)
    * - 'outlined': Bordered (MUI default)
    * - 'tonal': Light background with dark text (Enterprise standard)
@@ -29,9 +36,21 @@ interface RNGChipProps extends Omit<MuiChipProps, 'color' | 'variant'> {
 
 const StyledChip = styled(MuiChip, {
   shouldForwardProp: (prop) => prop !== 'status' && prop !== 'rngVariant',
-})<{ status: RNGStatusVariant; rngVariant: 'filled' | 'outlined' | 'tonal' }>(({ theme, status, rngVariant }) => {
-  const color = status === 'neutral' ? theme.palette.text.secondary : (theme.palette[status as keyof typeof theme.palette] as any)?.main || theme.palette.primary.main;
-  const lightColor = status === 'neutral' ? theme.palette.action.hover : (theme.palette[status as keyof typeof theme.palette] as any)?.light || theme.palette.primary.light;
+})<{ status: RNGStatusVariant; rngVariant: 'filled' | 'outlined' | 'tonal' }>(({
+  theme,
+  status,
+  rngVariant,
+}) => {
+  const color =
+    status === 'neutral'
+      ? theme.palette.text.secondary
+      : (theme.palette[status as keyof typeof theme.palette] as any)?.main ||
+        theme.palette.primary.main;
+  const lightColor =
+    status === 'neutral'
+      ? theme.palette.action.hover
+      : (theme.palette[status as keyof typeof theme.palette] as any)?.light ||
+        theme.palette.primary.light;
 
   if (rngVariant === 'tonal') {
     return {
@@ -62,7 +81,7 @@ const StyledChip = styled(MuiChip, {
 export function RNGChip({ status = 'primary', variant = 'tonal', sx, ...props }: RNGChipProps) {
   // Map RNG status to MUI color for standard variants
   let muiColor: MuiChipProps['color'] = 'default';
-  if (status !== 'neutral' && status !== 'tonal') {
+  if (status !== 'neutral') {
     muiColor = status as MuiChipProps['color'];
   }
 

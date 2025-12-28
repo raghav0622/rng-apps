@@ -1,8 +1,8 @@
-import { AUTH_SESSION_COOKIE_NAME, SESSION_PREFIX, SESSION_TTL_SECONDS } from '@/lib/constants';
+import { AUTH_SESSION_COOKIE_NAME, SESSION_ID_COOKIE_NAME, SESSION_PREFIX, SESSION_TTL_SECONDS } from '@/lib/constants';
 import { auth } from '@/lib/firebase/admin';
 import { redisClient as redis } from '@/lib/redis';
 import { Result } from '@/lib/types';
-import { AppErrorCode } from '@/lib/utils/errors';
+import { AppErrorCode, CustomError } from '@/lib/utils/errors';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import 'server-only';
@@ -25,15 +25,26 @@ export class SessionService {
   /**
    * 🛡️ Server-Side Session Helper
    * Gets the current session from cookies and verifies it.
+   * Also checks Redis to see if the session has been revoked.
    */
   static async getServerSession() {
     const cookieStore = await cookies();
     const sessionCookie = cookieStore.get(AUTH_SESSION_COOKIE_NAME)?.value;
-    if (!sessionCookie) return null;
+    const sessionId = cookieStore.get(SESSION_ID_COOKIE_NAME)?.value;
+
+    if (!sessionCookie || !sessionId) return null;
 
     try {
+      // 1. Verify Firebase Session Cookie
       const decodedClaims = await auth().verifySessionCookie(sessionCookie, true);
-      return decodedClaims;
+      
+      // 2. Verify Redis Session Exists (Revocation Check)
+      const isValid = await this.validateSession(decodedClaims.uid, sessionId);
+      if (!isValid) {
+        return null;
+      }
+
+      return { ...decodedClaims, sessionId };
     } catch (error) {
       console.error('[SessionService] Verification failed:', error);
       return null;
@@ -46,6 +57,9 @@ export class SessionService {
   static async requireServerSession() {
     const session = await this.getServerSession();
     if (!session) {
+      const cookieStore = await cookies();
+      cookieStore.delete(AUTH_SESSION_COOKIE_NAME);
+      cookieStore.delete(SESSION_ID_COOKIE_NAME);
       redirect('/login');
     }
     return session;
@@ -59,7 +73,9 @@ export class SessionService {
     const session = await this.requireServerSession();
     const user = await userRepository.get(session.uid);
     
-    if (!user) redirect('/login');
+    if (!user) {
+      redirect('/login');
+    }
 
     if (strictOrg) {
       if (!user.orgId || user.orgRole === UserRoleInOrg.NOT_IN_ORG || user.isOnboarded === false) {
@@ -67,7 +83,9 @@ export class SessionService {
       }
 
       const org = await organizationRepository.get(user.orgId);
-      if (!org) redirect('/onboarding');
+      if (!org) {
+        redirect('/onboarding');
+      }
 
       return { user, org };
     }
@@ -99,7 +117,7 @@ export class SessionService {
   }
 
   /**
-   * Validates if a session ID is currently active.
+   * Validates if a session ID is currently active in Redis.
    */
   static async validateSession(userId: string, sessionId: string): Promise<boolean> {
     if (!userId || !sessionId) return false;

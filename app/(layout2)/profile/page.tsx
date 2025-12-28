@@ -2,7 +2,7 @@
 
 import { useRNGAuth } from '@/core/auth/auth.context';
 import { authClient } from '@/core/auth/auth.client';
-import { SessionManager } from '@/app/(protected)/profile/SessionManager';
+import { SessionManager } from './SessionManager';
 import { NotificationSettings } from '@/core/notifications/components/NotificationSettings';
 import { 
   Box, 

@@ -25,6 +25,7 @@ import {
   UpdateOrgInput,
 } from './organization.model';
 import { inviteRepository, organizationRepository } from './organization.repository';
+import { billingService } from '../billing/billing.service';
 
 type SendInviteInput = z.infer<typeof SendInviteSchema>;
 
@@ -116,13 +117,16 @@ class OrganizationService extends AbstractService {
           isOnboarded: true,
         });
 
-        // 5. Audit Log (Atomic)
+        // 5. Initialize Billing (Free Tier) within Transaction
+        await billingService.initializeFreeTier(orgId, t);
+
+        // 6. Audit Log (Atomic)
         await auditRepoT.create(uuidv4(), {
           orgId,
           actorId: userId,
           action: AuditAction.RESOURCE_CREATE,
           targetId: orgId,
-          metadata: { name: input.name },
+          metadata: { name: input.name, plan: SubscriptionPlan.FREE },
         });
       });
 

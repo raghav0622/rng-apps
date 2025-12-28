@@ -4,11 +4,11 @@ import {
   createCheckoutSessionAction,
   createPortalSessionAction,
 } from '@/core/billing/billing.actions';
-import { getSubscriptionAction } from '@/core/organization/organization.actions'; // Reusing existing fetcher
-import { Subscription, SubscriptionPlan, SubscriptionStatus } from '@/core/billing/billing.model';
-import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
+import { Subscription, SubscriptionPlan } from '@/core/billing/billing.model';
+import { getSubscriptionAction } from '@/core/organization/organization.actions';
 import { useOrg } from '@/core/organization/organization.context';
-import { Check as CheckIcon, CreditCard as CardIcon } from '@mui/icons-material';
+import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
+import { CreditCard as CardIcon, Check as CheckIcon } from '@mui/icons-material';
 import {
   Box,
   Button,
@@ -16,7 +16,9 @@ import {
   CardContent,
   Chip,
   Container,
+  Divider,
   Grid,
+  Skeleton,
   Stack,
   Typography,
 } from '@mui/material';
@@ -27,19 +29,22 @@ const PLANS = [
     id: SubscriptionPlan.FREE,
     name: 'Free',
     price: '$0',
-    features: ['5 Seats', 'Basic Support', '7 Day History'],
+    description: 'Perfect for small teams getting started.',
+    features: ['5 Seats', 'Basic Support', '7 Day Activity History'],
   },
   {
     id: SubscriptionPlan.PRO,
     name: 'Pro',
     price: '$29',
-    features: ['10 Seats', 'Priority Support', 'Unlimited History', 'Audit Logs'],
+    description: 'Advanced features for growing organizations.',
+    features: ['10 Seats', 'Priority Support', 'Unlimited Activity History', 'Advanced Audit Logs'],
   },
   {
     id: SubscriptionPlan.ENTERPRISE,
     name: 'Enterprise',
-    price: 'Contact Us',
-    features: ['50+ Seats', 'Dedicated Manager', 'SAML SSO', 'SLA'],
+    price: 'Custom',
+    description: 'Security and scale for large enterprises.',
+    features: ['Unlimited Seats', 'Dedicated Account Manager', 'SAML SSO & SCIM', 'Custom SLA'],
   },
 ];
 
@@ -47,21 +52,25 @@ export default function BillingPage() {
   const { org } = useOrg();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
 
-  const { runAction: fetchSub } = useRNGServerAction(getSubscriptionAction, {
-    onSuccess: (data) => setSubscription(data),
+  const { runAction: fetchSub, isExecuting: isFetching } = useRNGServerAction(getSubscriptionAction, {
+    onSuccess: (data: any) => setSubscription(data),
   });
 
   const { runAction: checkout, isExecuting: isCheckingOut } = useRNGServerAction(
     createCheckoutSessionAction,
     {
-      onSuccess: ({ url }) => window.location.assign(url), // Redirect to Stripe
+      onSuccess: (data: any) => {
+        if (data?.url) window.location.assign(data.url);
+      },
     },
   );
 
   const { runAction: portal, isExecuting: isPortaling } = useRNGServerAction(
     createPortalSessionAction,
     {
-      onSuccess: ({ url }) => window.location.assign(url), // Redirect to Portal
+      onSuccess: (data: any) => {
+        if (data?.url) window.location.assign(data.url);
+      },
     },
   );
 
@@ -69,92 +78,143 @@ export default function BillingPage() {
     fetchSub(undefined);
   }, []);
 
-  if (!org || !subscription) return <Typography>Loading billing...</Typography>;
+  if (!org) return null;
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Box mb={4}>
-        <Typography variant="h4" fontWeight="bold">
+    <Container maxWidth="lg" sx={{ py: 6 }}>
+      <Box sx={{ mb: 6 }}>
+        <Typography variant="h4" fontWeight={700} gutterBottom>
           Billing & Plans
         </Typography>
-        <Typography color="text.secondary">
-          Manage your subscription and payment methods.
+        <Typography color="text.secondary" variant="body1">
+          Manage your organization&apos;s subscription, payment methods, and billing history.
         </Typography>
       </Box>
 
-      {/* Current Plan Dashboard */}
-      <Card variant="outlined" sx={{ mb: 6, bgcolor: 'primary.50' }}>
-        <CardContent>
-          <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems="center">
+      {/* Current Plan Overview */}
+      <Card variant="outlined" sx={{ mb: 6, borderRadius: 2, overflow: 'hidden' }}>
+        <Box sx={{ p: 2, bgcolor: 'action.hover', borderBottom: '1px solid', borderColor: 'divider' }}>
+          <Typography variant="subtitle2" fontWeight={700} color="text.secondary">
+            CURRENT SUBSCRIPTION
+          </Typography>
+        </Box>
+        <CardContent sx={{ p: 4 }}>
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={4} justifyContent="space-between" alignItems={{ xs: 'flex-start', md: 'center' }}>
             <Box>
-              <Typography variant="subtitle2" color="primary.main" fontWeight="bold">
-                CURRENT PLAN
-              </Typography>
-              <Stack direction="row" alignItems="center" spacing={2} mt={1}>
-                <Typography variant="h3" fontWeight="bold">
-                  {PLANS.find((p) => p.id === subscription.planId)?.name}
-                </Typography>
-                <Chip
-                  label={subscription.status.toUpperCase()}
-                  color={subscription.status === 'active' ? 'success' : 'warning'}
-                  size="small"
-                />
-              </Stack>
-              <Typography variant="body2" color="text.secondary" mt={1}>
-                Renews on {new Date(subscription.currentPeriodEnd).toLocaleDateString()}
+              {isFetching && !subscription ? (
+                <Skeleton width={200} height={40} />
+              ) : (
+                <Stack direction="row" alignItems="center" spacing={2}>
+                  <Typography variant="h3" fontWeight={800}>
+                    {PLANS.find((p) => p.id === subscription?.planId)?.name || 'Free'}
+                  </Typography>
+                  <Chip
+                    label={subscription?.status?.toUpperCase() || 'ACTIVE'}
+                    color={subscription?.status === 'active' ? 'success' : 'primary'}
+                    variant="outlined"
+                    size="small"
+                    sx={{ fontWeight: 700 }}
+                  />
+                </Stack>
+              )}
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                {subscription?.cancelAtPeriodEnd 
+                  ? `Your plan will end on ${new Date(subscription.currentPeriodEnd).toLocaleDateString()}`
+                  : `Next billing date: ${subscription ? new Date(subscription.currentPeriodEnd).toLocaleDateString() : 'N/A'}`
+                }
               </Typography>
             </Box>
 
-            <Box mt={{ xs: 3, sm: 0 }}>
-              {subscription.customerId ? (
+            <Box>
+              {subscription?.customerId ? (
                 <Button
                   variant="contained"
                   startIcon={<CardIcon />}
                   onClick={() => portal({})}
                   disabled={isPortaling}
+                  size="large"
                 >
-                  Manage Billing
+                  Manage Payment Methods
                 </Button>
               ) : (
-                <Typography variant="caption" color="text.secondary">
-                  No payment method attached.
-                </Typography>
+                <Box sx={{ textAlign: { xs: 'left', md: 'right' } }}>
+                  <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
+                    No payment method on file.
+                  </Typography>
+                  <Typography variant="body2" fontWeight={500}>
+                    Upgrade to Pro for more features.
+                  </Typography>
+                </Box>
               )}
             </Box>
           </Stack>
         </CardContent>
       </Card>
 
-      {/* Pricing Table */}
+      <Typography variant="h5" fontWeight={700} sx={{ mb: 4 }}>
+        Available Plans
+      </Typography>
+
       <Grid container spacing={4}>
         {PLANS.map((plan) => {
-          const isCurrent = subscription.planId === plan.id;
+          const isCurrent = subscription?.planId === plan.id;
+          const isPro = plan.id === SubscriptionPlan.PRO;
+
           return (
-            <Grid item xs={12} md={4} key={plan.id}>
+            <Grid key={plan.id} size={{ xs: 12, md: 4 }}>
               <Card
                 variant="outlined"
                 sx={{
                   height: '100%',
+                  borderRadius: 3,
+                  position: 'relative',
                   borderColor: isCurrent ? 'primary.main' : 'divider',
-                  boxShadow: isCurrent ? 4 : 0,
+                  borderWidth: isCurrent ? 2 : 1,
+                  transition: 'transform 0.2s',
+                  '&:hover': { transform: 'translateY(-4px)' }
                 }}
               >
-                <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                  <Typography variant="h6" fontWeight="bold" gutterBottom>
+                {isPro && (
+                  <Chip 
+                    label="MOST POPULAR" 
+                    color="primary" 
+                    size="small" 
+                    sx={{ 
+                      position: 'absolute', 
+                      top: -12, 
+                      left: '50%', 
+                      transform: 'translateX(-50%)',
+                      fontWeight: 800,
+                      fontSize: '0.65rem'
+                    }} 
+                  />
+                )}
+                <CardContent sx={{ p: 4, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                  <Typography variant="h6" fontWeight={700} gutterBottom>
                     {plan.name}
                   </Typography>
-                  <Typography variant="h4" fontWeight="bold" mb={3}>
-                    {plan.price}
-                    <Typography component="span" variant="body1" color="text.secondary">
-                      /mo
-                    </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                    {plan.description}
                   </Typography>
+                  
+                  <Box sx={{ mb: 4 }}>
+                    <Typography component="span" variant="h3" fontWeight={800}>
+                      {plan.price}
+                    </Typography>
+                    {plan.price !== 'Custom' && (
+                      <Typography component="span" variant="h6" color="text.secondary" sx={{ ml: 0.5 }}>
+                        /mo
+                      </Typography>
+                    )}
+                  </Box>
 
-                  <Stack spacing={2} mb={4} flexGrow={1}>
+                  <Divider sx={{ mb: 4 }} />
+
+                  <Stack spacing={2} sx={{ mb: 4, flexGrow: 1 }}>
                     {plan.features.map((feature) => (
-                      <Stack direction="row" spacing={1} alignItems="center" key={feature}>
-                        <CheckIcon color="primary" fontSize="small" />
-                        <Typography variant="body2">{feature}</Typography>
+                      <Stack direction="row" spacing={1.5} alignItems="flex-start" key={feature}>
+                        <CheckIcon color="primary" sx={{ fontSize: 18, mt: 0.3 }} />
+                        <Typography variant="body2" fontWeight={500}>{feature}</Typography>
                       </Stack>
                     ))}
                   </Stack>
@@ -164,8 +224,10 @@ export default function BillingPage() {
                     fullWidth
                     disabled={isCurrent || isCheckingOut}
                     onClick={() => checkout({ planId: plan.id })}
+                    size="large"
+                    sx={{ borderRadius: 2 }}
                   >
-                    {isCurrent ? 'Current Plan' : 'Upgrade'}
+                    {isCurrent ? 'Current Plan' : plan.price === 'Custom' ? 'Contact Sales' : 'Upgrade Now'}
                   </Button>
                 </CardContent>
               </Card>

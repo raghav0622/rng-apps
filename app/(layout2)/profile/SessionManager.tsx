@@ -46,7 +46,7 @@ export function SessionManager() {
   const theme = useTheme();
 
   const listAction = useRNGServerAction(listSessionsAction, {
-    onSuccess: (data) => setSessions(data),
+    onSuccess: (data: any) => setSessions(data as SessionData[]),
   });
 
   const revokeAction = useRNGServerAction(revokeSessionAction, {

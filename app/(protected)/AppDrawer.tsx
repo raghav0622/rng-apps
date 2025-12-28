@@ -24,6 +24,7 @@ const MENU_ITEMS = [
   { label: 'Dashboard', icon: <DashboardIcon />, href: '/dashboard' },
   { label: 'Organization', icon: <BusinessIcon />, href: '/team' },
   { label: 'Settings', icon: <SettingsAccessibility />, href: '/settings' },
+  { label: 'Billing', icon: <SettingsAccessibility />, href: '/billing' },
 ];
 
 export default function AppDrawer() {

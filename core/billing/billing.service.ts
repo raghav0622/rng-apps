@@ -20,10 +20,12 @@ class BillingService extends AbstractService {
    * Initializes a PERMANENT FREE TIER for a new organization.
    * Limits: 5 Seats. No Expiry.
    */
-  async createTrial(orgId: string): Promise<Result<Subscription>> {
-    return this.handleOperation('billing.createTrial', async () => {
+  async initializeFreeTier(orgId: string, transaction?: FirebaseFirestore.Transaction): Promise<Result<Subscription>> {
+    return this.handleOperation('billing.initializeFreeTier', async () => {
+      const repo = transaction ? subscriptionRepository.withTransaction(transaction) : subscriptionRepository;
+
       // 1. Idempotency Check
-      const existing = await subscriptionRepository.getByOrgId(orgId);
+      const existing = await repo.getByOrgId(orgId);
       if (existing) return existing;
 
       const now = new Date();
@@ -32,7 +34,7 @@ class BillingService extends AbstractService {
       foreverEnd.setFullYear(foreverEnd.getFullYear() + 100);
 
       // 2. Create Record (Status: ACTIVE, Plan: FREE)
-      const sub = await subscriptionRepository.create(uuidv4(), {
+      const sub = await repo.create(uuidv4(), {
         orgId,
         status: SubscriptionStatus.ACTIVE, // Permanently Active
         planId: SubscriptionPlan.FREE,

@@ -15,7 +15,7 @@ import {
   Card,
   CardContent,
   Checkbox,
-  FormControlLabel,
+  Skeleton,
   Table,
   TableBody,
   TableCell,
@@ -36,12 +36,12 @@ const TOPIC_LABELS: Record<NotificationTopic, string> = {
 export function NotificationSettings() {
   const [preferences, setPreferences] = useState<NotificationPreferences | null>(null);
 
-  const { runAction: fetchPreferences } = useRNGServerAction(getPreferencesAction, {
-    onSuccess: (data) => setPreferences(data),
+  const { runAction: fetchPreferences, isExecuting: isLoading } = useRNGServerAction(getPreferencesAction, {
+    onSuccess: (data: any) => setPreferences(data),
   });
 
   const { runAction: updatePreferences } = useRNGServerAction(updatePreferencesAction, {
-    // Optimistic update logic could go here, for now simpler to just rely on re-fetch or local state
+    // Silently update in background
   });
 
   useEffect(() => {
@@ -61,7 +61,7 @@ export function NotificationSettings() {
       newChannels = [...currentChannels, channel];
     }
 
-    // Local Update
+    // Local Optimistic Update
     setPreferences({
       ...preferences,
       channels: {
@@ -74,60 +74,58 @@ export function NotificationSettings() {
     await updatePreferences({ topic, channels: newChannels });
   };
 
-  if (!preferences) return <Typography>Loading settings...</Typography>;
-
   return (
-    <Card variant="outlined">
-      <CardContent>
-        <Box mb={3}>
-          <Typography variant="h6">Notification Preferences</Typography>
-          <Typography variant="body2" color="text.secondary">
-            Control how and when you receive alerts.
+    <Card variant="outlined" sx={{ borderRadius: 2 }}>
+       <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'action.hover' }}>
+          <Typography variant="subtitle1" fontWeight={600}>
+            Notification Channels
           </Typography>
         </Box>
-
+      <CardContent sx={{ p: 0 }}>
         <TableContainer>
-          <Table>
+          <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell>Topic</TableCell>
-                <TableCell align="center">In-App</TableCell>
-                <TableCell align="center">Email</TableCell>
+                <TableCell sx={{ fontWeight: 600, py: 2 }}>Topic</TableCell>
+                <TableCell align="center" sx={{ fontWeight: 600 }}>In-App</TableCell>
+                <TableCell align="center" sx={{ fontWeight: 600 }}>Email</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-              {Object.values(NotificationTopic).map((topic) => (
-                <TableRow key={topic}>
-                  <TableCell component="th" scope="row">
-                    <Typography variant="subtitle2">{TOPIC_LABELS[topic]}</Typography>
-                  </TableCell>
-                  <TableCell align="center">
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          checked={preferences.channels[topic]?.includes(
-                            NotificationChannel.IN_APP,
-                          )}
-                          onChange={() => handleToggle(topic, NotificationChannel.IN_APP)}
-                          // Usually force In-App for critical stuff, but allowing toggle for demo
-                        />
-                      }
-                      label=""
-                    />
-                  </TableCell>
-                  <TableCell align="center">
-                    <FormControlLabel
-                      control={
-                        <Checkbox
-                          checked={preferences.channels[topic]?.includes(NotificationChannel.EMAIL)}
-                          onChange={() => handleToggle(topic, NotificationChannel.EMAIL)}
-                        />
-                      }
-                      label=""
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
+              {isLoading && !preferences ? (
+                [...Array(4)].map((_, i) => (
+                   <TableRow key={i}>
+                    <TableCell><Skeleton width={120} /></TableCell>
+                    <TableCell align="center"><Skeleton variant="circular" width={24} height={24} sx={{ mx: 'auto' }} /></TableCell>
+                    <TableCell align="center"><Skeleton variant="circular" width={24} height={24} sx={{ mx: 'auto' }} /></TableCell>
+                   </TableRow>
+                ))
+              ) : (
+                Object.values(NotificationTopic).map((topic) => (
+                  <TableRow key={topic} hover>
+                    <TableCell sx={{ py: 1.5 }}>
+                      <Typography variant="body2" fontWeight={500}>{TOPIC_LABELS[topic]}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Notifications for {TOPIC_LABELS[topic].toLowerCase()}
+                      </Typography>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Checkbox
+                        size="small"
+                        checked={preferences?.channels[topic]?.includes(NotificationChannel.IN_APP) ?? true}
+                        onChange={() => handleToggle(topic, NotificationChannel.IN_APP)}
+                      />
+                    </TableCell>
+                    <TableCell align="center">
+                      <Checkbox
+                        size="small"
+                        checked={preferences?.channels[topic]?.includes(NotificationChannel.EMAIL) ?? false}
+                        onChange={() => handleToggle(topic, NotificationChannel.EMAIL)}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </TableContainer>

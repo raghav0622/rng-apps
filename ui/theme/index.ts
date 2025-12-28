@@ -9,6 +9,12 @@ const inter = Inter({
   weight: ['400', '500', '600', '700'],
 });
 
+const roboto = Roboto({
+  weight: ['300', '400', '500', '700'],
+  subsets: ['latin'],
+  display: 'swap',
+});
+
 /**
  * 👑 RNG Enterprise Theme
  * Optimized for high-density ERP data, accessibility, and modern aesthetics.
@@ -108,6 +114,11 @@ const RNGTheme = createTheme({
         root: {
           borderRadius: 6,
           padding: '8px 16px',
+        },
+        containedPrimary: {
+          '&:hover': {
+            backgroundColor: '#0747A6',
+          },
         },
       },
     },

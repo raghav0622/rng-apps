@@ -24,8 +24,8 @@ const Main = styled('main', {
       duration: theme.transitions.duration.enteringScreen,
     }),
     [theme.breakpoints.up('sm')]: {
-      marginLeft: `${drawerWidth}px`,
-      width: `calc(100% - ${drawerWidth}px)`,
+      // marginLeft: `${drawerWidth}px`,
+      // width: `calc(100% - ${drawerWidth}px)`,
     },
   }),
 }));

@@ -12,7 +12,7 @@ import { MemberWithProfile, UpdateOrgSchema } from '@/core/organization/organiza
 import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
 import { AppPermission, hasPermission, UserRoleInOrg } from '@/lib/action-policies';
 import { defineForm, RNGForm } from '@/rng-form';
-import { Box, Card, CardContent, Divider, Grid, Typography } from '@mui/material';
+import { Box, Card, CardContent, Grid, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 
 export default function SettingsPageContent() {
@@ -41,7 +41,7 @@ export default function SettingsPageContent() {
   const canUpdateOrg = hasPermission(userRole, AppPermission.ORG_UPDATE);
   const canTransferOwnership = hasPermission(userRole, AppPermission.ORG_TRANSFER_OWNERSHIP);
   const canViewAuditLogs = hasPermission(userRole, AppPermission.VIEW_AUDIT_LOGS);
-  
+
   const isPendingOwner = org.pendingOwnerId === user.id;
 
   const settingsUiSchema = defineForm<typeof UpdateOrgSchema>((f) => [
@@ -64,7 +64,7 @@ export default function SettingsPageContent() {
 
       <Grid container spacing={4}>
         {canUpdateOrg && (
-          <Grid item xs={12}>
+          <Grid size={{ xs: 12 }}>
             <Card variant="outlined" sx={{ borderRadius: 2 }}>
               <Box
                 sx={{
@@ -95,13 +95,13 @@ export default function SettingsPageContent() {
         )}
 
         {(canTransferOwnership || isPendingOwner) && (
-          <Grid item xs={12}>
+          <Grid size={{ xs: 12 }}>
             <TransferOwnership org={org} members={members} currentUserId={user.id} />
           </Grid>
         )}
 
         {canViewAuditLogs && (
-          <Grid item xs={12}>
+          <Grid size={{ xs: 12 }}>
             <AuditLogViewer />
           </Grid>
         )}

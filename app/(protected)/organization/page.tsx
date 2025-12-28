@@ -5,7 +5,6 @@ import { NotificationSettings } from '@/core/notifications/components/Notificati
 import { AppPermission, hasPermission, UserRoleInOrg } from '@/lib/action-policies';
 import { Box, Tab, Tabs, Typography } from '@mui/material';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import AppContent from '../AppContent';
 import BillingPageContent from './_components/BillingContent';
 import SettingsPageContent from './_components/SettingsContent';
 import TeamPageContent from './_components/TeamContent';
@@ -42,7 +41,7 @@ export default function OrganizationPage() {
   const canViewBilling = hasPermission(userRole, AppPermission.BILLING_VIEW);
 
   return (
-    <AppContent>
+    <>
       <Box sx={{ mb: 4 }}>
         <Typography variant="h4" fontWeight={700} gutterBottom>
           Organization
@@ -67,7 +66,7 @@ export default function OrganizationPage() {
         {activeTab === OrgTab.BILLING && canViewBilling && <BillingPageContent />}
         {activeTab === OrgTab.NOTIFICATIONS && (
           <Box>
-             <Box sx={{ mb: 4 }}>
+            <Box sx={{ mb: 4 }}>
               <Typography variant="h5" fontWeight={700} gutterBottom>
                 Notification Preferences
               </Typography>
@@ -79,6 +78,6 @@ export default function OrganizationPage() {
           </Box>
         )}
       </Box>
-    </AppContent>
+    </>
   );
 }

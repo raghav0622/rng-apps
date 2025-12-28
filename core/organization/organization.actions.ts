@@ -15,10 +15,11 @@ import {
   UpdateOrgSchema,
 } from '@/core/organization/organization.model';
 import { organizationService } from '@/core/organization/organization.service';
-import { authActionClient, orgActionClient } from '@/core/safe-action/safe-action';
+import { authActionClient, orgActionClient, rateLimitMiddleware } from '@/core/safe-action/safe-action';
 import { AppPermission } from '@/lib/action-policies';
 import { AppErrorCode, CustomError } from '@/lib/utils/errors';
 import { revalidatePath } from 'next/cache';
+import { userRepository } from '../auth/user.repository';
 
 // --- Org Actions ---
 
@@ -38,7 +39,7 @@ export const updateOrganizationAction = orgActionClient
   .schema(UpdateOrgSchema)
   .action(async ({ ctx, parsedInput }) => {
     const result = await organizationService.updateOrganization(ctx.orgId, parsedInput);
-    revalidatePath('/dashboard/settings');
+    revalidatePath('/settings');
     return result;
   });
 
@@ -53,7 +54,7 @@ export const offerOwnershipAction = orgActionClient
       ctx.orgId,
       parsedInput.targetUserId,
     );
-    revalidatePath('/dashboard/settings');
+    revalidatePath('/settings');
     return result;
   });
 
@@ -62,7 +63,7 @@ export const acceptOwnershipAction = orgActionClient
   .schema(AcceptOwnershipSchema)
   .action(async ({ ctx }) => {
     const result = await organizationService.acceptOwnership(ctx.userId, ctx.orgId);
-    revalidatePath('/dashboard/settings');
+    revalidatePath('/settings');
     revalidatePath('/dashboard/team');
     return result;
   });
@@ -86,6 +87,7 @@ export const getMembersAction = orgActionClient
 export const updateMemberRoleAction = orgActionClient
   .metadata({ name: 'org.updateMember', permissions: [AppPermission.MEMBER_UPDATE] })
   .schema(UpdateMemberRoleSchema)
+  .use(rateLimitMiddleware)
   .action(async ({ ctx, parsedInput }) => {
     const res = await organizationService.updateMemberRole(
       ctx.userId,
@@ -100,6 +102,7 @@ export const updateMemberRoleAction = orgActionClient
 export const removeMemberAction = orgActionClient
   .metadata({ name: 'org.removeMember', permissions: [AppPermission.MEMBER_DELETE] })
   .schema(RemoveMemberSchema)
+  .use(rateLimitMiddleware)
   .action(async ({ ctx, parsedInput }) => {
     const res = await organizationService.removeMember(ctx.userId, ctx.orgId, parsedInput.userId);
     revalidatePath('/dashboard/team');
@@ -129,6 +132,7 @@ export const getUserPendingInvitesAction = authActionClient
 export const sendInviteAction = orgActionClient
   .metadata({ name: 'org.sendInvite', permissions: [AppPermission.MEMBER_INVITE] })
   .schema(SendInviteSchema)
+  .use(rateLimitMiddleware)
   .action(async ({ ctx, parsedInput }) => {
     const res = await organizationService.sendInvite(ctx.orgId, ctx.userId, parsedInput);
     revalidatePath('/dashboard/team');
@@ -138,6 +142,7 @@ export const sendInviteAction = orgActionClient
 export const revokeInviteAction = orgActionClient
   .metadata({ name: 'org.revokeInvite', permissions: [AppPermission.MEMBER_INVITE] })
   .schema(RevokeInviteSchema)
+  .use(rateLimitMiddleware)
   .action(async ({ ctx, parsedInput }) => {
     const res = await organizationService.revokeInvite(ctx.orgId, parsedInput.inviteId);
     revalidatePath('/dashboard/team');
@@ -165,5 +170,28 @@ export const getAuditLogsAction = orgActionClient
   .metadata({ name: 'org.auditLogs', permissions: [AppPermission.ORG_UPDATE] })
   .action(async ({ ctx }) => {
     const logs = await auditRepository.getOrgLogs(ctx.orgId);
-    return { success: true, data: logs };
+    
+    // Join Actor Data (User Profiles)
+    const logsWithActors = await Promise.all(
+      logs.map(async (log) => {
+        if (log.actorId === 'system') {
+           return { ...log, actor: { displayName: 'System', email: 'system@rng.app' } };
+        }
+        try {
+          const user = await userRepository.get(log.actorId);
+          return {
+            ...log,
+            actor: {
+              displayName: user.displayName,
+              email: user.email,
+              photoURL: user.photoURL,
+            }
+          };
+        } catch (e) {
+          return { ...log, actor: { displayName: 'Unknown User', email: log.actorId } };
+        }
+      })
+    );
+
+    return { success: true, data: logsWithActors };
   });

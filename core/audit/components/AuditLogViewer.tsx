@@ -4,25 +4,49 @@ import { AuditLog } from '@/core/audit/audit.model';
 import { getAuditLogsAction } from '@/core/organization/organization.actions';
 import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
 import {
+  Avatar,
   Box,
   Card,
   Chip,
   Skeleton,
+  Stack,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Typography
+  Typography,
 } from '@mui/material';
 import { useEffect, useState } from 'react';
 
-const formatMetadata = (meta?: Record<string, any>) => {
+interface AuditLogWithActor extends AuditLog {
+  actor?: {
+    displayName?: string;
+    email: string;
+    photoURL?: string;
+  };
+}
+
+const formatDetails = (action: string, meta?: Record<string, any>) => {
   if (!meta) return '-';
   const entries = Object.entries(meta);
   if (entries.length === 0) return '-';
-  
+
+  // Specific Action Formatting
+  if (action.includes('update_role')) {
+    return `Changed role from ${meta.oldRole} to ${meta.newRole}`;
+  }
+  if (action.includes('ownership_offer')) {
+    return `Offered ownership (Expires: ${new Date(meta.expiresAt).toLocaleDateString()})`;
+  }
+  if (action.includes('ownership_transfer')) {
+    return `Transferred ownership to user ${meta.to?.substring(0, 8)}...`;
+  }
+  if (action.includes('member.invite')) {
+    return `Invited ${meta.email} as ${meta.role}`;
+  }
+
   return entries
     .map(([k, v]) => {
       const val = typeof v === 'object' ? JSON.stringify(v) : String(v);
@@ -32,9 +56,9 @@ const formatMetadata = (meta?: Record<string, any>) => {
 };
 
 export function AuditLogViewer() {
-  const [logs, setLogs] = useState<AuditLog[]>([]);
+  const [logs, setLogs] = useState<AuditLogWithActor[]>([]);
   const { runAction, isExecuting } = useRNGServerAction(getAuditLogsAction, {
-    onSuccess: (data) => setLogs(data),
+    onSuccess: (data: any) => setLogs(data),
   });
 
   useEffect(() => {
@@ -48,7 +72,7 @@ export function AuditLogViewer() {
           Activity Log
         </Typography>
       </Box>
-      
+
       <TableContainer sx={{ maxHeight: 600 }}>
         <Table stickyHeader size="small">
           <TableHead>
@@ -63,10 +87,18 @@ export function AuditLogViewer() {
             {isExecuting && logs.length === 0 ? (
               [...Array(5)].map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell><Skeleton width={80} /></TableCell>
-                  <TableCell><Skeleton width={100} /></TableCell>
-                  <TableCell><Skeleton width={200} /></TableCell>
-                  <TableCell><Skeleton width={120} /></TableCell>
+                  <TableCell>
+                    <Skeleton width={80} />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton width={150} />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton width={250} />
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton width={120} />
+                  </TableCell>
                 </TableRow>
               ))
             ) : logs.length === 0 ? (
@@ -87,19 +119,35 @@ export function AuditLogViewer() {
                     />
                   </TableCell>
                   <TableCell>
-                    <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>
-                      {log.actorId.substring(0, 8)}...
-                    </Typography>
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <Avatar
+                        src={log.actor?.photoURL}
+                        sx={{ width: 24, height: 24, fontSize: '0.75rem' }}
+                      >
+                        {log.actor?.displayName?.charAt(0) || log.actor?.email?.charAt(0)}
+                      </Avatar>
+                      <Box>
+                        <Typography variant="caption" fontWeight={600} display="block">
+                          {log.actor?.displayName || 'Unknown'}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {log.actor?.email}
+                        </Typography>
+                      </Box>
+                    </Stack>
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2" sx={{ 
-                      maxWidth: 400, 
-                      overflow: 'hidden', 
-                      textOverflow: 'ellipsis', 
-                      whiteSpace: 'nowrap',
-                      color: 'text.secondary'
-                    }}>
-                      {formatMetadata(log.metadata)}
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        maxWidth: 400,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        color: 'text.secondary',
+                      }}
+                    >
+                      {formatDetails(log.action, log.metadata)}
                     </Typography>
                   </TableCell>
                   <TableCell>

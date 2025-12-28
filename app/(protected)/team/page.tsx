@@ -61,6 +61,7 @@ export default async function TeamPage() {
           members={members}
           invites={invites}
           currentUserId={user.id}
+          currentUserRole={userRole}
           permissions={{
             canUpdateRole,
             canRemoveMember,

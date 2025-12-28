@@ -299,7 +299,18 @@ class OrganizationService extends AbstractService {
       }
 
       const memberRepo = organizationRepository.members(orgId);
+      const actorMember = await memberRepo.get(actorId);
       const targetMember = await memberRepo.get(targetUserId);
+
+      if (!actorMember) throw new CustomError(AppErrorCode.PERMISSION_DENIED, 'Actor is not a member of the organization.');
+      if (!targetMember) throw new CustomError(AppErrorCode.NOT_FOUND, 'Target user is not a member of the organization.');
+
+      // Hierarchical protection: Admins cannot modify Owners or other Admins.
+      if (actorMember.role === UserRoleInOrg.ADMIN) {
+        if (targetMember.role === UserRoleInOrg.OWNER || targetMember.role === UserRoleInOrg.ADMIN) {
+          throw new CustomError(AppErrorCode.PERMISSION_DENIED, 'Admins cannot modify Owners or other Admins.');
+        }
+      }
 
       if (newRole !== UserRoleInOrg.OWNER && targetMember.role === UserRoleInOrg.OWNER) {
         const { data: owners } = await memberRepo.list({
@@ -344,7 +355,18 @@ class OrganizationService extends AbstractService {
         throw new CustomError(AppErrorCode.INVALID_INPUT, 'Cannot remove yourself.');
 
       const memberRepo = organizationRepository.members(orgId);
+      const actorMember = await memberRepo.get(actorId);
       const targetMember = await memberRepo.get(targetUserId);
+
+      if (!actorMember) throw new CustomError(AppErrorCode.PERMISSION_DENIED, 'Actor is not a member of the organization.');
+      if (!targetMember) throw new CustomError(AppErrorCode.NOT_FOUND, 'Target user is not a member of the organization.');
+
+      // Hierarchical protection: Admins cannot remove Owners or other Admins.
+      if (actorMember.role === UserRoleInOrg.ADMIN) {
+        if (targetMember.role === UserRoleInOrg.OWNER || targetMember.role === UserRoleInOrg.ADMIN) {
+          throw new CustomError(AppErrorCode.PERMISSION_DENIED, 'Admins cannot remove Owners or other Admins.');
+        }
+      }
 
       if (targetMember.role === UserRoleInOrg.OWNER) {
         const { data: owners } = await memberRepo.list({

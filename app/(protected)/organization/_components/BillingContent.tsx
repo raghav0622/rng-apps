@@ -4,25 +4,26 @@ import {
   createCheckoutSessionAction,
   createPortalSessionAction,
 } from '@/core/billing/billing.actions';
-import { Subscription, SubscriptionPlan } from '@/core/billing/billing.model';
 import { getSubscriptionAction } from '@/core/organization/organization.actions';
-import { useOrg } from '@/core/organization/organization.context';
+import { Subscription, SubscriptionPlan } from '@/core/billing/billing.model';
 import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
-import { CreditCard as CardIcon, Check as CheckIcon } from '@mui/icons-material';
+import { useOrg } from '@/core/organization/organization.context';
+import { Check as CheckIcon, CreditCard as CardIcon } from '@mui/icons-material';
 import {
   Box,
   Button,
   Card,
   CardContent,
   Chip,
-  Container,
-  Divider,
-  Grid,
-  Skeleton,
+  Grid2 as Grid,
   Stack,
   Typography,
+  Divider,
+  Skeleton,
 } from '@mui/material';
 import { useEffect, useState } from 'react';
+
+const isProduction = process.env.NODE_ENV === 'production';
 
 const PLANS = [
   {
@@ -48,7 +49,7 @@ const PLANS = [
   },
 ];
 
-export default function BillingPage() {
+export default function BillingPageContent() {
   const { org } = useOrg();
   const [subscription, setSubscription] = useState<Subscription | null>(null);
 
@@ -81,12 +82,12 @@ export default function BillingPage() {
   if (!org) return null;
 
   return (
-    <Container maxWidth="lg" sx={{ py: 6 }}>
-      <Box sx={{ mb: 6 }}>
-        <Typography variant="h4" fontWeight={700} gutterBottom>
+    <Box>
+       <Box sx={{ mb: 4 }}>
+        <Typography variant="h5" fontWeight={700} gutterBottom>
           Billing & Plans
         </Typography>
-        <Typography color="text.secondary" variant="body1">
+        <Typography color="text.secondary" variant="body2">
           Manage your organization&apos;s subscription, payment methods, and billing history.
         </Typography>
       </Box>
@@ -159,6 +160,8 @@ export default function BillingPage() {
         {PLANS.map((plan) => {
           const isCurrent = subscription?.planId === plan.id;
           const isPro = plan.id === SubscriptionPlan.PRO;
+          
+          const showUpgrade = !isProduction || plan.id === SubscriptionPlan.FREE;
 
           return (
             <Grid key={plan.id} size={{ xs: 12, md: 4 }}>
@@ -171,7 +174,8 @@ export default function BillingPage() {
                   borderColor: isCurrent ? 'primary.main' : 'divider',
                   borderWidth: isCurrent ? 2 : 1,
                   transition: 'transform 0.2s',
-                  '&:hover': { transform: 'translateY(-4px)' }
+                  '&:hover': { transform: 'translateY(-4px)' },
+                  opacity: !showUpgrade && !isCurrent ? 0.7 : 1
                 }}
               >
                 {isPro && (
@@ -222,12 +226,12 @@ export default function BillingPage() {
                   <Button
                     variant={isCurrent ? 'outlined' : 'contained'}
                     fullWidth
-                    disabled={isCurrent || isCheckingOut}
+                    disabled={isCurrent || isCheckingOut || (!showUpgrade && !isCurrent)}
                     onClick={() => checkout({ planId: plan.id })}
                     size="large"
                     sx={{ borderRadius: 2 }}
                   >
-                    {isCurrent ? 'Current Plan' : plan.price === 'Custom' ? 'Contact Sales' : 'Upgrade Now'}
+                    {isCurrent ? 'Current Plan' : !showUpgrade ? 'Coming Soon' : plan.price === 'Custom' ? 'Contact Sales' : 'Upgrade Now'}
                   </Button>
                 </CardContent>
               </Card>
@@ -235,6 +239,6 @@ export default function BillingPage() {
           );
         })}
       </Grid>
-    </Container>
+    </Box>
   );
 }

@@ -1,9 +1,9 @@
-import { FirestoreRepository } from '@/lib/firestore-repository/firestore-repository';
+import { AbstractFirestoreRepository } from '@/core/abstract-firestore-repository/abstract-firestore-repository';
 import { SystemEvent, SystemEventSchema } from './event.model';
 
 const COLLECTION_PATH = 'system_events';
 
-class EventRepository extends FirestoreRepository<SystemEvent> {
+class EventRepository extends AbstractFirestoreRepository<SystemEvent> {
   constructor() {
     super(COLLECTION_PATH, {
       schema: SystemEventSchema,

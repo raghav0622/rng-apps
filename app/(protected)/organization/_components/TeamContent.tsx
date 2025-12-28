@@ -1,5 +1,6 @@
 'use client';
 
+import { AppPermission, hasPermission, UserRoleInOrg } from '@/core/action-policies';
 import { useRNGAuth } from '@/core/auth/auth.context';
 import { InviteMemberModal } from '@/core/organization/components/InviteMemberModal';
 import { TeamList } from '@/core/organization/components/TeamList';
@@ -9,7 +10,6 @@ import {
 } from '@/core/organization/organization.actions';
 import { Invite, MemberWithProfile } from '@/core/organization/organization.model';
 import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
-import { AppPermission, hasPermission, UserRoleInOrg } from '@/lib/action-policies';
 import { Box, Divider, Skeleton, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 

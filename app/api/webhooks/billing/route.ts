@@ -1,5 +1,5 @@
 import { billingService } from '@/core/billing/billing.service';
-import { paymentProvider } from '@/lib/payment-provider/mock-provider';
+import { paymentProvider } from '@/core/payment-provider/mock-provider';
 import { NextRequest, NextResponse } from 'next/server';
 
 /**

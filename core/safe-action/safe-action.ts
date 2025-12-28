@@ -1,12 +1,12 @@
 import 'server-only';
 
-import { AppPermission, hasAllPermissions, UserRoleInOrg } from '@/lib/action-policies';
-import { AUTH_SESSION_COOKIE_NAME, SESSION_ID_COOKIE_NAME } from '@/lib/constants';
+import { AppPermission, hasAllPermissions, UserRoleInOrg } from '@/core/action-policies';
+import { AUTH_SESSION_COOKIE_NAME, SESSION_ID_COOKIE_NAME } from '@/core/constants';
 import { auth } from '@/lib/firebase/admin';
 import { logError } from '@/lib/logger';
-import { AppError, AppErrorCode, CustomError } from '@/lib/utils/errors';
-import { checkRateLimit } from '@/lib/utils/rate-limit';
-import { getTraceId } from '@/lib/utils/tracing';
+import { AppError, AppErrorCode, CustomError } from '@/core/utils/errors';
+import { checkRateLimit } from '@/core/utils/rate-limit';
+import { getTraceId } from '@/core/utils/tracing';
 import { createSafeActionClient, DEFAULT_SERVER_ERROR_MESSAGE } from 'next-safe-action';
 import { cookies } from 'next/headers';
 import { z } from 'zod';

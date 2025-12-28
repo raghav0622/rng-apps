@@ -1,12 +1,12 @@
-import { AbstractService } from '@/lib/abstract-service/AbstractService';
-import { UserRoleInOrg } from '@/lib/action-policies';
-import { SESSION_DURATION_MS } from '@/lib/constants';
-import { EMAIL_FROM, resend } from '@/lib/email';
+import { AbstractService } from '@/core/abstract-service/AbstractService';
+import { UserRoleInOrg } from '@/core/action-policies';
+import { SESSION_DURATION_MS } from '@/core/constants';
+import { EMAIL_FROM, resend } from '@/core/email';
 import { env } from '@/lib/env';
 import { auth } from '@/lib/firebase/admin';
 import { redisClient } from '@/lib/redis';
 import { Result } from '@/lib/types';
-import { AppErrorCode, CustomError } from '@/lib/utils/errors';
+import { AppErrorCode, CustomError } from '@/core/utils/errors';
 import { randomBytes } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { SignUpInput, User } from './auth.model';

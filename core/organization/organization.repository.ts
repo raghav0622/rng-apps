@@ -1,17 +1,17 @@
-import { FirestoreRepository } from '@/lib/firestore-repository/firestore-repository';
+import { AbstractFirestoreRepository } from '@/core/abstract-firestore-repository/abstract-firestore-repository';
 import {
-  Invite,
-  InviteSchema,
-  Member,
-  MemberSchema,
-  Organization,
-  OrganizationSchema,
+    Invite,
+    InviteSchema,
+    Member,
+    MemberSchema,
+    Organization,
+    OrganizationSchema,
 } from './organization.model';
 
 const ORG_COLLECTION = 'organizations';
 const INVITE_COLLECTION = 'invites';
 
-class OrganizationRepository extends FirestoreRepository<Organization> {
+class OrganizationRepository extends AbstractFirestoreRepository<Organization> {
   constructor() {
     super(ORG_COLLECTION, {
       schema: OrganizationSchema,
@@ -32,7 +32,7 @@ class OrganizationRepository extends FirestoreRepository<Organization> {
   }
 }
 
-class InviteRepository extends FirestoreRepository<Invite> {
+class InviteRepository extends AbstractFirestoreRepository<Invite> {
   constructor() {
     super(INVITE_COLLECTION, {
       schema: InviteSchema,

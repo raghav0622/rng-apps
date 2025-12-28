@@ -1,6 +1,6 @@
 // core/lib/notifications/AbstractNotificationProvider.ts
 import { AbstractService } from '../abstract-service/AbstractService';
-import { Result } from '../types';
+import { Result } from '../../lib/types';
 
 export interface NotificationPayload {
   to: string;

@@ -52,7 +52,7 @@ const unzip = promisify(zlib.unzip);
  * - 🔍 **Search Integration**: Interfaces with Algolia/MeiliSearch.
  * - 📦 **Detailed Bulk Writes**: Row-level error reporting.
  */
-export class FirestoreRepository<T extends BaseEntity> {
+export class AbstractFirestoreRepository<T extends BaseEntity> {
   protected collection: CollectionReference;
   protected schema?: z.ZodType<any, any, any>;
   protected hooks: RepositoryHooks<T>;
@@ -139,7 +139,7 @@ export class FirestoreRepository<T extends BaseEntity> {
   /**
    * Returns a repository instance isolated to a specific Tenant.
    */
-  forTenant(tenantId: string): FirestoreRepository<T> {
+  forTenant(tenantId: string): AbstractFirestoreRepository<T> {
     const repo = this.clone(this.collection.path);
     repo.defaultConstraints = [
       ...this.defaultConstraints,
@@ -155,7 +155,7 @@ export class FirestoreRepository<T extends BaseEntity> {
   /**
    * Binds the repository to a Firestore Transaction.
    */
-  withTransaction(t: Transaction): FirestoreRepository<T> {
+  withTransaction(t: Transaction): AbstractFirestoreRepository<T> {
     const repo = this.clone(this.collection.path);
     repo.transaction = t;
     return repo;
@@ -168,9 +168,9 @@ export class FirestoreRepository<T extends BaseEntity> {
     docId: string,
     subPath: string,
     config: RepositoryConfig<SubT> = {},
-  ): FirestoreRepository<SubT> {
+  ): AbstractFirestoreRepository<SubT> {
     const fullPath = `${this.collection.path}/${docId}/${subPath}`;
-    return new FirestoreRepository<SubT>(fullPath, {
+    return new AbstractFirestoreRepository<SubT>(fullPath, {
       softDeleteEnabled: this.softDeleteEnabled,
       cacheProvider: this.cache,
       defaultCacheTtl: this.defaultCacheTtl,
@@ -1018,8 +1018,8 @@ export class FirestoreRepository<T extends BaseEntity> {
     return JSON.parse(Base64.decode(cursor));
   }
 
-  private clone(path: string): FirestoreRepository<T> {
-    return new FirestoreRepository<T>(path, this.getConfig());
+  private clone(path: string): AbstractFirestoreRepository<T> {
+    return new AbstractFirestoreRepository<T>(path, this.getConfig());
   }
 
   private getConfig(): RepositoryConfig<T> {

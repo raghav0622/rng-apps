@@ -9,26 +9,26 @@ The `ui/` directory provides the **Atomic** and **Molecular** building blocks (I
 ## Phase 1: Core Foundation & Primitives (Atoms)
 *Standardizing the building blocks for consistency and type safety.*
 
-- [ ] **RNGTheme**: Advanced MUI theme configuration with custom palettes and typography scales optimized for data density.
-- [ ] **RNGIcon**: A centralized icon wrapper enforcing consistent sizing and allowing icon sets swapping.
-- [ ] **RNGButton**: Built-in `isLoading` state, start/end icons, keyboard shortcut tooltips.
-- [ ] **RNGSplitButton**: Primary action with a dropdown for secondary related actions.
-- [ ] **RNGChip / RNGStatus**: Dynamic color mapping based on status strings.
-- [ ] **RNGTooltip**: Enhanced tooltip with support for rich content.
-- [ ] **RNGDivider**: styling for horizontal and vertical separation with optional text labels.
-- [ ] **RNGAvatar**: User/Entity representation with fallback initials, status badges, and grouped stacking.
-- [ ] **RNGBadge**: Notification counters and status dots.
-- [ ] **RNGBarcode / RNGQRCode**: Generators for 1D/2D tracking labels.
-- [ ] **RNGColorPicker**: Advanced color selection for categorization.
-- [ ] **RNGWatermark**: Dynamic overlay for sensitive data views.
-- [ ] **RNGScrollbar**: Custom styled scrollbars for high-density areas.
-- [ ] **RNGKbd**: Stylized keyboard key representation.
-- [ ] **RNGTelemetryOverlay**: Real-time performance metrics (FPS, Latency, Memory).
+- [x] **RNGTheme**: Advanced MUI theme configuration with custom palettes and typography scales optimized for data density.
+- [x] **RNGIcon**: A centralized icon wrapper enforcing consistent sizing and allowing icon sets swapping.
+- [x] **RNGButton**: Built-in `isLoading` state, start/end icons, keyboard shortcut tooltips.
+- [x] **RNGSplitButton**: Primary action with a dropdown for secondary related actions.
+- [x] **RNGChip / RNGStatus**: Dynamic color mapping based on status strings.
+- [x] **RNGTooltip**: Enhanced tooltip with support for rich content.
+- [x] **RNGDivider**: styling for horizontal and vertical separation with optional text labels.
+- [x] **RNGAvatar**: User/Entity representation with fallback initials, status badges, and grouped stacking.
+- [x] **RNGBadge**: Notification counters and status dots.
+- [x] **RNGBarcode / RNGQRCode**: Generators for 1D/2D tracking labels.
+- [x] **RNGColorPicker**: Advanced color selection for categorization.
+- [x] **RNGWatermark**: Dynamic overlay for sensitive data views.
+- [x] **RNGScrollbar**: Custom styled scrollbars for high-density areas.
+- [x] **RNGKbd**: Stylized keyboard key representation.
+- [x] **RNGTelemetryOverlay**: Real-time performance metrics (FPS, Latency, Memory).
 
 ## Phase 2: Data Display & Interaction (Organisms)
 *The core of the ERP system. Handling massive datasets and visualization.*
 
-- [ ] **RNGDataGrid (Display Mode)**: Server-side Pagination, Sorting, Filtering, Aggregation, Bulk Actions, and Context Menus.
+- [x] **RNGDataGrid (Display Mode)**: Server-side Pagination, Sorting, Filtering, Aggregation, Bulk Actions, and Context Menus.
 - [ ] **RNGSpreadsheet (Bulk Editor)**: Excel-like interface for rapid multi-record manipulation.
 - [ ] **RNGDescriptionList**: Grid-based "Label: Value" pairs for record details.
 - [ ] **RNGStatCard**: Key metrics with trend indicators and sparklines.

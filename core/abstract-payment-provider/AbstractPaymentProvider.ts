@@ -1,6 +1,5 @@
-import { AbstractService } from '../abstract-service/AbstractService';
-import { Result } from '../types';
 import { SubscriptionPlan } from '@/core/billing/billing.model';
+import { AbstractService } from '../abstract-service/AbstractService';
 
 export interface CheckoutSessionInput {
   orgId: string;

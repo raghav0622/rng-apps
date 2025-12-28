@@ -1,9 +1,9 @@
-import { FirestoreRepository } from '@/lib/firestore-repository/firestore-repository';
+import { AbstractFirestoreRepository } from '@/core/abstract-firestore-repository/abstract-firestore-repository';
 import { AuditLog, AuditLogSchema } from './audit.model';
 
 const COLLECTION_PATH = 'audit_logs';
 
-class AuditRepository extends FirestoreRepository<AuditLog> {
+class AuditRepository extends AbstractFirestoreRepository<AuditLog> {
   constructor() {
     super(COLLECTION_PATH, {
       schema: AuditLogSchema,

@@ -1,3 +1,4 @@
+import { AbstractService } from '@/core/abstract-service/AbstractService';
 import { AuditAction } from '@/core/audit/audit.model';
 import { auditRepository } from '@/core/audit/audit.repository';
 import { userRepository } from '@/core/auth/user.repository';
@@ -6,26 +7,24 @@ import { subscriptionRepository } from '@/core/billing/subscription.repository';
 import { eventBus } from '@/core/events/event-bus.service';
 import { NotificationTopic } from '@/core/notifications/notification.model';
 import { notificationService } from '@/core/notifications/notification.service';
-import { AbstractService } from '@/lib/abstract-service/AbstractService';
-import { UserRoleInOrg } from '@/lib/action-policies';
+import { UserRoleInOrg } from '@/core/action-policies';
 import { firestore } from '@/lib/firebase/admin';
 import { Result } from '@/lib/types';
-import { AppErrorCode, CustomError } from '@/lib/utils/errors';
+import { AppErrorCode, CustomError } from '@/core/utils/errors';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
+import { billingService } from '../billing/billing.service';
 import {
-  CreateOrgInput,
-  Invite,
-  InviteStatus,
-  InviteWithOrg,
-  Member,
-  MemberWithProfile,
-  Organization,
-  SendInviteSchema,
-  UpdateOrgInput,
+    CreateOrgInput,
+    Invite,
+    InviteStatus,
+    InviteWithOrg,
+    MemberWithProfile,
+    Organization,
+    SendInviteSchema,
+    UpdateOrgInput
 } from './organization.model';
 import { inviteRepository, organizationRepository } from './organization.repository';
-import { billingService } from '../billing/billing.service';
 
 type SendInviteInput = z.infer<typeof SendInviteSchema>;
 

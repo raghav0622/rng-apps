@@ -1,4 +1,4 @@
-import { AbstractEventBus, AppEvent } from '@/lib/abstract-event-bus/AbstractEventBus';
+import { AbstractEventBus, AppEvent } from '@/core/abstract-event-bus/AbstractEventBus';
 import { v4 as uuidv4 } from 'uuid';
 import { EventStatus } from './event.model';
 import { eventRepository } from './event.repository';

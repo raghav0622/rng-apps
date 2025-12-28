@@ -1,11 +1,11 @@
-import { FirestoreRepository } from '@/lib/firestore-repository/firestore-repository';
-import { upstashCache } from '@/lib/firestore-repository/redis-adapter';
+import { AbstractFirestoreRepository } from '@/core/abstract-firestore-repository/abstract-firestore-repository';
+import { upstashCache } from '@/core/abstract-firestore-repository/redis-adapter';
 import { cache } from 'react';
 import { User, UserSchema } from './auth.model';
 
 const COLLECTION_PATH = 'users';
 
-class UserRepository extends FirestoreRepository<User> {
+class UserRepository extends AbstractFirestoreRepository<User> {
   constructor() {
     super(COLLECTION_PATH, {
       schema: UserSchema,

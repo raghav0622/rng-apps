@@ -1,11 +1,10 @@
 import { SubscriptionPlan } from '@/core/billing/billing.model';
 import {
-  AbstractPaymentProvider,
-  CheckoutSessionInput,
-  PaymentProviderResult,
-  PortalSessionInput,
+    AbstractPaymentProvider,
+    CheckoutSessionInput,
+    PaymentProviderResult,
+    PortalSessionInput,
 } from '../abstract-payment-provider/AbstractPaymentProvider';
-import { Result } from '../types';
 
 // MOCK STRIPE IDS (Replace with Env Vars in Prod)
 const PLAN_PRICE_IDS = {

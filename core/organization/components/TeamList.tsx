@@ -1,5 +1,6 @@
 'use client';
 
+import { UserRoleInOrg } from '@/core/action-policies';
 import {
   removeMemberAction,
   revokeInviteAction,
@@ -7,7 +8,6 @@ import {
 } from '@/core/organization/organization.actions';
 import { Invite, MemberWithProfile } from '@/core/organization/organization.model';
 import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
-import { UserRoleInOrg } from '@/lib/action-policies';
 import CancelIcon from '@mui/icons-material/Cancel';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';

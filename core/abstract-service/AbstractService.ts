@@ -2,7 +2,7 @@
 import 'server-only';
 
 import { logError, logInfo } from '@/lib/logger';
-import { Result } from '../types';
+import { Result } from '../../lib/types';
 import { AppError, AppErrorCode, CustomError } from '../utils/errors';
 import { checkRateLimit } from '../utils/rate-limit';
 import { getTraceId } from '../utils/tracing';

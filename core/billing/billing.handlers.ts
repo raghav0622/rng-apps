@@ -1,5 +1,5 @@
+import { AppEvent } from '@/core/abstract-event-bus/AbstractEventBus';
 import { billingService } from '@/core/billing/billing.service';
-import { AppEvent } from '@/lib/abstract-event-bus/AbstractEventBus';
 import { logError, logInfo } from '@/lib/logger';
 
 export const billingHandlers = {

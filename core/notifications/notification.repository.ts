@@ -1,15 +1,15 @@
-import { FirestoreRepository } from '@/lib/firestore-repository/firestore-repository';
-import { RepositoryError } from '@/lib/firestore-repository/types';
+import { AbstractFirestoreRepository } from '@/core/abstract-firestore-repository/abstract-firestore-repository';
+import { RepositoryError } from '@/core/abstract-firestore-repository/types';
 import {
-  DEFAULT_NOTIFICATION_PREFERENCES,
-  Notification,
-  NotificationPreferences,
-  NotificationPreferencesSchema,
-  NotificationSchema,
+    DEFAULT_NOTIFICATION_PREFERENCES,
+    Notification,
+    NotificationPreferences,
+    NotificationPreferencesSchema,
+    NotificationSchema,
 } from './notification.model';
 
 // --- Notification Repository ---
-class NotificationRepository extends FirestoreRepository<Notification> {
+class NotificationRepository extends AbstractFirestoreRepository<Notification> {
   constructor() {
     super('notifications', {
       schema: NotificationSchema,
@@ -40,7 +40,7 @@ class NotificationRepository extends FirestoreRepository<Notification> {
 export const notificationRepository = new NotificationRepository();
 
 // --- Preferences Repository ---
-class NotificationPreferencesRepository extends FirestoreRepository<NotificationPreferences> {
+class NotificationPreferencesRepository extends AbstractFirestoreRepository<NotificationPreferences> {
   constructor() {
     super('notification_preferences', {
       schema: NotificationPreferencesSchema,

@@ -18,8 +18,8 @@ import {
 } from '@/core/organization/organization.model';
 import { organizationService } from '@/core/organization/organization.service';
 import { authActionClient, orgActionClient, rateLimitMiddleware } from '@/core/safe-action/safe-action';
-import { AppPermission } from '@/lib/action-policies';
-import { AppErrorCode, CustomError } from '@/lib/utils/errors';
+import { AppPermission } from '@/core/action-policies';
+import { AppErrorCode, CustomError } from '@/core/utils/errors';
 import { revalidatePath } from 'next/cache';
 import { userRepository } from '../auth/user.repository';
 

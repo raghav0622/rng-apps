@@ -1,10 +1,10 @@
+import { AbstractService } from '@/core/abstract-service/AbstractService';
 import { NotificationTopic, NotificationType } from '@/core/notifications/notification.model';
 import { notificationService } from '@/core/notifications/notification.service';
 import { organizationRepository } from '@/core/organization/organization.repository';
-import { AbstractService } from '@/lib/abstract-service/AbstractService';
-import { paymentProvider } from '@/lib/payment-provider/mock-provider';
+import { paymentProvider } from '@/core/payment-provider/mock-provider';
+import { AppErrorCode, CustomError } from '@/core/utils/errors';
 import { Result } from '@/lib/types';
-import { AppErrorCode, CustomError } from '@/lib/utils/errors';
 import { v4 as uuidv4 } from 'uuid';
 import { Subscription, SubscriptionPlan, SubscriptionStatus } from './billing.model';
 import { subscriptionRepository } from './subscription.repository';

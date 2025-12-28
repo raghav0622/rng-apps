@@ -1,4 +1,4 @@
-import { AbstractService } from '@/lib/abstract-service/AbstractService';
+import { AbstractService } from '@/core/abstract-service/AbstractService';
 import { logError, logInfo } from '@/lib/logger';
 import { EventStatus } from './event.model';
 import { eventRepository } from './event.repository';

@@ -1,4 +1,4 @@
-import { BaseEntity } from '@/lib/firestore-repository/types';
+import { BaseEntity } from '@/core/abstract-firestore-repository/types';
 import { z } from 'zod';
 
 export enum EventStatus {

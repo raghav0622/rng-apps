@@ -1,5 +1,5 @@
 // core/lib/search/AbstractSearchProvider.ts
-import { SearchResult } from '../firestore-repository/types';
+import { SearchResult } from '../abstract-firestore-repository/types';
 
 /**
  * Interface for full-text search engines (Algolia, MeiliSearch, Elasticsearch).

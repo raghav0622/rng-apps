@@ -1,9 +1,9 @@
-import { FirestoreRepository } from '@/lib/firestore-repository/firestore-repository';
+import { AbstractFirestoreRepository } from '@/core/abstract-firestore-repository/abstract-firestore-repository';
 import { Subscription, SubscriptionSchema } from './billing.model';
 
 const COLLECTION_PATH = 'subscriptions';
 
-class SubscriptionRepository extends FirestoreRepository<Subscription> {
+class SubscriptionRepository extends AbstractFirestoreRepository<Subscription> {
   constructor() {
     super(COLLECTION_PATH, {
       schema: SubscriptionSchema,

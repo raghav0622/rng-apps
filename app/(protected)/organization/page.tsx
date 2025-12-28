@@ -1,8 +1,8 @@
 'use client';
 
+import { AppPermission, hasPermission, UserRoleInOrg } from '@/core/action-policies';
 import { useRNGAuth } from '@/core/auth/auth.context';
 import { NotificationSettings } from '@/core/notifications/components/NotificationSettings';
-import { AppPermission, hasPermission, UserRoleInOrg } from '@/lib/action-policies';
 import { RNGPage } from '@/ui/layouts/RNGPage';
 import { Box, Tab, Tabs, Typography } from '@mui/material';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';

@@ -1,15 +1,15 @@
-import { AUTH_SESSION_COOKIE_NAME, SESSION_ID_COOKIE_NAME, SESSION_PREFIX, SESSION_TTL_SECONDS } from '@/lib/constants';
+import { AUTH_SESSION_COOKIE_NAME, SESSION_ID_COOKIE_NAME, SESSION_PREFIX, SESSION_TTL_SECONDS } from '@/core/constants';
 import { auth } from '@/lib/firebase/admin';
 import { redisClient as redis } from '@/lib/redis';
 import { Result } from '@/lib/types';
-import { AppErrorCode } from '@/lib/utils/errors';
+import { AppErrorCode } from '@/core/utils/errors';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import 'server-only';
 import { UAParser } from 'ua-parser-js';
 import { userRepository } from './user.repository';
 import { organizationRepository } from '../organization/organization.repository';
-import { UserRoleInOrg } from '@/lib/action-policies';
+import { UserRoleInOrg } from '@/core/action-policies';
 
 export interface SessionData {
   sessionId: string;

@@ -1,4 +1,4 @@
-import { AUTH_SESSION_COOKIE_NAME } from '@/lib/constants';
+import { AUTH_SESSION_COOKIE_NAME } from '@/core/constants';
 import { DEFAULT_LOGIN_REDIRECT, LOGIN_ROUTE } from '@/routes';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';

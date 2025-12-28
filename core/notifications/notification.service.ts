@@ -1,8 +1,8 @@
+import { AbstractService } from '@/core/abstract-service/AbstractService';
 import { userRepository } from '@/core/auth/user.repository';
-import { AbstractService } from '@/lib/abstract-service/AbstractService';
-import { EMAIL_FROM, resend } from '@/lib/email';
+import { EMAIL_FROM, resend } from '@/core/email';
+import { AppErrorCode, CustomError } from '@/core/utils/errors';
 import { Result } from '@/lib/types';
-import { AppErrorCode, CustomError } from '@/lib/utils/errors';
 import { v4 as uuidv4 } from 'uuid';
 import {
   NotificationChannel,

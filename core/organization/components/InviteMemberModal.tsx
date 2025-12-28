@@ -1,9 +1,9 @@
 'use client';
 
+import { UserRoleInOrg } from '@/core/action-policies';
 import { sendInviteAction } from '@/core/organization/organization.actions';
 import { SendInviteSchema } from '@/core/organization/organization.model';
 import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
-import { UserRoleInOrg } from '@/lib/action-policies';
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';
 import { AppModal } from '@/ui/AppModal';

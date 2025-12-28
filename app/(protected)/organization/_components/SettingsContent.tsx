@@ -1,5 +1,6 @@
 'use client';
 
+import { AppPermission, hasPermission, UserRoleInOrg } from '@/core/action-policies';
 import { AuditLogViewer } from '@/core/audit/components/AuditLogViewer';
 import { useRNGAuth } from '@/core/auth/auth.context';
 import { TransferOwnership } from '@/core/organization/components/TransferOwnership';
@@ -10,7 +11,6 @@ import {
 import { useOrg } from '@/core/organization/organization.context';
 import { MemberWithProfile, UpdateOrgSchema } from '@/core/organization/organization.model';
 import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
-import { AppPermission, hasPermission, UserRoleInOrg } from '@/lib/action-policies';
 import { defineForm, RNGForm } from '@/rng-form';
 import { Box, Card, CardContent, Grid, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';

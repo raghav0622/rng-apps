@@ -1,5 +1,5 @@
-import { UserRoleInOrg } from '@/lib/action-policies';
-import { BaseEntity } from '@/lib/firestore-repository/types';
+import { BaseEntity } from '@/core/abstract-firestore-repository/types';
+import { UserRoleInOrg } from '@/core/action-policies';
 import { z } from 'zod';
 
 // --- Organization ---

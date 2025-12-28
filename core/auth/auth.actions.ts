@@ -2,7 +2,7 @@
 
 import { authService } from '@/core/auth/auth.service';
 import { SessionService } from '@/core/auth/session.service';
-import { actionClient, authActionClient } from '@/core/safe-action/safe-action';
+import { actionClient, authActionClient, rateLimitMiddleware } from '@/core/safe-action/safe-action';
 import { AUTH_SESSION_COOKIE_NAME, SESSION_ID_COOKIE_NAME } from '@/lib/constants';
 import { env } from '@/lib/env';
 import { DEFAULT_LOGIN_REDIRECT } from '@/routes';
@@ -30,6 +30,7 @@ async function setSessionCookies(sessionCookie: string, expiresIn: number, sessi
 export const signUpAction = actionClient
   .metadata({ name: 'auth.signup' })
   .schema(SignUpSchema)
+  .use(rateLimitMiddleware) // 🛡️ Rate limit signup
   .action(async ({ parsedInput }) => {
     return await authService.signup(parsedInput);
   });
@@ -37,6 +38,7 @@ export const signUpAction = actionClient
 export const loginAction = actionClient
   .metadata({ name: 'auth.login' })
   .schema(LoginSchema)
+  .use(rateLimitMiddleware) // 🛡️ Rate limit login
   .action(async ({ parsedInput }) => {
     const headersList = await headers();
     const userAgent = headersList.get('user-agent') || undefined;
@@ -72,12 +74,14 @@ export const listSessionsAction = authActionClient
 export const revokeSessionAction = authActionClient
   .metadata({ name: 'auth.revokeSession' })
   .schema(z.object({ sessionId: z.string() }))
+  .use(rateLimitMiddleware)
   .action(async ({ ctx, parsedInput }) => {
     return await SessionService.revokeSession(ctx.userId, parsedInput.sessionId);
   });
 
 export const revokeAllSessionsAction = authActionClient
   .metadata({ name: 'auth.revokeAllSessions' })
+  .use(rateLimitMiddleware)
   .action(async ({ ctx }) => {
     return await SessionService.revokeAllSessions(ctx.userId, ctx.sessionId);
   });

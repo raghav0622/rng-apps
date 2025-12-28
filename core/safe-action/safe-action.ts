@@ -51,12 +51,16 @@ export const actionClient = createSafeActionClient({
     }),
 });
 
-// ... (Rest of the file: authActionClient, orgActionClient remain the same)
+/**
+ * Middleware for Rate Limiting.
+ * Use this specifically for mutations or sensitive actions.
+ */
+export const rateLimitMiddleware = async ({ next }: { next: any }) => {
+  await checkRateLimit();
+  return next();
+};
+
 export const authActionClient = actionClient
-  .use(async ({ next }) => {
-    await checkRateLimit();
-    return next();
-  })
   .use(async ({ next, ctx, metadata }) => {
     const cookieStore = await cookies();
     const sessionToken = cookieStore.get(AUTH_SESSION_COOKIE_NAME)?.value;

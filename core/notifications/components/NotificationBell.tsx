@@ -1,12 +1,15 @@
 'use client';
 
 import {
+  deleteAllNotificationsAction,
+  deleteNotificationAction,
   getNotificationsAction,
   markAllReadAction,
   markReadAction,
 } from '@/core/notifications/notification.actions';
 import { Notification, NotificationType } from '@/core/notifications/notification.model';
 import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
+import { Result } from '@/lib/types';
 import {
   Check as CheckIcon,
   DoneAll as DoneAllIcon,
@@ -14,6 +17,8 @@ import {
   Info as InfoIcon,
   Notifications as BellIcon,
   Warning as WarningIcon,
+  DeleteOutline as DeleteIcon,
+  DeleteSweep as ClearAllIcon,
 } from '@mui/icons-material';
 import {
   Badge,
@@ -45,15 +50,23 @@ const getIcon = (type: NotificationType) => {
   }
 };
 
+interface NotificationData {
+  list: Notification[];
+  unreadCount: number;
+}
+
 export function NotificationBell() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
   const { runAction: fetchNotifications } = useRNGServerAction(getNotificationsAction, {
-    onSuccess: (data) => {
-      setNotifications(data.list);
-      setUnreadCount(data.unreadCount);
+    onSuccess: (data: any) => {
+      // Data is wrapped in { success: true, data: { list, unreadCount } } by the action
+      if (data && data.list) {
+        setNotifications(data.list);
+        setUnreadCount(data.unreadCount);
+      }
     },
   });
 
@@ -62,6 +75,14 @@ export function NotificationBell() {
   });
 
   const { runAction: markAllRead } = useRNGServerAction(markAllReadAction, {
+    onSuccess: () => fetchNotifications(undefined),
+  });
+
+  const { runAction: deleteNotif } = useRNGServerAction(deleteNotificationAction, {
+    onSuccess: () => fetchNotifications(undefined),
+  });
+
+  const { runAction: deleteAll } = useRNGServerAction(deleteAllNotificationsAction, {
     onSuccess: () => fetchNotifications(undefined),
   });
 
@@ -83,9 +104,9 @@ export function NotificationBell() {
     setAnchorEl(null);
   };
 
-  const handleMarkRead = async (id: string, e: React.MouseEvent) => {
+  const handleDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    await markRead({ notificationId: id });
+    deleteNotif({ notificationId: id });
   };
 
   const open = Boolean(anchorEl);
@@ -113,20 +134,31 @@ export function NotificationBell() {
           horizontal: 'right',
         }}
         PaperProps={{
-          sx: { width: 360, maxHeight: 500 },
+          sx: { width: 380, maxHeight: 500 },
         }}
       >
         <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Typography variant="subtitle1" fontWeight="bold">
             Notifications
           </Typography>
-          {unreadCount > 0 && (
-            <Tooltip title="Mark all as read">
-              <IconButton size="small" onClick={() => markAllRead(undefined)}>
-                <DoneAllIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          )}
+          <Stack direction="row" spacing={1}>
+            {unreadCount > 0 && (
+              <Tooltip title="Mark all as read">
+                <IconButton size="small" onClick={() => markAllRead(undefined)}>
+                  <DoneAllIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+            {notifications.length > 0 && (
+              <Tooltip title="Clear all">
+                <IconButton size="small" color="error" onClick={() => {
+                  if(confirm('Clear all notifications?')) deleteAll(undefined);
+                }}>
+                  <ClearAllIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
+          </Stack>
         </Box>
         <Divider />
 
@@ -144,11 +176,24 @@ export function NotificationBell() {
                 disablePadding
                 sx={{
                   bgcolor: n.isRead ? 'transparent' : 'action.hover',
+                  '&:hover .delete-notif-btn': { opacity: 1 }
                 }}
+                secondaryAction={
+                  <IconButton 
+                    edge="end" 
+                    size="small" 
+                    className="delete-notif-btn"
+                    sx={{ opacity: 0, transition: 'opacity 0.2s' }}
+                    onClick={(e) => handleDelete(n.id, e)}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                }
               >
                 <ListItemButton
                   onClick={() => !n.isRead && markRead({ notificationId: n.id })}
                   alignItems="flex-start"
+                  sx={{ pr: 6 }}
                 >
                   <ListItemIcon sx={{ minWidth: 40, mt: 0.5 }}>
                     {getIcon(n.type)}

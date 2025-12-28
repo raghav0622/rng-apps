@@ -7,6 +7,7 @@ import {
 import { notificationRepository } from '@/core/notifications/notification.repository';
 import { notificationService } from '@/core/notifications/notification.service';
 import { authActionClient } from '@/core/safe-action/safe-action';
+import { z } from 'zod';
 
 // --- Read Actions ---
 
@@ -15,10 +16,6 @@ export const getNotificationsAction = authActionClient
   .action(async ({ ctx }) => {
     const list = await notificationRepository.getUserNotifications(ctx.userId);
     const unreadCount = await notificationRepository.getUnreadCount(ctx.userId);
-    // Returning a raw object here. If this is consumed by useRNGServerAction, it might fail IF useRNGServerAction expects Result<T>.
-    // However, getNotificationsAction is likely used by a simple SWR or useEffect, OR if used by useRNGServerAction, it needs to be wrapped.
-    // Given the Platinum standard, all Service methods return Result<T>.
-    // Since this action manually constructs the response, let's wrap it in a standard success Result to be safe and consistent.
     return {
       success: true,
       data: { list, unreadCount },
@@ -44,6 +41,19 @@ export const markAllReadAction = authActionClient
   .metadata({ name: 'notification.markAllRead' })
   .action(async ({ ctx }) => {
     return await notificationService.markAllRead(ctx.userId);
+  });
+
+export const deleteNotificationAction = authActionClient
+  .metadata({ name: 'notification.delete' })
+  .schema(z.object({ notificationId: z.string() }))
+  .action(async ({ ctx, parsedInput }) => {
+    return await notificationService.deleteNotification(ctx.userId, parsedInput.notificationId);
+  });
+
+export const deleteAllNotificationsAction = authActionClient
+  .metadata({ name: 'notification.deleteAll' })
+  .action(async ({ ctx }) => {
+    return await notificationService.deleteAllNotifications(ctx.userId);
   });
 
 export const updatePreferencesAction = authActionClient

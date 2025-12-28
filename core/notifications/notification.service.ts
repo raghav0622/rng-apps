@@ -109,6 +109,36 @@ class NotificationService extends AbstractService {
   }
 
   /**
+   * Deletes a notification.
+   */
+  async deleteNotification(userId: string, notificationId: string): Promise<Result<void>> {
+    return this.handleOperation('notification.delete', async () => {
+      const notif = await notificationRepository.get(notificationId);
+      if (!notif) throw new CustomError(AppErrorCode.NOT_FOUND, 'Notification not found');
+      if (notif.userId !== userId) throw new CustomError(AppErrorCode.PERMISSION_DENIED, 'Access denied');
+
+      await notificationRepository.forceDelete(notificationId);
+    });
+  }
+
+  /**
+   * Deletes ALL notifications for a user.
+   */
+  async deleteAllNotifications(userId: string): Promise<Result<void>> {
+    return this.handleOperation('notification.deleteAll', async () => {
+      const notifications = await notificationRepository.list({
+        where: [{ field: 'userId', op: '==', value: userId }],
+      });
+
+      await Promise.all(
+        notifications.data.map((n) =>
+          notificationRepository.forceDelete(n.id)
+        ),
+      );
+    });
+  }
+
+  /**
    * Marks ALL notifications as read for a user.
    */
   async markAllRead(userId: string): Promise<Result<void>> {

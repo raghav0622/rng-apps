@@ -518,6 +518,9 @@ class OrganizationService extends AbstractService {
         throw new CustomError(AppErrorCode.PERMISSION_DENIED, 'Already in an org.');
       }
 
+      // BILLING RE-CHECK: Ensure we still have space before accepting
+      await this.checkSeatLimits(invite.orgId);
+
       await firestore().runTransaction(async (t) => {
         const inviteRepoT = inviteRepository.withTransaction(t);
         const userRepoT = userRepository.withTransaction(t);
@@ -544,8 +547,8 @@ class OrganizationService extends AbstractService {
         await auditRepoT.create(uuidv4(), {
           orgId: invite.orgId,
           actorId: userId,
-          action: AuditAction.RESOURCE_CREATE,
-          targetId: userId,
+          action: AuditAction.INVITE_ACCEPT,
+          targetId: invite.id,
           metadata: { email: user.email, source: 'invite' },
         });
       });
@@ -575,17 +578,43 @@ class OrganizationService extends AbstractService {
       if (user.email !== invite.email)
         throw new CustomError(AppErrorCode.PERMISSION_DENIED, 'Email mismatch.');
 
-      await inviteRepository.update(invite.id, { status: InviteStatus.REJECTED });
+      await firestore().runTransaction(async (t) => {
+         const inviteRepoT = inviteRepository.withTransaction(t);
+         const auditRepoT = auditRepository.withTransaction(t);
+
+         await inviteRepoT.update(invite.id, { status: InviteStatus.REJECTED });
+         
+         await auditRepoT.create(uuidv4(), {
+           orgId: invite.orgId,
+           actorId: userId,
+           action: AuditAction.INVITE_REJECT,
+           targetId: invite.id,
+           metadata: { email: user.email },
+         });
+      });
     });
   }
 
-  async revokeInvite(orgId: string, inviteId: string): Promise<Result<void>> {
+  async revokeInvite(orgId: string, inviteId: string, actorId: string): Promise<Result<void>> {
     return this.handleOperation('org.revokeInvite', async () => {
       const invite = await inviteRepository.get(inviteId);
       if (invite.orgId !== orgId)
         throw new CustomError(AppErrorCode.NOT_FOUND, 'Invite not found.');
 
-      await inviteRepository.update(inviteId, { status: InviteStatus.REVOKED });
+      await firestore().runTransaction(async (t) => {
+        const inviteRepoT = inviteRepository.withTransaction(t);
+        const auditRepoT = auditRepository.withTransaction(t);
+
+        await inviteRepoT.update(inviteId, { status: InviteStatus.REVOKED });
+
+        await auditRepoT.create(uuidv4(), {
+          orgId,
+          actorId,
+          action: AuditAction.INVITE_REVOKE,
+          targetId: inviteId,
+          metadata: { email: invite.email },
+        });
+      });
     });
   }
 }

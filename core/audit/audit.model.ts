@@ -12,6 +12,11 @@ export enum AuditAction {
   MEMBER_INVITE = 'member.invite',
   MEMBER_UPDATE_ROLE = 'member.update_role',
   MEMBER_REMOVE = 'member.remove',
+  
+  // Invites
+  INVITE_ACCEPT = 'invite.accept',
+  INVITE_REJECT = 'invite.reject',
+  INVITE_REVOKE = 'invite.revoke',
 
   // Generic
   RESOURCE_CREATE = 'resource.create',

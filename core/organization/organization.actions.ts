@@ -144,7 +144,7 @@ export const revokeInviteAction = orgActionClient
   .schema(RevokeInviteSchema)
   .use(rateLimitMiddleware)
   .action(async ({ ctx, parsedInput }) => {
-    const res = await organizationService.revokeInvite(ctx.orgId, parsedInput.inviteId);
+    const res = await organizationService.revokeInvite(ctx.orgId, parsedInput.inviteId, ctx.userId);
     revalidatePath('/dashboard/team');
     return res;
   });
@@ -171,27 +171,52 @@ export const getAuditLogsAction = orgActionClient
   .action(async ({ ctx }) => {
     const logs = await auditRepository.getOrgLogs(ctx.orgId);
     
-    // Join Actor Data (User Profiles)
-    const logsWithActors = await Promise.all(
+    // Join Actor & Target Data (User Profiles)
+    const logsWithProfiles = await Promise.all(
       logs.map(async (log) => {
+        let actorData = null;
+        let targetData = null;
+
+        // Fetch Actor
         if (log.actorId === 'system') {
-           return { ...log, actor: { displayName: 'System', email: 'system@rng.app' } };
-        }
-        try {
-          const user = await userRepository.get(log.actorId);
-          return {
-            ...log,
-            actor: {
+          actorData = { displayName: 'System', email: 'system@rng.app' };
+        } else {
+          try {
+            const user = await userRepository.get(log.actorId);
+            actorData = {
               displayName: user.displayName,
               email: user.email,
               photoURL: user.photoURL,
-            }
-          };
-        } catch (e) {
-          return { ...log, actor: { displayName: 'Unknown User', email: log.actorId } };
+            };
+          } catch (e) {
+            actorData = { displayName: 'Unknown User', email: log.actorId };
+          }
         }
+
+        // Fetch Target (If it looks like a User ID)
+        // Heuristic: Actions related to members usually have targetId as userId
+        const isUserTarget = log.action.includes('member') || log.action.includes('ownership');
+        
+        if (log.targetId && isUserTarget) {
+          try {
+            const user = await userRepository.get(log.targetId);
+            targetData = {
+              displayName: user.displayName,
+              email: user.email,
+              photoURL: user.photoURL,
+            };
+          } catch (e) {
+            // Ignore if target is not a user or not found
+          }
+        }
+
+        return {
+          ...log,
+          actor: actorData,
+          target: targetData,
+        };
       })
     );
 
-    return { success: true, data: logsWithActors };
+    return { success: true, data: logsWithProfiles };
   });

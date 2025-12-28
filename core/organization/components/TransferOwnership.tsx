@@ -10,7 +10,9 @@ import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';
 import { AlertBanner } from '@/ui/AlertBanner';
 import { AppModal } from '@/ui/AppModal';
-import { Button, Card, CardContent, Typography } from '@mui/material';
+import { Button, Card, CardContent, Typography, Box, Stack } from '@mui/material';
+import InfoIcon from '@mui/icons-material/Info';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 
 interface TransferOwnershipProps {
   org: Organization;
@@ -37,7 +39,6 @@ export function TransferOwnership({ org, members, currentUserId }: TransferOwner
   );
 
   // Filter eligible members (Must be Admin, not current owner)
-  // We use the joined user profile data for the label
   const eligibleMembers = members
     .filter((m) => m.userId !== currentUserId)
     .map((m) => ({ 
@@ -49,7 +50,6 @@ export function TransferOwnership({ org, members, currentUserId }: TransferOwner
     f.autocomplete('targetUserId', eligibleMembers, {
       label: 'Select New Owner',
       description: 'The selected member must accept the invitation to become the new owner.',
-      // --- Standardized Option Helpers ---
       getOptionLabel: (opt: any) => opt.label,
       getOptionValue: (opt: any) => opt.value,
     }),
@@ -57,43 +57,56 @@ export function TransferOwnership({ org, members, currentUserId }: TransferOwner
 
   if (isPendingOwner) {
     return (
-      <AlertBanner
-        type="info"
-        title="Ownership Offer"
-        message="You have been offered ownership of this organization."
-        action={
-          <Button
-            color="primary"
-            variant="contained"
-            size="small"
-            onClick={() => acceptOwnership({})}
-            disabled={isAccepting}
-          >
-            Accept Ownership
-          </Button>
-        }
-      />
+      <Card variant="outlined" sx={{ bgcolor: 'primary.lighter', borderColor: 'primary.main', mb: 4 }}>
+        <CardContent>
+          <Stack direction="row" spacing={2} alignItems="center">
+            <InfoIcon color="primary" />
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="subtitle1" fontWeight={700}>
+                Ownership Transfer Offer
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                You have been invited to become the Owner of this organization. This will give you full administrative control.
+              </Typography>
+            </Box>
+            <Button
+              color="primary"
+              variant="contained"
+              size="small"
+              onClick={() => acceptOwnership({})}
+              disabled={isAccepting}
+            >
+              {isAccepting ? 'Accepting...' : 'Accept Ownership'}
+            </Button>
+          </Stack>
+        </CardContent>
+      </Card>
     );
   }
 
   if (!isOwner) return null;
 
   return (
-    <Card variant="outlined" sx={{ borderColor: 'error.main' }}>
-      <CardContent>
-        <Typography variant="h6" color="error" gutterBottom>
-          Danger Zone
+    <Card variant="outlined" sx={{ borderColor: 'error.main', mb: 4 }}>
+      <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'error.main', bgcolor: 'error.lighter' }}>
+        <Typography variant="subtitle1" fontWeight={600} color="error.dark">
+          Danger Zone: Transfer Ownership
         </Typography>
+      </Box>
+      <CardContent>
         <Typography variant="body2" color="text.secondary" paragraph>
-          Transferring ownership is irreversible. You will be demoted to an Admin.
+          Transferring ownership is irreversible. Once accepted, you will be demoted to an <strong>Admin</strong> role and the target user will have full control over the organization, including billing and member management.
         </Typography>
 
         {org.pendingOwnerId ? (
-          <AlertBanner
-            type="warning"
-            title="Pending Transfer"
-            message={`Waiting for response from user (ID: ${org.pendingOwnerId})`}
-          />
+          <Box sx={{ p: 2, bgcolor: 'warning.lighter', border: '1px dashed', borderColor: 'warning.main', borderRadius: 1 }}>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <WarningAmberIcon color="warning" />
+              <Typography variant="body2" fontWeight={500}>
+                Pending Transfer: Waiting for the target user to accept the offer.
+              </Typography>
+            </Stack>
+          </Box>
         ) : (
           <AppModal
             title="Transfer Ownership"
@@ -104,15 +117,17 @@ export function TransferOwnership({ org, members, currentUserId }: TransferOwner
             }
           >
             {({ setOpen }) => (
-              <RNGForm
-                schema={OfferOwnershipSchema}
-                uiSchema={formConfig}
-                submitLabel={isOffering ? 'Sending Offer...' : 'Send Offer'}
-                onSubmit={async (data) => {
-                  const res = await offerOwnership(data);
-                  if (res !== undefined) setOpen(false);
-                }}
-              />
+              <Box sx={{ p: 1 }}>
+                <RNGForm
+                  schema={OfferOwnershipSchema}
+                  uiSchema={formConfig}
+                  submitLabel={isOffering ? 'Sending Offer...' : 'Send Offer'}
+                  onSubmit={async (data) => {
+                    const res = await offerOwnership(data);
+                    if (res !== undefined) setOpen(false);
+                  }}
+                />
+              </Box>
             )}
           </AppModal>
         )}

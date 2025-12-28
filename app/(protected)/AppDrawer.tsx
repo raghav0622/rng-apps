@@ -1,7 +1,11 @@
 'use client';
 
 import { useLayoutContext } from '@/app/(protected)/LayoutContext';
-import { Business as BusinessIcon, Dashboard as DashboardIcon } from '@mui/icons-material';
+import {
+  Business as BusinessIcon,
+  Dashboard as DashboardIcon,
+  SettingsAccessibility,
+} from '@mui/icons-material';
 import {
   Box,
   Divider,
@@ -19,6 +23,7 @@ import { usePathname } from 'next/navigation';
 const MENU_ITEMS = [
   { label: 'Dashboard', icon: <DashboardIcon />, href: '/dashboard' },
   { label: 'Organization', icon: <BusinessIcon />, href: '/team' },
+  { label: 'Settings', icon: <SettingsAccessibility />, href: '/settings' },
 ];
 
 export default function AppDrawer() {

@@ -1,16 +1,19 @@
 'use client';
 
 import { AuditLogViewer } from '@/core/audit/components/AuditLogViewer';
-import { TransferOwnership } from '@/core/organization/components/TransferOwnership';
-import { getMembersAction, updateOrganizationAction } from '@/core/organization/organization.actions';
-import { useOrg } from '@/core/organization/organization.context';
 import { useRNGAuth } from '@/core/auth/auth.context';
-import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
-import { Box, Container, Typography, Card, CardContent, Grid, Button } from '@mui/material';
-import { useEffect, useState } from 'react';
+import { TransferOwnership } from '@/core/organization/components/TransferOwnership';
+import {
+  getMembersAction,
+  updateOrganizationAction,
+} from '@/core/organization/organization.actions';
+import { useOrg } from '@/core/organization/organization.context';
 import { MemberWithProfile, UpdateOrgSchema } from '@/core/organization/organization.model';
-import { RNGForm, defineForm } from '@/rng-form';
+import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
 import { AppPermission, hasPermission, UserRoleInOrg } from '@/lib/action-policies';
+import { defineForm, RNGForm } from '@/rng-form';
+import { Box, Card, CardContent, Container, Grid, Typography } from '@mui/material';
+import { useEffect, useState } from 'react';
 
 export default function SettingsPage() {
   const { org } = useOrg();
@@ -21,9 +24,12 @@ export default function SettingsPage() {
     onSuccess: (data: any) => setMembers(data as MemberWithProfile[]),
   });
 
-  const { runAction: updateOrg, isExecuting: isUpdating } = useRNGServerAction(updateOrganizationAction, {
-    successMessage: 'Organization updated successfully',
-  });
+  const { runAction: updateOrg, isExecuting: isUpdating } = useRNGServerAction(
+    updateOrganizationAction,
+    {
+      successMessage: 'Organization updated successfully',
+    },
+  );
 
   useEffect(() => {
     fetchMembers(undefined);
@@ -38,10 +44,10 @@ export default function SettingsPage() {
 
   // Define the UI schema using the DSL
   const settingsUiSchema = defineForm<typeof UpdateOrgSchema>((f) => [
-    f.text('name', { 
-      label: 'Organization Name', 
-      placeholder: 'Enter organization name' 
-    })
+    f.text('name', {
+      label: 'Organization Name',
+      placeholder: 'Enter organization name',
+    }),
   ]);
 
   return (
@@ -51,7 +57,7 @@ export default function SettingsPage() {
           Organization Settings
         </Typography>
         <Typography color="text.secondary" variant="body1">
-          Manage your organization's profile, governance, and activity history.
+          Manage your organization&apos;s profile, governance, and activity history.
         </Typography>
       </Box>
 
@@ -60,7 +66,14 @@ export default function SettingsPage() {
         {canUpdateOrg && (
           <Grid size={{ xs: 12 }}>
             <Card variant="outlined" sx={{ borderRadius: 2 }}>
-              <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider', bgcolor: 'action.hover' }}>
+              <Box
+                sx={{
+                  p: 2,
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
+                  bgcolor: 'action.hover',
+                }}
+              >
                 <Typography variant="subtitle1" fontWeight={600}>
                   General Settings
                 </Typography>
@@ -84,11 +97,7 @@ export default function SettingsPage() {
         {/* Ownership Transfer */}
         {canTransferOwnership && (
           <Grid size={{ xs: 12 }}>
-            <TransferOwnership 
-              org={org} 
-              members={members} 
-              currentUserId={user.id} 
-            />
+            <TransferOwnership org={org} members={members} currentUserId={user.id} />
           </Grid>
         )}
 

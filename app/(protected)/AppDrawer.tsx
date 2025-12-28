@@ -4,7 +4,6 @@ import { useLayoutContext } from '@/app/(protected)/LayoutContext';
 import {
   Business as BusinessIcon,
   Dashboard as DashboardIcon,
-  SettingsAccessibility,
 } from '@mui/icons-material';
 import {
   Box,
@@ -22,9 +21,7 @@ import { usePathname } from 'next/navigation';
 
 const MENU_ITEMS = [
   { label: 'Dashboard', icon: <DashboardIcon />, href: '/dashboard' },
-  { label: 'Organization', icon: <BusinessIcon />, href: '/team' },
-  { label: 'Settings', icon: <SettingsAccessibility />, href: '/settings' },
-  { label: 'Billing', icon: <SettingsAccessibility />, href: '/billing' },
+  { label: 'Organization', icon: <BusinessIcon />, href: '/organization' },
 ];
 
 export default function AppDrawer() {
@@ -39,7 +36,7 @@ export default function AppDrawer() {
       <Divider />
       <List component="nav" sx={{ flexGrow: 1, px: 2, py: 2 }}>
         {MENU_ITEMS.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive = pathname.startsWith(item.href);
           return (
             <ListItem key={item.href} disablePadding sx={{ mb: 1 }}>
               <ListItemButton

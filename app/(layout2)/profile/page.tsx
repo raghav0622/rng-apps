@@ -3,7 +3,6 @@
 import { useRNGAuth } from '@/core/auth/auth.context';
 import { authClient } from '@/core/auth/auth.client';
 import { SessionManager } from './SessionManager';
-import { NotificationSettings } from '@/core/notifications/components/NotificationSettings';
 import { 
   Box, 
   Container, 
@@ -44,7 +43,7 @@ export default function ProfilePage() {
           Account Settings
         </Typography>
         <Typography color="text.secondary" variant="body1">
-          Manage your personal information, security, and notification preferences.
+          Manage your personal information and security sessions.
         </Typography>
       </Box>
 
@@ -94,14 +93,6 @@ export default function ProfilePage() {
             </Stack>
           </CardContent>
         </Card>
-
-        {/* Notification Preferences */}
-        <Box>
-          <Typography variant="h6" fontWeight={600} gutterBottom>
-            Notification Preferences
-          </Typography>
-          <NotificationSettings />
-        </Box>
 
         {/* Session Management */}
         <Box>

@@ -37,8 +37,6 @@ interface AuditLogWithProfiles extends AuditLog {
 
 const formatDetails = (action: string, meta?: Record<string, any>) => {
   if (!meta) return '-';
-  const entries = Object.entries(meta);
-  if (entries.length === 0) return '-';
 
   // Specific Action Formatting
   if (action.includes('update_role')) {
@@ -54,7 +52,7 @@ const formatDetails = (action: string, meta?: Record<string, any>) => {
     return `Sent invitation to ${meta.email} as ${meta.role}`;
   }
   if (action.includes('invite.accept')) {
-    return `Joined organization via invitation`;
+    return `Accepted invitation to join organization`;
   }
   if (action.includes('invite.reject')) {
     return `Declined organization invitation`;
@@ -69,7 +67,15 @@ const formatDetails = (action: string, meta?: Record<string, any>) => {
   if (action.includes('member.remove')) {
     return `Removed member from organization`;
   }
+  if (action.includes('resource.create')) {
+    if (meta.source === 'invite') return 'Joined organization via invite';
+    if (meta.name) return `Created organization "${meta.name}"`;
+    return 'Created a new resource';
+  }
 
+  // Fallback for metadata
+  const entries = Object.entries(meta);
+  if (entries.length === 0) return '-';
   return entries
     .map(([k, v]) => {
       const val = typeof v === 'object' ? JSON.stringify(v) : String(v);
@@ -80,6 +86,14 @@ const formatDetails = (action: string, meta?: Record<string, any>) => {
 
 function UserProfileCell({ profile, fallbackId }: { profile?: any; fallbackId: string }) {
   if (!profile) {
+    if (fallbackId === 'system') return (
+      <Stack direction="row" spacing={1} alignItems="center">
+        <Avatar sx={{ width: 24, height: 24, fontSize: '0.75rem', bgcolor: 'action.disabledBackground' }}>S</Avatar>
+        <Box>
+          <Typography variant="caption" fontWeight={600} display="block">System</Typography>
+        </Box>
+      </Stack>
+    );
     return (
       <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'text.secondary' }}>
         {fallbackId.substring(0, 8)}...
@@ -88,18 +102,18 @@ function UserProfileCell({ profile, fallbackId }: { profile?: any; fallbackId: s
   }
 
   return (
-    <Stack direction="row" spacing={1} alignItems="center">
+    <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
       <Avatar
         src={profile.photoURL}
-        sx={{ width: 24, height: 24, fontSize: '0.75rem' }}
+        sx={{ width: 24, height: 24, fontSize: '0.75rem', flexShrink: 0 }}
       >
         {profile.displayName?.charAt(0) || profile.email?.charAt(0)}
       </Avatar>
-      <Box sx={{ minWidth: 0 }}>
-        <Typography variant="caption" fontWeight={600} display="block" noWrap>
+      <Box sx={{ minWidth: 0, overflow: 'hidden' }}>
+        <Typography variant="caption" fontWeight={600} display="block" noWrap sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {profile.displayName || 'Unknown'}
         </Typography>
-        <Typography variant="caption" color="text.secondary" display="block" noWrap>
+        <Typography variant="caption" color="text.secondary" display="block" noWrap sx={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {profile.email}
         </Typography>
       </Box>
@@ -130,24 +144,24 @@ export function AuditLogViewer() {
         </Typography>
       </Box>
 
-      <TableContainer sx={{ maxHeight: 600 }}>
-        <Table stickyHeader size="small">
+      <TableContainer sx={{ overflowX: 'hidden' }}>
+        <Table stickyHeader size="small" sx={{ tableLayout: 'fixed' }}>
           <TableHead>
             <TableRow>
-              <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper' }}>Action</TableCell>
-              <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper' }}>Actor & Target</TableCell>
-              <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper' }}>Details</TableCell>
-              <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper' }}>Date</TableCell>
+              <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper', width: '15%' }}>Action</TableCell>
+              <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper', width: '35%' }}>Actor & Target</TableCell>
+              <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper', width: '30%' }}>Details</TableCell>
+              <TableCell sx={{ fontWeight: 600, bgcolor: 'background.paper', width: '20%' }}>Date</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {isExecuting && logs.length === 0 ? (
               [...Array(5)].map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell><Skeleton width={80} /></TableCell>
-                  <TableCell><Skeleton width={200} /></TableCell>
-                  <TableCell><Skeleton width={200} /></TableCell>
-                  <TableCell><Skeleton width={120} /></TableCell>
+                  <TableCell><Skeleton width="80%" /></TableCell>
+                  <TableCell><Skeleton width="90%" /></TableCell>
+                  <TableCell><Skeleton width="90%" /></TableCell>
+                  <TableCell><Skeleton width="80%" /></TableCell>
                 </TableRow>
               ))
             ) : logs.length === 0 ? (
@@ -168,12 +182,16 @@ export function AuditLogViewer() {
                     />
                   </TableCell>
                   <TableCell>
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <UserProfileCell profile={log.actor} fallbackId={log.actorId} />
+                    <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <UserProfileCell profile={log.actor} fallbackId={log.actorId} />
+                      </Box>
                       {log.target && (
                         <>
-                          <ArrowForwardIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
-                          <UserProfileCell profile={log.target} fallbackId={log.targetId || ''} />
+                          <ArrowForwardIcon sx={{ fontSize: 14, color: 'text.disabled', flexShrink: 0 }} />
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <UserProfileCell profile={log.target} fallbackId={log.targetId || ''} />
+                          </Box>
                         </>
                       )}
                     </Stack>
@@ -182,7 +200,6 @@ export function AuditLogViewer() {
                     <Typography
                       variant="body2"
                       sx={{
-                        maxWidth: 400,
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
@@ -193,7 +210,7 @@ export function AuditLogViewer() {
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" color="text.secondary" noWrap>
                       {new Date(log.createdAt).toLocaleString()}
                     </Typography>
                   </TableCell>

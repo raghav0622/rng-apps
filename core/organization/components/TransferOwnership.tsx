@@ -8,7 +8,6 @@ import { MemberWithProfile, OfferOwnershipSchema, Organization } from '@/core/or
 import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';
-import { AlertBanner } from '@/ui/AlertBanner';
 import { AppModal } from '@/ui/AppModal';
 import { Button, Card, CardContent, Typography, Box, Stack } from '@mui/material';
 import InfoIcon from '@mui/icons-material/Info';
@@ -45,6 +44,9 @@ export function TransferOwnership({ org, members, currentUserId }: TransferOwner
        label: m.user?.displayName || m.user?.email || 'Unknown User', 
        value: m.userId 
     }));
+
+  const pendingMember = members.find(m => m.userId === org.pendingOwnerId);
+  const pendingDisplayName = pendingMember?.user?.displayName || pendingMember?.user?.email || 'the target user';
 
   const formConfig = defineForm<typeof OfferOwnershipSchema>((f) => [
     f.autocomplete('targetUserId', eligibleMembers, {
@@ -103,7 +105,7 @@ export function TransferOwnership({ org, members, currentUserId }: TransferOwner
             <Stack direction="row" spacing={2} alignItems="center">
               <WarningAmberIcon color="warning" />
               <Typography variant="body2" fontWeight={500}>
-                Pending Transfer: Waiting for the target user to accept the offer.
+                Pending Transfer: Waiting for <strong>{pendingDisplayName}</strong> to accept the ownership offer.
               </Typography>
             </Stack>
           </Box>

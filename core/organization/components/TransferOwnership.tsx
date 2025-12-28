@@ -3,6 +3,8 @@
 import {
   acceptOwnershipAction,
   offerOwnershipAction,
+  rejectOwnershipAction,
+  revokeOwnershipAction,
 } from '@/core/organization/organization.actions';
 import { MemberWithProfile, OfferOwnershipSchema, Organization } from '@/core/organization/organization.model';
 import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
@@ -12,6 +14,7 @@ import { AppModal } from '@/ui/AppModal';
 import { Button, Card, CardContent, Typography, Box, Stack } from '@mui/material';
 import InfoIcon from '@mui/icons-material/Info';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import CancelIcon from '@mui/icons-material/Cancel';
 
 interface TransferOwnershipProps {
   org: Organization;
@@ -30,11 +33,25 @@ export function TransferOwnership({ org, members, currentUserId }: TransferOwner
     },
   );
 
+  const { runAction: revokeOwnership, isExecuting: isRevoking } = useRNGServerAction(
+    revokeOwnershipAction,
+    {
+      successMessage: 'Ownership offer cancelled',
+    }
+  );
+
   const { runAction: acceptOwnership, isExecuting: isAccepting } = useRNGServerAction(
     acceptOwnershipAction,
     {
       successMessage: 'Ownership accepted! You are now the Owner.',
     },
+  );
+
+  const { runAction: rejectOwnership, isExecuting: isRejecting } = useRNGServerAction(
+    rejectOwnershipAction,
+    {
+      successMessage: 'Ownership offer declined',
+    }
   );
 
   // Filter eligible members (Must be Admin, not current owner)
@@ -71,15 +88,30 @@ export function TransferOwnership({ org, members, currentUserId }: TransferOwner
                 You have been invited to become the Owner of this organization. This will give you full administrative control.
               </Typography>
             </Box>
-            <Button
-              color="primary"
-              variant="contained"
-              size="small"
-              onClick={() => acceptOwnership({})}
-              disabled={isAccepting}
-            >
-              {isAccepting ? 'Accepting...' : 'Accept Ownership'}
-            </Button>
+            <Stack direction="row" spacing={1}>
+              <Button
+                variant="outlined"
+                color="primary"
+                size="small"
+                onClick={() => {
+                  if (confirm('Are you sure you want to decline this offer?')) {
+                    rejectOwnership({});
+                  }
+                }}
+                disabled={isRejecting || isAccepting}
+              >
+                Decline
+              </Button>
+              <Button
+                color="primary"
+                variant="contained"
+                size="small"
+                onClick={() => acceptOwnership({})}
+                disabled={isAccepting || isRejecting}
+              >
+                {isAccepting ? 'Accepting...' : 'Accept Ownership'}
+              </Button>
+            </Stack>
           </Stack>
         </CardContent>
       </Card>
@@ -102,11 +134,27 @@ export function TransferOwnership({ org, members, currentUserId }: TransferOwner
 
         {org.pendingOwnerId ? (
           <Box sx={{ p: 2, bgcolor: 'warning.lighter', border: '1px dashed', borderColor: 'warning.main', borderRadius: 1 }}>
-            <Stack direction="row" spacing={2} alignItems="center">
-              <WarningAmberIcon color="warning" />
-              <Typography variant="body2" fontWeight={500}>
-                Pending Transfer: Waiting for <strong>{pendingDisplayName}</strong> to accept the ownership offer.
-              </Typography>
+            <Stack direction="row" spacing={2} justifyContent="space-between" alignItems="center">
+              <Stack direction="row" spacing={2} alignItems="center">
+                <WarningAmberIcon color="warning" />
+                <Typography variant="body2" fontWeight={500}>
+                  Pending Transfer: Waiting for <strong>{pendingDisplayName}</strong> to accept the ownership offer.
+                </Typography>
+              </Stack>
+              <Button 
+                variant="text" 
+                color="error" 
+                size="small" 
+                startIcon={<CancelIcon />}
+                onClick={() => {
+                  if (confirm('Are you sure you want to cancel this transfer?')) {
+                    revokeOwnership({});
+                  }
+                }}
+                disabled={isRevoking}
+              >
+                Cancel Transfer
+              </Button>
             </Stack>
           </Box>
         ) : (

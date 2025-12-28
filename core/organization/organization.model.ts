@@ -115,3 +115,5 @@ export const OfferOwnershipSchema = z.object({
 });
 
 export const AcceptOwnershipSchema = z.object({}); // No payload, just context
+export const RevokeOwnershipSchema = z.object({}); // No payload, just context
+export const RejectOwnershipSchema = z.object({}); // No payload, just context

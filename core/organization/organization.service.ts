@@ -51,7 +51,7 @@ class OrganizationService extends AbstractService {
     const limit = SEAT_LIMITS[plan];
 
     // Count Active Members
-    const members = await organizationRepository.members(orgId).list({ limit: 1000 }); // Optimization: count aggregation in real app
+    const members = await organizationRepository.members(orgId).list({ limit: 1000 });
     const activeMembersCount = members.data.length;
 
     // Count Pending Invites (They reserve a seat)
@@ -86,22 +86,16 @@ class OrganizationService extends AbstractService {
         const memberRepoT = organizationRepository.members(orgId).withTransaction(t);
         const auditRepoT = auditRepository.withTransaction(t);
 
-        // 1. Check: User cannot have an existing orgId
         const user = await userRepoT.get(userId);
         if (user.orgId) {
-          throw new CustomError(
-            AppErrorCode.PERMISSION_DENIED,
-            'User is already in an organization.',
-          );
+          throw new CustomError(AppErrorCode.PERMISSION_DENIED, 'User is already in an organization.');
         }
 
-        // 2. Create Org Doc
         newOrg = await orgRepoT.create(orgId, {
           name: input.name,
           ownerId: userId,
         });
 
-        // 3. Create Owner Member Doc (NORMALIZED: No profile data)
         await memberRepoT.create(userId, {
           orgId,
           userId,
@@ -110,17 +104,14 @@ class OrganizationService extends AbstractService {
           status: 'ACTIVE',
         });
 
-        // 4. Update User Profile
         await userRepoT.update(userId, {
           orgId: orgId,
           orgRole: UserRoleInOrg.OWNER,
           isOnboarded: true,
         });
 
-        // 5. Initialize Billing (Free Tier) within Transaction
         await billingService.initializeFreeTier(orgId, t);
 
-        // 6. Audit Log (Atomic)
         await auditRepoT.create(uuidv4(), {
           orgId,
           actorId: userId,
@@ -177,17 +168,22 @@ class OrganizationService extends AbstractService {
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 24);
 
-      await organizationRepository.update(orgId, {
-        pendingOwnerId: targetUserId,
-        transferExpiresAt: expiresAt,
-      });
+      await firestore().runTransaction(async (t) => {
+        const orgRepoT = organizationRepository.withTransaction(t);
+        const auditRepoT = auditRepository.withTransaction(t);
 
-      await auditRepository.create(uuidv4(), {
-        orgId,
-        actorId,
-        action: AuditAction.ORG_UPDATE,
-        targetId: targetUserId,
-        metadata: { type: 'ownership_offer', expiresAt },
+        await orgRepoT.update(orgId, {
+          pendingOwnerId: targetUserId,
+          transferExpiresAt: expiresAt,
+        });
+
+        await auditRepoT.create(uuidv4(), {
+          orgId,
+          actorId,
+          action: AuditAction.ORG_UPDATE,
+          targetId: targetUserId,
+          metadata: { type: 'ownership_offer', expiresAt },
+        });
       });
 
       await notificationService.send(targetUserId, {
@@ -195,6 +191,71 @@ class OrganizationService extends AbstractService {
         title: 'Ownership Offer Received',
         message: 'You have been offered ownership of the organization.',
         link: '/settings',
+        orgId,
+      });
+    });
+  }
+
+  async revokeOwnershipOffer(actorId: string, orgId: string): Promise<Result<void>> {
+    return this.handleOperation('org.revokeOwnershipOffer', async () => {
+      const org = await organizationRepository.get(orgId);
+      if (!org.pendingOwnerId) {
+        throw new CustomError(AppErrorCode.INVALID_INPUT, 'No pending ownership transfer found.');
+      }
+
+      const targetId = org.pendingOwnerId;
+
+      await firestore().runTransaction(async (t) => {
+        const orgRepoT = organizationRepository.withTransaction(t);
+        const auditRepoT = auditRepository.withTransaction(t);
+
+        await orgRepoT.update(orgId, {
+          pendingOwnerId: null,
+          transferExpiresAt: null,
+        });
+
+        await auditRepoT.create(uuidv4(), {
+          orgId,
+          actorId,
+          action: AuditAction.ORG_UPDATE,
+          targetId: targetId,
+          metadata: { type: 'ownership_revoke' },
+        });
+      });
+    });
+  }
+
+  async rejectOwnershipOffer(actorId: string, orgId: string): Promise<Result<void>> {
+    return this.handleOperation('org.rejectOwnershipOffer', async () => {
+      const org = await organizationRepository.get(orgId);
+
+      if (org.pendingOwnerId !== actorId) {
+        throw new CustomError(AppErrorCode.PERMISSION_DENIED, 'You do not have a pending ownership offer.');
+      }
+
+      await firestore().runTransaction(async (t) => {
+        const orgRepoT = organizationRepository.withTransaction(t);
+        const auditRepoT = auditRepository.withTransaction(t);
+
+        await orgRepoT.update(orgId, {
+          pendingOwnerId: null,
+          transferExpiresAt: null,
+        });
+
+        await auditRepoT.create(uuidv4(), {
+          orgId,
+          actorId,
+          action: AuditAction.ORG_UPDATE,
+          targetId: org.ownerId, // Notify the owner
+          metadata: { type: 'ownership_reject' },
+        });
+      });
+
+      // Notify the owner
+      await notificationService.send(org.ownerId, {
+        topic: NotificationTopic.SECURITY,
+        title: 'Ownership Offer Rejected',
+        message: 'The ownership transfer offer was rejected.',
         orgId,
       });
     });
@@ -236,11 +297,12 @@ class OrganizationService extends AbstractService {
           orgId,
           actorId,
           action: AuditAction.ORG_UPDATE,
+          targetId: actorId,
           metadata: { type: 'ownership_transfer', from: oldOwnerId, to: actorId },
         });
       });
 
-      await userRepository.clearCache(org.ownerId);
+      await userRepository.clearCache(oldOwnerId);
       await userRepository.clearCache(actorId);
 
       await notificationService.send(oldOwnerId, {
@@ -256,10 +318,6 @@ class OrganizationService extends AbstractService {
   // 👥 Members (RBAC & Management)
   // ===========================================================================
 
-  /**
-   * List organization members with their user profiles.
-   * Utilizes the repository DataLoader for efficient N+1 joining.
-   */
   async getMembers(orgId: string): Promise<Result<MemberWithProfile[]>> {
     return this.handleOperation('org.getMembers', async () => {
       const { data } = await organizationRepository.members(orgId).list({
@@ -267,7 +325,6 @@ class OrganizationService extends AbstractService {
         limit: 100,
       });
 
-      // Join profile data from the userRepository (which is cached and batched via DataLoader)
       const membersWithProfiles = await Promise.all(
         data.map(async (member) => {
           try {
@@ -281,7 +338,6 @@ class OrganizationService extends AbstractService {
               },
             } as MemberWithProfile;
           } catch (e) {
-            // If user is missing (should not happen in a healthy system), return member with null user
             return member as MemberWithProfile;
           }
         }),
@@ -309,7 +365,6 @@ class OrganizationService extends AbstractService {
       if (!actorMember) throw new CustomError(AppErrorCode.PERMISSION_DENIED, 'Actor is not a member of the organization.');
       if (!targetMember) throw new CustomError(AppErrorCode.NOT_FOUND, 'Target user is not a member of the organization.');
 
-      // Hierarchical protection: Admins cannot modify Owners or other Admins.
       if (actorMember.role === UserRoleInOrg.ADMIN) {
         if (targetMember.role === UserRoleInOrg.OWNER || targetMember.role === UserRoleInOrg.ADMIN) {
           throw new CustomError(AppErrorCode.PERMISSION_DENIED, 'Admins cannot modify Owners or other Admins.');
@@ -365,7 +420,6 @@ class OrganizationService extends AbstractService {
       if (!actorMember) throw new CustomError(AppErrorCode.PERMISSION_DENIED, 'Actor is not a member of the organization.');
       if (!targetMember) throw new CustomError(AppErrorCode.NOT_FOUND, 'Target user is not a member of the organization.');
 
-      // Hierarchical protection: Admins cannot remove Owners or other Admins.
       if (actorMember.role === UserRoleInOrg.ADMIN) {
         if (targetMember.role === UserRoleInOrg.OWNER || targetMember.role === UserRoleInOrg.ADMIN) {
           throw new CustomError(AppErrorCode.PERMISSION_DENIED, 'Admins cannot remove Owners or other Admins.');
@@ -424,15 +478,10 @@ class OrganizationService extends AbstractService {
     });
   }
 
-  /**
-   * Gets all pending invites for a specific user email.
-   * Joins organization names.
-   */
   async getUserPendingInvites(email: string): Promise<Result<InviteWithOrg[]>> {
     return this.handleOperation('org.getUserInvites', async () => {
       const invites = await inviteRepository.findByEmail(email);
 
-      // Join Org Names
       const invitesWithOrgs = await Promise.all(
         invites.map(async (invite) => {
           try {
@@ -457,21 +506,17 @@ class OrganizationService extends AbstractService {
     input: SendInviteInput,
   ): Promise<Result<Invite>> {
     return this.handleOperation('org.sendInvite', async () => {
-      // 1. Check if an active invite already exists for this email in this org
       if (await inviteRepository.existsActiveInvite(orgId, input.email)) {
         throw new CustomError(AppErrorCode.ALREADY_EXISTS, 'Invite already exists.');
       }
 
-      // 2. Check if user is already in another organization
       const existingUser = await userRepository.getByEmail(input.email);
       if (existingUser && existingUser.orgId) {
         throw new CustomError(AppErrorCode.INVALID_INPUT, 'User is already in an organization.');
       }
 
-      // 3. BILLING CHECK: Ensure we have space
       await this.checkSeatLimits(orgId);
 
-      // 4. Create Invite & Audit (Atomic)
       return await firestore()
         .runTransaction(async (t) => {
           const inviteRepoT = inviteRepository.withTransaction(t);
@@ -522,7 +567,6 @@ class OrganizationService extends AbstractService {
         throw new CustomError(AppErrorCode.PERMISSION_DENIED, 'Already in an org.');
       }
 
-      // BILLING RE-CHECK: Ensure we still have space before accepting
       await this.checkSeatLimits(invite.orgId);
 
       await firestore().runTransaction(async (t) => {
@@ -533,7 +577,6 @@ class OrganizationService extends AbstractService {
 
         await inviteRepoT.update(invite.id, { status: InviteStatus.ACCEPTED });
 
-        // 🛑 NORMALIZED: No profile data copied here
         await memberRepoT.create(userId, {
           orgId: invite.orgId,
           userId: userId,

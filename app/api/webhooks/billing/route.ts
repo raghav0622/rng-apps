@@ -1,46 +1,39 @@
 import { billingService } from '@/core/billing/billing.service';
-import { env } from '@/lib/env';
+import { paymentProvider } from '@/lib/payment-provider/mock-provider';
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
  * 💳 Billing Webhook Handler
- * Currently supports a "Mock" strategy but follows Stripe's architectural patterns.
- * In production: Integrate 'stripe' library and verify signatures.
+ * Uses the Abstract Payment Provider to parse events.
  */
 export async function POST(req: NextRequest) {
-  const body = await req.json();
+  const rawBody = await req.text();
+  const signature = req.headers.get('stripe-signature') || ''; // Generic header
 
-  // 1. Verification (Simulated for Mocking)
-  // In production: const sig = req.headers.get('stripe-signature');
-  // const event = stripe.webhooks.constructEvent(body, sig, env.STRIPE_WEBHOOK_SECRET);
-  const event = body; 
+  // 1. Verify Signature via Provider
+  const isValid = await paymentProvider.verifyWebhookSignature(rawBody, signature);
+  if (!isValid) {
+    return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
+  }
 
-  console.log(`[Billing Webhook] Received Event: ${event.type}`);
+  const body = JSON.parse(rawBody);
+  const event = paymentProvider.parseWebhookEvent(body);
+
+  console.log(`[Billing Webhook] Normalized Event: ${event.type}`);
 
   try {
     switch (event.type) {
-      case 'checkout.session.completed':
-        // A new subscription was created or updated via checkout
-        // event.data.object.client_reference_id contains our orgId
-        // In reality, you'd fetch the full subscription from Stripe here.
+      case 'payment_failed':
+        await billingService.handlePaymentFailed(event.subscriptionId);
         break;
 
-      case 'invoice.payment_failed':
-        // Payment failed for an existing subscription
-        const subscriptionId = event.data?.object?.subscription;
-        if (subscriptionId) {
-          await billingService.handlePaymentFailed(subscriptionId);
-        }
-        break;
-
-      case 'customer.subscription.updated':
-      case 'customer.subscription.deleted':
-        // Subscription status changed (e.g. cancelled, trialed -> active, etc)
-        await billingService.handleSubscriptionSync(event.data.object);
+      case 'subscription_updated':
+      case 'subscription_deleted':
+        await billingService.handleSubscriptionSync(event.data);
         break;
 
       default:
-        console.log(`[Billing Webhook] Unhandled event type: ${event.type}`);
+        console.log(`[Billing Webhook] Ignored event type: ${event.type}`);
     }
 
     return NextResponse.json({ received: true });
@@ -53,8 +46,4 @@ export async function POST(req: NextRequest) {
   }
 }
 
-/**
- * Stripe requires the raw body for signature verification.
- * Next.js 13+ handles this automatically with req.json() if you don't use bodyParsers.
- */
 export const dynamic = 'force-dynamic';

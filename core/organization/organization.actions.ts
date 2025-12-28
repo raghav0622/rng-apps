@@ -8,8 +8,10 @@ import {
   CreateOrgSchema,
   OfferOwnershipSchema,
   RejectInviteSchema,
+  RejectOwnershipSchema,
   RemoveMemberSchema,
   RevokeInviteSchema,
+  RevokeOwnershipSchema,
   SendInviteSchema,
   UpdateMemberRoleSchema,
   UpdateOrgSchema,
@@ -26,6 +28,7 @@ import { userRepository } from '../auth/user.repository';
 export const createOrganizationAction = authActionClient
   .metadata({ name: 'org.create' })
   .schema(CreateOrgSchema)
+  .use(rateLimitMiddleware)
   .action(async ({ ctx, parsedInput }) => {
     const result = await organizationService.createOrganization(ctx.userId, parsedInput);
     if (result.success) {
@@ -37,6 +40,7 @@ export const createOrganizationAction = authActionClient
 export const updateOrganizationAction = orgActionClient
   .metadata({ name: 'org.update', permissions: [AppPermission.ORG_UPDATE] })
   .schema(UpdateOrgSchema)
+  .use(rateLimitMiddleware)
   .action(async ({ ctx, parsedInput }) => {
     const result = await organizationService.updateOrganization(ctx.orgId, parsedInput);
     revalidatePath('/settings');
@@ -48,6 +52,7 @@ export const updateOrganizationAction = orgActionClient
 export const offerOwnershipAction = orgActionClient
   .metadata({ name: 'org.offerOwnership', permissions: [AppPermission.ORG_TRANSFER_OWNERSHIP] })
   .schema(OfferOwnershipSchema)
+  .use(rateLimitMiddleware)
   .action(async ({ ctx, parsedInput }) => {
     const result = await organizationService.offerOwnership(
       ctx.userId,
@@ -58,9 +63,30 @@ export const offerOwnershipAction = orgActionClient
     return result;
   });
 
+export const revokeOwnershipAction = orgActionClient
+  .metadata({ name: 'org.revokeOwnership', permissions: [AppPermission.ORG_TRANSFER_OWNERSHIP] })
+  .schema(RevokeOwnershipSchema)
+  .use(rateLimitMiddleware)
+  .action(async ({ ctx }) => {
+    const result = await organizationService.revokeOwnershipOffer(ctx.userId, ctx.orgId);
+    revalidatePath('/settings');
+    return result;
+  });
+
+export const rejectOwnershipAction = orgActionClient
+  .metadata({ name: 'org.rejectOwnership', permissions: [AppPermission.ORG_UPDATE] })
+  .schema(RejectOwnershipSchema)
+  .use(rateLimitMiddleware)
+  .action(async ({ ctx }) => {
+    const result = await organizationService.rejectOwnershipOffer(ctx.userId, ctx.orgId);
+    revalidatePath('/settings');
+    return result;
+  });
+
 export const acceptOwnershipAction = orgActionClient
   .metadata({ name: 'org.acceptOwnership', permissions: [AppPermission.ORG_UPDATE] })
   .schema(AcceptOwnershipSchema)
+  .use(rateLimitMiddleware)
   .action(async ({ ctx }) => {
     const result = await organizationService.acceptOwnership(ctx.userId, ctx.orgId);
     revalidatePath('/settings');
@@ -152,6 +178,7 @@ export const revokeInviteAction = orgActionClient
 export const acceptInviteAction = authActionClient
   .metadata({ name: 'org.acceptInvite' })
   .schema(AcceptInviteSchema)
+  .use(rateLimitMiddleware)
   .action(async ({ ctx, parsedInput }) => {
     const res = await organizationService.acceptInvite(ctx.userId, parsedInput.token);
     return res;
@@ -160,6 +187,7 @@ export const acceptInviteAction = authActionClient
 export const rejectInviteAction = authActionClient
   .metadata({ name: 'org.rejectInvite' })
   .schema(RejectInviteSchema)
+  .use(rateLimitMiddleware)
   .action(async ({ ctx, parsedInput }) => {
     return await organizationService.rejectInvite(ctx.userId, parsedInput.token);
   });

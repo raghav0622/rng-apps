@@ -45,6 +45,12 @@ const formatDetails = (action: string, meta?: Record<string, any>) => {
   if (action.includes('ownership_offer')) {
     return `Offered ownership transfer`;
   }
+  if (action.includes('ownership_revoke')) {
+    return `Cancelled ownership transfer`;
+  }
+  if (action.includes('ownership_reject')) {
+    return `Declined ownership transfer`;
+  }
   if (action.includes('ownership_transfer')) {
     return `Finalized ownership transfer`;
   }

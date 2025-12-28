@@ -1,19 +1,13 @@
-import { organizationRepository } from '@/core/organization/organization.repository';
 import { NotificationTopic, NotificationType } from '@/core/notifications/notification.model';
 import { notificationService } from '@/core/notifications/notification.service';
+import { organizationRepository } from '@/core/organization/organization.repository';
 import { AbstractService } from '@/lib/abstract-service/AbstractService';
+import { paymentProvider } from '@/lib/payment-provider/mock-provider';
 import { Result } from '@/lib/types';
 import { AppErrorCode, CustomError } from '@/lib/utils/errors';
 import { v4 as uuidv4 } from 'uuid';
 import { Subscription, SubscriptionPlan, SubscriptionStatus } from './billing.model';
 import { subscriptionRepository } from './subscription.repository';
-
-// MOCK STRIPE IDS (Replace with Env Vars in Prod)
-const PLAN_PRICE_IDS = {
-  [SubscriptionPlan.FREE]: 'price_free_tier_id',
-  [SubscriptionPlan.PRO]: 'price_pro_monthly_id',
-  [SubscriptionPlan.ENTERPRISE]: 'price_ent_contact_us',
-};
 
 class BillingService extends AbstractService {
   /**
@@ -25,7 +19,7 @@ class BillingService extends AbstractService {
       const repo = transaction ? subscriptionRepository.withTransaction(transaction) : subscriptionRepository;
 
       // 1. Idempotency Check
-      const existing = await repo.getByOrgId(orgId);
+      const existing = await repo.get(orgId);
       if (existing) return existing;
 
       const now = new Date();
@@ -76,7 +70,7 @@ class BillingService extends AbstractService {
   }
 
   /**
-   * Generates a Stripe Checkout URL for upgrading/changing plans.
+   * Generates a Checkout URL for upgrading/changing plans via Provider.
    */
   async createCheckoutSession(
     orgId: string,
@@ -84,26 +78,25 @@ class BillingService extends AbstractService {
     planId: SubscriptionPlan,
   ): Promise<Result<{ url: string }>> {
     return this.handleOperation('billing.checkout', async () => {
-      // 1. Validate Plan
       if (planId === SubscriptionPlan.FREE) {
         throw new CustomError(AppErrorCode.INVALID_INPUT, 'Cannot checkout for free plan.');
       }
 
-      // 2. Mock Stripe Interaction
-      // In prod: const session = await stripe.checkout.sessions.create(...)
-      const mockUrl = `https://checkout.stripe.com/pay/${PLAN_PRICE_IDS[planId]}?client_reference_id=${orgId}`;
+      // Delegate to Payment Provider
+      const result = await paymentProvider.createCheckoutSession({
+        orgId,
+        userId,
+        planId,
+        successUrl: `/billing?success=true`,
+        cancelUrl: `/billing?canceled=true`,
+      });
 
-      console.log('---------------------------------------------------');
-      console.log(`[MOCK STRIPE] Checkout URL generated for ${orgId} -> ${planId}`);
-      console.log(mockUrl);
-      console.log('---------------------------------------------------');
-
-      return { url: mockUrl };
+      return { url: result.url };
     });
   }
 
   /**
-   * Generates a Customer Portal URL for managing billing.
+   * Generates a Customer Portal URL via Provider.
    */
   async createPortalSession(orgId: string): Promise<Result<{ url: string }>> {
     return this.handleOperation('billing.portal', async () => {
@@ -115,10 +108,13 @@ class BillingService extends AbstractService {
         );
       }
 
-      // In prod: const session = await stripe.billingPortal.sessions.create(...)
-      const mockUrl = `https://billing.stripe.com/p/login/${sub.customerId}`;
+      // Delegate to Payment Provider
+      const result = await paymentProvider.createPortalSession({
+        customerId: sub.customerId,
+        returnUrl: `/billing`,
+      });
 
-      return { url: mockUrl };
+      return { url: result.url };
     });
   }
 

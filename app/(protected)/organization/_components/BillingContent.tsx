@@ -15,7 +15,7 @@ import {
   Card,
   CardContent,
   Chip,
-  Grid2 as Grid,
+  Grid,
   Stack,
   Typography,
   Divider,
@@ -164,7 +164,7 @@ export default function BillingPageContent() {
           const showUpgrade = !isProduction || plan.id === SubscriptionPlan.FREE;
 
           return (
-            <Grid key={plan.id} size={{ xs: 12, md: 4 }}>
+            <Grid item xs={12} md={4} key={plan.id}>
               <Card
                 variant="outlined"
                 sx={{

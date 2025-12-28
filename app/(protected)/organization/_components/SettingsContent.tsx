@@ -12,7 +12,7 @@ import { MemberWithProfile, UpdateOrgSchema } from '@/core/organization/organiza
 import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
 import { AppPermission, hasPermission, UserRoleInOrg } from '@/lib/action-policies';
 import { defineForm, RNGForm } from '@/rng-form';
-import { Box, Card, CardContent, Divider, Grid2 as Grid, Typography } from '@mui/material';
+import { Box, Card, CardContent, Divider, Grid, Typography } from '@mui/material';
 import { useEffect, useState } from 'react';
 
 export default function SettingsPageContent() {
@@ -64,7 +64,7 @@ export default function SettingsPageContent() {
 
       <Grid container spacing={4}>
         {canUpdateOrg && (
-          <Grid size={{ xs: 12 }}>
+          <Grid item xs={12}>
             <Card variant="outlined" sx={{ borderRadius: 2 }}>
               <Box
                 sx={{
@@ -95,13 +95,13 @@ export default function SettingsPageContent() {
         )}
 
         {(canTransferOwnership || isPendingOwner) && (
-          <Grid size={{ xs: 12 }}>
+          <Grid item xs={12}>
             <TransferOwnership org={org} members={members} currentUserId={user.id} />
           </Grid>
         )}
 
         {canViewAuditLogs && (
-          <Grid size={{ xs: 12 }}>
+          <Grid item xs={12}>
             <AuditLogViewer />
           </Grid>
         )}

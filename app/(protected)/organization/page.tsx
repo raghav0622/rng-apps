@@ -3,6 +3,7 @@
 import { useRNGAuth } from '@/core/auth/auth.context';
 import { NotificationSettings } from '@/core/notifications/components/NotificationSettings';
 import { AppPermission, hasPermission, UserRoleInOrg } from '@/lib/action-policies';
+import { RNGPage } from '@/ui/layouts/RNGPage';
 import { Box, Tab, Tabs, Typography } from '@mui/material';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import BillingPageContent from './_components/BillingContent';
@@ -41,16 +42,10 @@ export default function OrganizationPage() {
   const canViewBilling = hasPermission(userRole, AppPermission.BILLING_VIEW);
 
   return (
-    <>
-      <Box sx={{ mb: 4 }}>
-        <Typography variant="h4" fontWeight={700} gutterBottom>
-          Organization
-        </Typography>
-        <Typography color="text.secondary" variant="body1">
-          Manage your team, settings, and billing in one place.
-        </Typography>
-      </Box>
-
+    <RNGPage
+      title="Organization"
+      description="Manage your team, settings, and billing in one place."
+    >
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 4 }}>
         <Tabs value={activeTab} onChange={handleTabChange} aria-label="organization tabs">
           {canViewTeam && <Tab label="Team Members" value={OrgTab.TEAM} />}
@@ -66,7 +61,7 @@ export default function OrganizationPage() {
         {activeTab === OrgTab.BILLING && canViewBilling && <BillingPageContent />}
         {activeTab === OrgTab.NOTIFICATIONS && (
           <Box>
-            <Box sx={{ mb: 4 }}>
+             <Box sx={{ mb: 4 }}>
               <Typography variant="h5" fontWeight={700} gutterBottom>
                 Notification Preferences
               </Typography>
@@ -78,6 +73,6 @@ export default function OrganizationPage() {
           </Box>
         )}
       </Box>
-    </>
+    </RNGPage>
   );
 }

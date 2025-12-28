@@ -41,6 +41,9 @@ export default function SettingsPage() {
   const canUpdateOrg = hasPermission(userRole, AppPermission.ORG_UPDATE);
   const canTransferOwnership = hasPermission(userRole, AppPermission.ORG_TRANSFER_OWNERSHIP);
   const canViewAuditLogs = hasPermission(userRole, AppPermission.VIEW_AUDIT_LOGS);
+  
+  // 🛡️ CRITICAL FIX: Ensure the target of an ownership transfer can actually see the UI to accept it.
+  const isPendingOwner = org.pendingOwnerId === user.id;
 
   // Define the UI schema using the DSL
   const settingsUiSchema = defineForm<typeof UpdateOrgSchema>((f) => [
@@ -94,8 +97,8 @@ export default function SettingsPage() {
           </Grid>
         )}
 
-        {/* Ownership Transfer */}
-        {canTransferOwnership && (
+        {/* Ownership Transfer (Visible to Owner OR the user who needs to accept it) */}
+        {(canTransferOwnership || isPendingOwner) && (
           <Grid size={{ xs: 12 }}>
             <TransferOwnership org={org} members={members} currentUserId={user.id} />
           </Grid>

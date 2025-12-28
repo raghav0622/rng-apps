@@ -190,7 +190,7 @@ class OrganizationService extends AbstractService {
         topic: NotificationTopic.SECURITY,
         title: 'Ownership Offer Received',
         message: 'You have been offered ownership of the organization.',
-        link: '/dashboard/settings',
+        link: '/settings',
         orgId,
       });
     });

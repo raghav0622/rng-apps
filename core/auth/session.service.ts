@@ -2,7 +2,7 @@ import { AUTH_SESSION_COOKIE_NAME, SESSION_ID_COOKIE_NAME, SESSION_PREFIX, SESSI
 import { auth } from '@/lib/firebase/admin';
 import { redisClient as redis } from '@/lib/redis';
 import { Result } from '@/lib/types';
-import { AppErrorCode, CustomError } from '@/lib/utils/errors';
+import { AppErrorCode } from '@/lib/utils/errors';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import 'server-only';
@@ -142,7 +142,12 @@ export class SessionService {
       const values = await redis.mget<string[]>(...keys);
 
       const sessions: SessionData[] = keys.map((key, index) => {
-        const sessionId = key.split(':')[2]; 
+        // key format: session:valid:userId:sessionId
+        // With SESSION_PREFIX = 'session:valid:'
+        // Split by ':' gives: ['session', 'valid', userId, sessionId]
+        const parts = key.split(':');
+        const sessionId = parts[parts.length - 1]; 
+        
         const rawData = values[index];
         let metadata = { createdAt: new Date().toISOString() };
 

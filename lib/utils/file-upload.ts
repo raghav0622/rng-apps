@@ -6,6 +6,7 @@
  */
 
 import { TaskAttachment } from '@/app-features/tasks/task.model';
+import { storageProvider } from '@/core/storage/FirebaseStorageProvider';
 
 /**
  * Supported file types and their MIME types
@@ -180,3 +181,129 @@ export function getFileTypeIcon(fileType: string): string {
   if (fileType.includes('text')) return 'text';
   return 'file';
 }
+
+/**
+ * Uploads a file to Firebase Storage using AbstractStorageProvider
+ * 
+ * @param file - File to upload
+ * @param orgId - Organization ID for tenant isolation
+ * @param userId - User ID who is uploading
+ * @param path - Destination path (e.g., "tasks/task-123")
+ * @returns Promise with upload result
+ * 
+ * @example
+ * ```ts
+ * const result = await uploadFile(
+ *   file,
+ *   'org-123',
+ *   'user-456',
+ *   'tasks/task-789'
+ * );
+ * console.log(result.url); // Download URL
+ * ```
+ */
+export async function uploadFile(
+  file: File,
+  orgId: string,
+  userId: string,
+  path: string
+): Promise<{ url: string; fileId: string; fileName: string; fileSize: number; fileType: string }> {
+  // Validate file first
+  const validation = validateFile(file);
+  if (!validation.valid) {
+    throw new Error(validation.error);
+  }
+
+  // Generate unique filename
+  const filename = generateUniqueFilename(file.name, userId);
+  const fullPath = `${path}/${filename}`;
+
+  // Convert File to Blob (File extends Blob)
+  const blob = file as Blob;
+
+  // Upload using AbstractStorageProvider
+  const result = await storageProvider.upload(fullPath, blob, {
+    orgId,
+    uploadedBy: userId,
+    contentType: file.type,
+  });
+
+  return {
+    ...result,
+    fileName: file.name,
+    fileSize: file.size,
+    fileType: file.type,
+  };
+}
+
+/**
+ * Uploads multiple files to storage
+ * 
+ * @param files - Array of files to upload
+ * @param orgId - Organization ID
+ * @param userId - User ID
+ * @param path - Base path for uploads
+ * @returns Promise with array of upload results
+ * 
+ * @example
+ * ```ts
+ * const results = await uploadMultipleFiles(
+ *   [file1, file2],
+ *   'org-123',
+ *   'user-456',
+ *   'tasks/task-789'
+ * );
+ * ```
+ */
+export async function uploadMultipleFiles(
+  files: File[],
+  orgId: string,
+  userId: string,
+  path: string
+): Promise<Array<{ url: string; fileId: string; fileName: string; fileSize: number; fileType: string }>> {
+  const uploads = files.map(async (file) => {
+    return await uploadFile(file, orgId, userId, path);
+  });
+
+  return Promise.all(uploads);
+}
+
+/**
+ * Deletes a file from storage
+ * 
+ * @param fileId - File ID (full path) to delete
+ * 
+ * @example
+ * ```ts
+ * await deleteFile('orgs/org-123/tasks/task-456/file.pdf');
+ * ```
+ */
+export async function deleteFile(fileId: string): Promise<void> {
+  await storageProvider.delete(fileId);
+}
+
+/**
+ * Creates TaskAttachment objects from multiple uploaded files
+ * 
+ * @param uploadResults - Array of upload results
+ * @param userId - User ID who uploaded the files
+ * @returns Array of TaskAttachment objects
+ */
+export function createAttachmentsFromUploads(
+  uploadResults: Array<{ url: string; fileId: string; fileName: string; fileSize: number; fileType: string }>,
+  userId: string
+): TaskAttachment[] {
+  return uploadResults.map((result) =>
+    createAttachmentFromUpload(
+      {
+        id: result.fileId,
+        fileName: result.fileName,
+        fileSize: result.fileSize,
+        fileType: result.fileType,
+        fileUrl: result.url,
+      },
+      userId
+    )
+  );
+}
+

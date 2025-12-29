@@ -1,4 +1,3 @@
-import { getMembersAction } from '@/core/organization/organization.actions';
 import { defineForm } from '@/rng-form/dsl';
 import { TaskResourceType, TaskSchema, TaskStatus } from './task.model';
 
@@ -21,54 +20,6 @@ export const TaskFormSchema = TaskSchema.pick({
 export interface MemberOption {
   label: string;
   value: string;
-}
-
-/**
- * Fetch all organization members for assignment
- * Returns list of members with their display names
- * 
- * @returns Promise<MemberOption[]> - Array of member options
- */
-export async function fetchAllMembers(): Promise<MemberOption[]> {
-  try {
-    const result = await getMembersAction({});
-    if (result?.success && result.data) {
-      const members = result.data;
-      return members.map((m: any) => ({
-        label: m.user?.displayName || m.user?.email || m.userId,
-        value: m.userId,
-      }));
-    }
-    return [];
-  } catch (error) {
-    console.error('Failed to fetch members:', error);
-    return [];
-  }
-}
-
-/**
- * Fetch organization admins/owners for reviewer assignment
- * Returns only members with ADMIN or OWNER roles
- * 
- * @returns Promise<MemberOption[]> - Array of reviewer options
- */
-export async function fetchAllReviewers(): Promise<MemberOption[]> {
-  try {
-    const result = await getMembersAction({});
-    if (result?.success && result.data) {
-      const members = result.data;
-      return members
-        .filter((m: any) => m.role === 'ADMIN' || m.role === 'OWNER')
-        .map((m: any) => ({
-          label: `${m.user?.displayName || m.user?.email || m.userId} (${m.role})`,
-          value: m.userId,
-        }));
-    }
-    return [];
-  } catch (error) {
-    console.error('Failed to fetch reviewers:', error);
-    return [];
-  }
 }
 
 /**
@@ -122,12 +73,13 @@ export const createTaskFormUI = (
       t.autocomplete('assignedTo', memberOptions, {
         label: 'Assign To',
         placeholder: 'Select team member',
+        description: 'Select a team member to assign this task',
         colProps: { size: { xs: 12, md: 6 } },
       }),
       t.autocomplete('reviewerId', reviewerOptions, {
         label: 'Reviewer (Admin/Owner)',
         placeholder: 'Select reviewer',
-        helperText: 'Only admins and owners can review tasks',
+        description: 'Only admins and owners can review tasks',
         colProps: { size: { xs: 12, md: 6 } },
       }),
     ]),
@@ -145,13 +97,13 @@ export const createTaskFormUI = (
         {
           label: 'Resource Type',
           colProps: { size: { xs: 12, md: 6 } },
-          helperText: 'Defaults to General if not specified',
+          description: 'Defaults to General if not specified',
         },
       ),
       t.text('resourceId', {
         label: 'Linked Resource ID',
         placeholder: 'Enter resource ID (optional)',
-        helperText: 'Link this task to a specific project, invoice, etc.',
+        description: 'Link this task to a specific project, invoice, etc.',
         colProps: { size: { xs: 12, md: 6 } },
       }),
     ]),
@@ -229,12 +181,13 @@ export const createTaskFormUIWithEconomics = (
       t.autocomplete('assignedTo', memberOptions, {
         label: 'Assign To',
         placeholder: 'Select team member',
+        description: 'Select a team member to assign this task',
         colProps: { size: { xs: 12, md: 6 } },
       }),
       t.autocomplete('reviewerId', reviewerOptions, {
         label: 'Reviewer (Admin/Owner)',
         placeholder: 'Select reviewer',
-        helperText: 'Only admins and owners can review tasks',
+        description: 'Only admins and owners can review tasks',
         colProps: { size: { xs: 12, md: 6 } },
       }),
     ]),
@@ -252,13 +205,13 @@ export const createTaskFormUIWithEconomics = (
         {
           label: 'Resource Type',
           colProps: { size: { xs: 12, md: 6 } },
-          helperText: 'Defaults to General if not specified',
+          description: 'Defaults to General if not specified',
         },
       ),
       t.text('resourceId', {
         label: 'Linked Resource ID',
         placeholder: 'Enter resource ID (optional)',
-        helperText: 'Link this task to a specific project, invoice, etc.',
+        description: 'Link this task to a specific project, invoice, etc.',
         colProps: { size: { xs: 12, md: 6 } },
       }),
     ]),

@@ -3,13 +3,13 @@
 import {
   createTaskFormUI,
   createTaskFormUIWithEconomics,
-  fetchAllMembers,
-  fetchAllReviewers,
   MemberOption,
   TaskFormSchema,
 } from '@/app-features/tasks/task.form';
 import { Task, TaskResourceType, TaskStatus } from '@/app-features/tasks/task.model';
 import { useRNGAuth } from '@/core/auth/auth.context';
+import { getMembersAction } from '@/core/organization/organization.actions';
+import { useRngAction } from '@/core/safe-action/use-rng-action';
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { LoadingSpinner } from '@/rng-ui/LoadingSpinner';
 import { Box, Paper, Typography } from '@mui/material';
@@ -25,7 +25,7 @@ interface TaskFormProps {
  * Task Form Component
  * 
  * Features:
- * - Preloads member and reviewer options before rendering
+ * - Fetches member and reviewer options using useRngAction
  * - Shows loading state while fetching options
  * - Uses sync autocomplete for better UX
  * - Role-based form (with/without economics section)
@@ -33,6 +33,7 @@ interface TaskFormProps {
  */
 export function TaskForm({ defaultValues, onSubmit, isEdit }: TaskFormProps) {
   const { user } = useRNGAuth();
+  const { execute: fetchMembers } = useRngAction(getMembersAction);
   const [memberOptions, setMemberOptions] = useState<MemberOption[]>([]);
   const [reviewerOptions, setReviewerOptions] = useState<MemberOption[]>([]);
   const [isLoadingOptions, setIsLoadingOptions] = useState(true);
@@ -40,17 +41,34 @@ export function TaskForm({ defaultValues, onSubmit, isEdit }: TaskFormProps) {
   // Determine if user is admin/owner to show economics section
   const isAdminOrOwner = user?.orgRole === 'ADMIN' || user?.orgRole === 'OWNER';
   
-  // Preload member and reviewer options
+  // Fetch member and reviewer options using useRngAction
   useEffect(() => {
     async function loadOptions() {
       try {
         setIsLoadingOptions(true);
-        const [members, reviewers] = await Promise.all([
-          fetchAllMembers(),
-          fetchAllReviewers(),
-        ]);
-        setMemberOptions(members);
-        setReviewerOptions(reviewers);
+        const membersResult = await fetchMembers({});
+        
+        if (membersResult && Array.isArray(membersResult)) {
+          // Map all members for assignment
+          const members = membersResult.map((m) => ({
+            label: m.user?.displayName || m.user?.email || m.userId,
+            value: m.userId,
+          }));
+          setMemberOptions(members);
+          
+          // Filter and map reviewers (only ADMIN/OWNER)
+          const reviewers = membersResult
+            .filter((m) => m.role === 'ADMIN' || m.role === 'OWNER')
+            .map((m) => ({
+              label: `${m.user?.displayName || m.user?.email || m.userId} (${m.role})`,
+              value: m.userId,
+            }));
+          setReviewerOptions(reviewers);
+        } else {
+          // Set empty arrays so form can still render
+          setMemberOptions([]);
+          setReviewerOptions([]);
+        }
       } catch (error) {
         console.error('Failed to load options:', error);
         // Set empty arrays so form can still render
@@ -62,7 +80,7 @@ export function TaskForm({ defaultValues, onSubmit, isEdit }: TaskFormProps) {
     }
     
     loadOptions();
-  }, []);
+  }, [fetchMembers]);
   
   // Set smart defaults for new tasks
   const formDefaults = {

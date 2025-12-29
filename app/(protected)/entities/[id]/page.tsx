@@ -26,7 +26,7 @@ export default function EntityDetailsPage() {
   useEffect(() => {
     async function loadEntity() {
       const result = await fetchAll({});
-      if (result) {
+      if (result && Array.isArray(result)) {
         const found = result.find((e: Entity) => e.id === id);
         if (found) setEntity(found);
       }

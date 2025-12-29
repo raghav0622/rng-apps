@@ -57,7 +57,7 @@ export default function EditTaskPage() {
     >
       <TaskForm defaultValues={task} onSubmit={async (data) => {
         await updateTask({ id: taskId, data });
-      }} isLoading={isExecuting} isEdit />
+      }} isEdit />
     </RNGPage>
   );
 }

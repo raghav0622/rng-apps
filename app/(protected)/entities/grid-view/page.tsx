@@ -29,7 +29,7 @@ export default function EntityGridPage() {
       description="Tabular view of all registered entities."
       breadcrumbs={[
         { label: 'Entities', href: '/entities' },
-        { label: 'Grid', href: '/entities/grid' },
+        { label: 'Grid View', href: '/entities/grid-view' },
       ]}
       actions={
         <div style={{ display: 'flex', gap: 10 }}>

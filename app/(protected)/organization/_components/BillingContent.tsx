@@ -21,6 +21,7 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
+import { useSnackbar } from 'notistack';
 import { useEffect, useState } from 'react';
 
 const isProduction = process.env.NODE_ENV === 'production';
@@ -78,6 +79,7 @@ export default function BillingPageContent() {
     },
   );
 
+  const { enqueueSnackbar } = useSnackbar();
   useEffect(() => {
     fetchSub(undefined);
   }, []);
@@ -187,21 +189,6 @@ export default function BillingPageContent() {
                   opacity: !showUpgrade && !isCurrent ? 0.7 : 1,
                 }}
               >
-                {isPro && (
-                  <Chip
-                    label="MOST POPULAR"
-                    color="primary"
-                    size="small"
-                    sx={{
-                      position: 'absolute',
-                      top: -12,
-                      left: '50%',
-                      transform: 'translateX(-50%)',
-                      fontWeight: 800,
-                      fontSize: '0.65rem',
-                    }}
-                  />
-                )}
                 <CardContent
                   sx={{ p: 4, height: '100%', display: 'flex', flexDirection: 'column' }}
                 >
@@ -245,7 +232,7 @@ export default function BillingPageContent() {
                     variant={isCurrent ? 'outlined' : 'contained'}
                     fullWidth
                     disabled={isCurrent || isCheckingOut || (!showUpgrade && !isCurrent)}
-                    onClick={() => checkout({ planId: plan.id })}
+                    onClick={() => enqueueSnackbar('Coming Soon!', { variant: 'info' })}
                     size="large"
                     sx={{ borderRadius: 2 }}
                   >

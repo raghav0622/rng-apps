@@ -11,11 +11,10 @@ type EntityFormData = z.infer<typeof EntityFormSchema>;
 interface EntityFormProps {
   defaultValues?: Partial<Entity>;
   onSubmit: (data: EntityFormData) => Promise<void>;
-  isLoading?: boolean;
   isEdit?: boolean;
 }
 
-export function EntityForm({ defaultValues, onSubmit, isLoading, isEdit }: EntityFormProps) {
+export function EntityForm({ defaultValues, onSubmit, isEdit }: EntityFormProps) {
   return (
     <Paper sx={{ p: 4 }}>
       <Box sx={{ mb: 3, borderBottom: 1, borderColor: 'divider', pb: 2 }}>
@@ -35,7 +34,6 @@ export function EntityForm({ defaultValues, onSubmit, isLoading, isEdit }: Entit
         defaultValues={defaultValues || {}}
         onSubmit={onSubmit}
         submitLabel={isEdit ? 'Save Changes' : 'Create Entity'}
-        isSubmitting={isLoading}
       />
     </Paper>
   );

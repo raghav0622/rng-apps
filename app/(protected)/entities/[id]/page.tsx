@@ -62,7 +62,6 @@ export default function EntityDetailsPage() {
         onSubmit={async (data) => {
           await update({ id, data });
         }}
-        isLoading={isUpdating}
       />
     </RNGPage>
   );

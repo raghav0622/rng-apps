@@ -18,7 +18,6 @@ import { useEffect, useState } from 'react';
 interface TaskFormProps {
   defaultValues?: Partial<Task>;
   onSubmit: (data: any) => Promise<void>;
-  isLoading?: boolean;
   isEdit?: boolean;
 }
 
@@ -32,7 +31,7 @@ interface TaskFormProps {
  * - Role-based form (with/without economics section)
  * - Smart defaults for new tasks
  */
-export function TaskForm({ defaultValues, onSubmit, isLoading, isEdit }: TaskFormProps) {
+export function TaskForm({ defaultValues, onSubmit, isEdit }: TaskFormProps) {
   const { user } = useRNGAuth();
   const [memberOptions, setMemberOptions] = useState<MemberOption[]>([]);
   const [reviewerOptions, setReviewerOptions] = useState<MemberOption[]>([]);
@@ -116,7 +115,6 @@ export function TaskForm({ defaultValues, onSubmit, isLoading, isEdit }: TaskFor
           await onSubmit(data);
         }}
         submitLabel={isEdit ? 'Save Changes' : 'Create Task'}
-        isLoading={isLoading}
       />
     </Paper>
   );

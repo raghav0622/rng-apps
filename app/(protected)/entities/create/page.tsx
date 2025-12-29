@@ -26,7 +26,6 @@ export default function CreateEntityPage() {
         onSubmit={async (data) => {
           await execute(data);
         }}
-        isLoading={isExecuting}
       />
     </RNGPage>
   );

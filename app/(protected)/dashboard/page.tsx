@@ -16,6 +16,10 @@ export default function DashboardPage() {
             label: 'yolo',
             type: 'autocomplete',
             options: ['test', 'test2'],
+            required: true,
+            getOptionLabel: (option) => option,
+            getOptionValue: (option) => option,
+            isOptionEqualToValue: (option, value) => option === value,
           },
         ]}
         onSubmit={(data) => {

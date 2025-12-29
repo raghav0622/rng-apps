@@ -14,46 +14,58 @@ export enum EntityStatus {
   BLACKLISTED = 'BLACKLISTED',
 }
 
-const PointOfContactSchema = z.object({
-  name: z.string().min(1),
-  role: z.string().optional(),
-  email: z.string().email().optional().or(z.literal('')),
-  phone: z.string().optional(),
-  isPrimary: z.boolean().default(false),
+// Sub-schema: Insurance & Compliance
+const InsurancePolicySchema = z.object({
+  provider: z.string(),
+  policyNumber: z.string(),
+  coverageAmount: z.number(),
+  expiryDate: z.date(),
+  documentUrl: z.string().url().optional(),
 });
 
-const ProviderDetails = z.object({
-  category: z.string().optional(),
+const ComplianceDetailsSchema = z.object({
+  taxId: z.string().optional(),
+  licenseNumber: z.string().optional(),
+  insurancePolicies: z.array(InsurancePolicySchema).default([]),
+  isVetted: z.boolean().default(false),
+});
+
+// Sub-schema: Provider Specifics
+const ProviderDetailsSchema = z.object({
+  category: z.string().optional(), // e.g., "Masonry", "HVAC"
   subcategory: z.string().optional(),
   productsOffered: z.array(z.string()).default([]),
   servicesOffered: z.array(z.string()).default([]),
-  pointOfContacts: z.array(PointOfContactSchema).default([]),
 
   financialTerms: z
     .object({
-      standardDiscountPercent: z.number().optional(), // e.g., 20
-      paymentTerms: z.string().optional(), // "Net 30"
-      // REMOVED: taxID as requested
+      standardDiscountPercent: z.number().default(0),
+      paymentTerms: z.string().default('Net 30'),
     })
     .optional(),
 });
 
 export const EntitySchema = z.object({
   id: z.string(),
-  orgId: z.string(),
+  orgId: z.string(), // Tenancy
 
   type: z.nativeEnum(EntityType),
-  name: z.string().min(2), // Display Name / Business Name
+  name: z.string().min(2),
 
+  // Contact Info
   email: z.string().email().optional().or(z.literal('')),
   phone: z.string().optional(),
   address: z.string().optional(),
+  website: z.string().url().optional().or(z.literal('')),
 
-  tags: z.array(z.string()).default([]), // Taxonomy
+  // Metadata
+  tags: z.array(z.string()).default([]), // Trade Tags
   rating: z.number().min(0).max(5).default(0),
   status: z.nativeEnum(EntityStatus).default(EntityStatus.ACTIVE),
 
-  details: ProviderDetails.optional(),
+  // Domain Specifics
+  details: ProviderDetailsSchema.optional(),
+  compliance: ComplianceDetailsSchema.optional(),
 
   notes: z.string().optional(),
 
@@ -63,4 +75,3 @@ export const EntitySchema = z.object({
 });
 
 export type Entity = z.infer<typeof EntitySchema> & BaseEntity;
-export type EntityInput = z.infer<typeof EntitySchema>;

@@ -1,4 +1,5 @@
 'use client';
+import { logInfo } from '@/lib/logger';
 import { RNGForm } from '@/rng-form';
 import { RNGPage } from '@/ui/layouts/RNGPage';
 import z from 'zod';
@@ -23,7 +24,7 @@ export default function DashboardPage() {
           },
         ]}
         onSubmit={(data) => {
-          console.log(data);
+          logInfo(data as any);
         }}
       />
     </RNGPage>

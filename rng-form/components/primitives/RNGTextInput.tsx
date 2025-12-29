@@ -13,7 +13,6 @@ export function RNGTextInput<S extends FormSchema>({ item, pathPrefix }: RNGText
     <FieldWrapper item={item} name={item.name} pathPrefix={pathPrefix}>
       {(field, fieldState, mergedItem) => {
         // 🛡️ Safe access for helperText
-        const helperText = 'helperText' in mergedItem ? (mergedItem as any).helperText : undefined;
 
         return (
           <TextField
@@ -26,7 +25,6 @@ export function RNGTextInput<S extends FormSchema>({ item, pathPrefix }: RNGText
             disabled={mergedItem.disabled}
             fullWidth
             variant="outlined"
-            helperText={fieldState.error ? fieldState.error.message : helperText}
           />
         );
       }}

@@ -10,17 +10,11 @@ export const ONBOARDING_ROUTE = '/onboarding';
 
 // Routes that are accessible to everyone (e.g., Landing Page)
 export const PUBLIC_ROUTES = new Set<string>([
-  ROOT_ROUTE,
   // Add '/pricing', '/about', etc. here
 ]);
 
 // Routes that are ONLY for unauthenticated users (Redirect to Dashboard if logged in)
-export const AUTH_ROUTES = new Set([
-  '/login',
-  '/signup',
-  '/forgot-password',
-  '/action-handler',
-]);
+export const AUTH_ROUTES = new Set(['/login', '/signup', '/forgot-password', '/action-handler']);
 
 /**
  * Checks if a path is an Authentication Route (Login/Signup).

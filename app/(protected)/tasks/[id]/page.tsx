@@ -2,7 +2,7 @@
 
 import { getTaskAction, updateTaskAction } from '@/app-features/tasks/task.actions';
 import { useRngAction } from '@/core/safe-action/use-rng-action';
-import { RNGPage } from '@/ui/layouts/RNGPage';
+import { RNGPage } from '@/rng-ui/layouts/RNGPage';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { TaskForm } from '../_components/TaskForm';

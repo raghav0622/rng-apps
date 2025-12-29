@@ -1,4 +1,4 @@
-import { RNGPage } from '@/ui/layouts/RNGPage';
+import { RNGPage } from '@/rng-ui/layouts/RNGPage';
 import { Link as MuiLink, Stack, Typography } from '@mui/material';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';

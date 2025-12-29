@@ -3,7 +3,7 @@
 import { getEntitiesAction, updateEntityAction } from '@/app-features/entities/entity.actions';
 import { Entity } from '@/app-features/entities/entity.model';
 import { useRngAction } from '@/core/safe-action/use-rng-action';
-import { RNGPage } from '@/ui/layouts/RNGPage';
+import { RNGPage } from '@/rng-ui/layouts/RNGPage';
 import { Box, CircularProgress } from '@mui/material';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';

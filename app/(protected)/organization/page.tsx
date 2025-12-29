@@ -3,7 +3,7 @@
 import { AppPermission, hasPermission, UserRoleInOrg } from '@/core/action-policies';
 import { useRNGAuth } from '@/core/auth/auth.context';
 import { NotificationSettings } from '@/core/notifications/components/NotificationSettings';
-import { RNGPage } from '@/ui/layouts/RNGPage';
+import { RNGPage } from '@/rng-ui/layouts/RNGPage';
 import { Box, Tab, Tabs, Typography } from '@mui/material';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import BillingPageContent from './_components/BillingContent';

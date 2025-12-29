@@ -3,9 +3,9 @@
 import { deleteTaskAction, getTasksAction } from '@/app-features/tasks/task.actions';
 import { Task, TaskStatus } from '@/app-features/tasks/task.model';
 import { useRngAction } from '@/core/safe-action/use-rng-action';
-import { RNGButton } from '@/ui/components/RNGButton';
-import { RNGCard } from '@/ui/components/RNGCard';
-import { RNGPage } from '@/ui/layouts/RNGPage';
+import { RNGButton } from '@/rng-ui/components/RNGButton';
+import { RNGCard } from '@/rng-ui/components/RNGCard';
+import { RNGPage } from '@/rng-ui/layouts/RNGPage';
 import { Add, Assignment, Delete, Edit, TableView } from '@mui/icons-material';
 import { Box, Chip, FormControl, Grid, IconButton, InputLabel, MenuItem, Select, Tooltip, Typography } from '@mui/material';
 import Link from 'next/link';

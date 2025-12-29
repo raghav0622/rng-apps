@@ -1,7 +1,7 @@
 'use client';
 
 import { Entity } from '@/app-features/entities/entity.model';
-import { RNGDataGrid } from '@/ui/components/RNGDataGrid';
+import { RNGDataGrid } from '@/rng-ui/components/RNGDataGrid';
 import { Delete, Edit } from '@mui/icons-material';
 import { Chip } from '@mui/material';
 import { GridActionsCellItem, GridColDef } from '@mui/x-data-grid';

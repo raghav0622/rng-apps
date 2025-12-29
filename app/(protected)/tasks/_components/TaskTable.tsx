@@ -1,7 +1,7 @@
 'use client';
 
 import { Task, TaskStatus } from '@/app-features/tasks/task.model';
-import { RNGDataGrid } from '@/ui/components/RNGDataGrid';
+import { RNGDataGrid } from '@/rng-ui/components/RNGDataGrid';
 import { Assignment, Delete, Edit, Timer } from '@mui/icons-material';
 import { Box, Chip, LinearProgress, Tooltip, Typography } from '@mui/material';
 import { GridActionsCellItem, GridColDef } from '@mui/x-data-grid';

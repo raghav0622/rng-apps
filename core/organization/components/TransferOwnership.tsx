@@ -10,7 +10,7 @@ import { MemberWithProfile, OfferOwnershipSchema, Organization } from '@/core/or
 import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';
-import { AppModal } from '@/ui/AppModal';
+import { AppModal } from '@/rng-ui/AppModal';
 import { Button, Card, CardContent, Typography, Box, Stack } from '@mui/material';
 import InfoIcon from '@mui/icons-material/Info';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';

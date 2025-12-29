@@ -2,8 +2,8 @@
 
 import { deleteTaskAction, getTasksAction } from '@/app-features/tasks/task.actions';
 import { useRngAction } from '@/core/safe-action/use-rng-action';
-import { RNGButton } from '@/ui/components/RNGButton';
-import { RNGPage } from '@/ui/layouts/RNGPage';
+import { RNGButton } from '@/rng-ui/components/RNGButton';
+import { RNGPage } from '@/rng-ui/layouts/RNGPage';
 import { Add, Dashboard } from '@mui/icons-material';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';

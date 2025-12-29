@@ -3,9 +3,9 @@
 import { deleteEntityAction, getEntitiesAction } from '@/app-features/entities/entity.actions';
 import { Entity, EntityType } from '@/app-features/entities/entity.model';
 import { useRngAction } from '@/core/safe-action/use-rng-action';
-import { RNGButton } from '@/ui/components/RNGButton';
-import { RNGCard } from '@/ui/components/RNGCard';
-import { RNGPage } from '@/ui/layouts/RNGPage';
+import { RNGButton } from '@/rng-ui/components/RNGButton';
+import { RNGCard } from '@/rng-ui/components/RNGCard';
+import { RNGPage } from '@/rng-ui/layouts/RNGPage';
 import { Add, Delete, Edit, TableView } from '@mui/icons-material';
 import { Box, Chip, FormControl, Grid, IconButton, InputLabel, MenuItem, Select, Tooltip, Typography } from '@mui/material';
 import Link from 'next/link';

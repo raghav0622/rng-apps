@@ -1,62 +1,46 @@
 'use client';
 
-import { Close } from '@mui/icons-material';
-import {
-  Box,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  IconButton,
-  Typography,
-} from '@mui/material';
-import { ReactNode } from 'react';
+import { AppModal, AppModalProps } from '@/rng-ui/AppModal';
+import { Box, DialogActions, Typography } from '@mui/material';
+import { ReactElement, ReactNode, useState } from 'react';
 import { RNGButton } from './RNGButton';
 
 /**
- * Modal Dialog Component with confirmation pattern
+ * Enhanced Modal Dialog Component with confirmation pattern
  * 
- * Provides a consistent modal interface with:
- * - Title and optional description
- * - Scrollable content area
- * - Action buttons (confirm, cancel, custom)
- * - Close button
- * - Backdrop click handling
+ * Built on top of AppModal with additional confirmation features:
+ * - Trigger pattern for self-managed state
+ * - Confirmation/cancel buttons with loading states
+ * - Optional description below title
+ * - Async action support
+ * - Customizable button colors and labels
  * 
  * @example
  * ```tsx
- * import { RNGModal } from '@/rng-ui/components/RNGModal';
- * 
- * const [open, setOpen] = useState(false);
- * 
+ * // With trigger pattern (self-managed state)
  * <RNGModal
- *   open={open}
- *   onClose={() => setOpen(false)}
+ *   trigger={<RNGButton>Delete</RNGButton>}
  *   title="Delete Entity?"
  *   description="This action cannot be undone."
  *   confirmLabel="Delete"
  *   confirmColor="error"
- *   onConfirm={async () => {
- *     await deleteEntity(id);
- *     setOpen(false);
- *   }}
+ *   onConfirm={async () => await deleteEntity(id)}
  * >
- *   <Typography>
- *     Are you sure you want to delete "{entityName}"?
- *   </Typography>
+ *   <Typography>Are you sure?</Typography>
+ * </RNGModal>
+ * 
+ * // Controlled mode
+ * <RNGModal
+ *   open={open}
+ *   onClose={() => setOpen(false)}
+ *   title="Confirm Action"
+ *   onConfirm={async () => await performAction()}
+ * >
+ *   <Typography>Content here</Typography>
  * </RNGModal>
  * ```
  */
-export interface RNGModalProps {
-  /** Whether modal is open */
-  open: boolean;
-  
-  /** Callback when modal should close */
-  onClose: () => void;
-  
-  /** Modal title */
-  title: string;
-  
+export interface RNGModalProps extends Omit<AppModalProps, 'children'> {
   /** Optional description below title */
   description?: string;
   
@@ -84,31 +68,28 @@ export interface RNGModalProps {
   /** Custom action buttons */
   customActions?: ReactNode;
   
-  /** Max width of modal */
-  maxWidth?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
-  
-  /** Full width modal */
-  fullWidth?: boolean;
-  
   /** Disable backdrop click to close */
   disableBackdropClick?: boolean;
   
-  /** Loading state for confirm button */
-  isLoading?: boolean;
+  /** Controlled open state (optional, omit to use trigger pattern) */
+  open?: boolean;
+  
+  /** Controlled close handler (required if open is provided) */
+  onClose?: () => void;
 }
 
 /**
- * Modal Dialog Component
+ * Enhanced Modal Dialog Component
  * 
- * Reusable modal with consistent styling and behavior.
- * Handles loading states, confirmation patterns, and accessibility.
+ * Extends AppModal with confirmation dialog pattern.
+ * Supports both controlled and uncontrolled (trigger) modes.
+ * Handles loading states, async actions, and accessibility.
  * 
  * @param props - Component props
  * @returns RNGModal component
  */
 export function RNGModal({
-  open,
-  onClose,
+  trigger,
   title,
   description,
   children,
@@ -119,80 +100,51 @@ export function RNGModal({
   hideConfirm = false,
   hideCancel = false,
   customActions,
-  maxWidth = 'sm',
-  fullWidth = true,
   disableBackdropClick = false,
-  isLoading = false,
+  open: controlledOpen,
+  onClose: controlledOnClose,
+  ...dialogProps
 }: RNGModalProps) {
-  const handleClose = (_event: any, reason: string) => {
-    if (disableBackdropClick && reason === 'backdropClick') {
-      return;
-    }
-    onClose();
-  };
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleConfirm = async () => {
+  const handleConfirm = async (close: () => void) => {
     if (onConfirm) {
-      await onConfirm();
+      try {
+        setIsLoading(true);
+        await onConfirm();
+        close();
+      } catch (error) {
+        console.error('Confirmation action failed:', error);
+        // Don't close on error
+      } finally {
+        setIsLoading(false);
+      }
+    } else {
+      close();
     }
   };
 
-  return (
-    <Dialog
-      open={open}
-      onClose={handleClose}
-      maxWidth={maxWidth}
-      fullWidth={fullWidth}
-      aria-labelledby="modal-title"
-      aria-describedby={description ? 'modal-description' : undefined}
-    >
-      <DialogTitle
-        id="modal-title"
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          pb: 1,
-        }}
-      >
-        <Box>
-          <Typography variant="h6" component="span" fontWeight={600}>
-            {title}
-          </Typography>
-          {description && (
-            <Typography
-              id="modal-description"
-              variant="body2"
-              color="text.secondary"
-              sx={{ mt: 0.5 }}
-            >
-              {description}
-            </Typography>
-          )}
-        </Box>
-        <IconButton
-          aria-label="close"
-          onClick={onClose}
-          size="small"
-          sx={{
-            color: 'text.secondary',
-          }}
+  const content = (modalProps: { open: boolean; setOpen: (open: boolean) => void; close: () => void }) => (
+    <>
+      {description && (
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{ mb: 2, mt: -1 }}
         >
-          <Close fontSize="small" />
-        </IconButton>
-      </DialogTitle>
-
-      <DialogContent dividers sx={{ py: 3 }}>
-        {children}
-      </DialogContent>
-
-      <DialogActions sx={{ p: 2, gap: 1 }}>
+          {description}
+        </Typography>
+      )}
+      
+      {children}
+      
+      <DialogActions sx={{ p: 0, pt: 3, gap: 1 }}>
         {customActions}
         
         {!hideCancel && (
           <RNGButton
             variant="outlined"
-            onClick={onClose}
+            onClick={modalProps.close}
             disabled={isLoading}
           >
             {cancelLabel}
@@ -203,13 +155,53 @@ export function RNGModal({
           <RNGButton
             variant="contained"
             color={confirmColor}
-            onClick={handleConfirm}
+            onClick={() => handleConfirm(modalProps.close)}
             isLoading={isLoading}
           >
             {confirmLabel}
           </RNGButton>
         )}
       </DialogActions>
-    </Dialog>
+    </>
+  );
+
+  // If controlled mode (open/onClose provided)
+  if (controlledOpen !== undefined && controlledOnClose) {
+    // Create a controlled trigger that doesn't actually trigger
+    const dummyTrigger = <Box sx={{ display: 'none' }} />;
+    
+    return (
+      <AppModal
+        trigger={dummyTrigger}
+        title={title}
+        noPadding={false}
+        onClose={(_, reason) => {
+          if (disableBackdropClick && reason === 'backdropClick') {
+            return;
+          }
+          controlledOnClose();
+        }}
+        {...dialogProps}
+      >
+        {(modalProps) => content(modalProps)}
+      </AppModal>
+    );
+  }
+
+  // Uncontrolled mode with trigger
+  return (
+    <AppModal
+      trigger={trigger}
+      title={title}
+      noPadding={false}
+      onClose={(_, reason) => {
+        if (disableBackdropClick && reason === 'backdropClick') {
+          return;
+        }
+      }}
+      {...dialogProps}
+    >
+      {(modalProps) => content(modalProps)}
+    </AppModal>
   );
 }

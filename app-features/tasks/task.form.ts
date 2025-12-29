@@ -18,25 +18,26 @@ export const TaskFormSchema = TaskSchema.pick({
   submissionNotes: true,
 });
 
+export interface MemberOption {
+  label: string;
+  value: string;
+}
+
 /**
- * Fetch organization members for assignment
+ * Fetch all organization members for assignment
  * Returns list of members with their display names
+ * 
+ * @returns Promise<MemberOption[]> - Array of member options
  */
-async function fetchMembers(query: string) {
+export async function fetchAllMembers(): Promise<MemberOption[]> {
   try {
     const result = await getMembersAction({});
     if (result?.success && result.data) {
       const members = result.data;
-      return members
-        .filter((m: any) => {
-          const searchText = query.toLowerCase();
-          const displayName = m.user?.displayName || m.user?.email || '';
-          return displayName.toLowerCase().includes(searchText);
-        })
-        .map((m: any) => ({
-          label: m.user?.displayName || m.user?.email || m.userId,
-          value: m.userId,
-        }));
+      return members.map((m: any) => ({
+        label: m.user?.displayName || m.user?.email || m.userId,
+        value: m.userId,
+      }));
     }
     return [];
   } catch (error) {
@@ -48,19 +49,16 @@ async function fetchMembers(query: string) {
 /**
  * Fetch organization admins/owners for reviewer assignment
  * Returns only members with ADMIN or OWNER roles
+ * 
+ * @returns Promise<MemberOption[]> - Array of reviewer options
  */
-async function fetchReviewers(query: string) {
+export async function fetchAllReviewers(): Promise<MemberOption[]> {
   try {
     const result = await getMembersAction({});
     if (result?.success && result.data) {
       const members = result.data;
       return members
-        .filter((m: any) => {
-          const isReviewer = m.role === 'ADMIN' || m.role === 'OWNER';
-          const searchText = query.toLowerCase();
-          const displayName = m.user?.displayName || m.user?.email || '';
-          return isReviewer && displayName.toLowerCase().includes(searchText);
-        })
+        .filter((m: any) => m.role === 'ADMIN' || m.role === 'OWNER')
         .map((m: any) => ({
           label: `${m.user?.displayName || m.user?.email || m.userId} (${m.role})`,
           value: m.userId,
@@ -74,244 +72,244 @@ async function fetchReviewers(query: string) {
 }
 
 /**
- * Task Form UI Definition
+ * Task Form UI Definition (Sync Autocomplete Version)
  * 
- * Defines the form layout with smart defaults and conditional visibility:
+ * Defines the form layout with smart defaults and preloaded member options:
  * - Resource type defaults to GENERAL
  * - Economics section only visible to ADMIN/OWNER
  * - Reviewer field shows only ADMIN/OWNER members
+ * - Member options must be preloaded before rendering
  * 
- * @param userRole - Current user's role for conditional field visibility
+ * @param memberOptions - Preloaded list of all members
+ * @param reviewerOptions - Preloaded list of reviewer members (ADMIN/OWNER)
  */
-export const taskFormUI = defineForm<typeof TaskFormSchema>((t) => [
-  t.section('Basic Information', [
-    t.text('title', {
-      label: 'Task Title',
-      required: true,
-      placeholder: 'e.g., Review construction drawings',
-      colProps: { size: { xs: 12, md: 8 } },
-      autoFocus: true,
-    }),
-    t.select(
-      'priority',
-      [
-        { label: 'Low', value: 'LOW' },
-        { label: 'Medium', value: 'MEDIUM' },
-        { label: 'High', value: 'HIGH' },
-      ],
-      {
-        label: 'Priority',
+export const createTaskFormUI = (
+  memberOptions: MemberOption[],
+  reviewerOptions: MemberOption[],
+) =>
+  defineForm<typeof TaskFormSchema>((t) => [
+    t.section('Basic Information', [
+      t.text('title', {
+        label: 'Task Title',
         required: true,
-        colProps: { size: { xs: 12, md: 4 } },
-      },
-    ),
-    t.text('description', {
-      label: 'Description',
-      multiline: true,
-      rows: 3,
-      placeholder: 'Provide detailed task description...',
-      colProps: { size: { xs: 12 } },
-    }),
-  ]),
+        placeholder: 'e.g., Review construction drawings',
+        colProps: { size: { xs: 12, md: 8 } },
+        autoFocus: true,
+      }),
+      t.select(
+        'priority',
+        [
+          { label: 'Low', value: 'LOW' },
+          { label: 'Medium', value: 'MEDIUM' },
+          { label: 'High', value: 'HIGH' },
+        ],
+        {
+          label: 'Priority',
+          required: true,
+          colProps: { size: { xs: 12, md: 4 } },
+        },
+      ),
+      t.text('description', {
+        label: 'Description',
+        multiline: true,
+        rows: 3,
+        placeholder: 'Provide detailed task description...',
+        colProps: { size: { xs: 12 } },
+      }),
+    ]),
 
-  t.section('Assignment', [
-    t.asyncAutocomplete('assignedTo', {
-      label: 'Assign To',
-      placeholder: 'Select team member',
-      fetchOptions: fetchMembers,
-      colProps: { size: { xs: 12, md: 6 } },
-    }),
-    t.asyncAutocomplete('reviewerId', {
-      label: 'Reviewer (Admin/Owner)',
-      placeholder: 'Select reviewer',
-      fetchOptions: fetchReviewers,
-      helperText: 'Only admins and owners can review tasks',
-      colProps: { size: { xs: 12, md: 6 } },
-    }),
-  ]),
-
-  t.section('Resource Linking', [
-    t.select(
-      'resourceType',
-      [
-        { label: 'General', value: TaskResourceType.GENERAL },
-        { label: 'Project', value: TaskResourceType.PROJECT },
-        { label: 'Research', value: TaskResourceType.RESEARCH },
-        { label: 'Invoice', value: TaskResourceType.INVOICE },
-        { label: 'Drawing', value: TaskResourceType.DRAWING },
-      ],
-      {
-        label: 'Resource Type',
+    t.section('Assignment', [
+      t.autocomplete('assignedTo', memberOptions, {
+        label: 'Assign To',
+        placeholder: 'Select team member',
         colProps: { size: { xs: 12, md: 6 } },
-        helperText: 'Defaults to General if not specified',
-      },
-    ),
-    t.asyncAutocomplete('resourceId', {
-      label: 'Linked Resource',
-      placeholder: 'Search and select resource (optional)',
-      helperText: 'Link this task to a specific project, invoice, etc.',
-      fetchOptions: async (query: string) => {
-        // TODO: Implement resource fetching based on resourceType
-        // For now, return empty array
-        return [];
-      },
-      colProps: { size: { xs: 12, md: 6 } },
-    }),
-  ]),
-
-  t.section('Status & Notes', [
-    t.select(
-      'status',
-      [
-        { label: 'To Do', value: TaskStatus.TODO },
-        { label: 'In Progress', value: TaskStatus.IN_PROGRESS },
-        { label: 'Under Review', value: TaskStatus.UNDER_REVIEW },
-        { label: 'Changes Requested', value: TaskStatus.CHANGES_REQUESTED },
-        { label: 'Done', value: TaskStatus.DONE },
-      ],
-      {
-        label: 'Status',
+      }),
+      t.autocomplete('reviewerId', reviewerOptions, {
+        label: 'Reviewer (Admin/Owner)',
+        placeholder: 'Select reviewer',
+        helperText: 'Only admins and owners can review tasks',
         colProps: { size: { xs: 12, md: 6 } },
-        helperText: 'Only reviewers can mark as Done',
-      },
-    ),
-    t.text('submissionNotes', {
-      label: 'Notes',
-      multiline: true,
-      rows: 2,
-      placeholder: 'Additional notes or comments...',
-      colProps: { size: { xs: 12, md: 6 } },
-    }),
-  ]),
-]);
+      }),
+    ]),
+
+    t.section('Resource Linking', [
+      t.select(
+        'resourceType',
+        [
+          { label: 'General', value: TaskResourceType.GENERAL },
+          { label: 'Project', value: TaskResourceType.PROJECT },
+          { label: 'Research', value: TaskResourceType.RESEARCH },
+          { label: 'Invoice', value: TaskResourceType.INVOICE },
+          { label: 'Drawing', value: TaskResourceType.DRAWING },
+        ],
+        {
+          label: 'Resource Type',
+          colProps: { size: { xs: 12, md: 6 } },
+          helperText: 'Defaults to General if not specified',
+        },
+      ),
+      t.text('resourceId', {
+        label: 'Linked Resource ID',
+        placeholder: 'Enter resource ID (optional)',
+        helperText: 'Link this task to a specific project, invoice, etc.',
+        colProps: { size: { xs: 12, md: 6 } },
+      }),
+    ]),
+
+    t.section('Status & Notes', [
+      t.select(
+        'status',
+        [
+          { label: 'To Do', value: TaskStatus.TODO },
+          { label: 'In Progress', value: TaskStatus.IN_PROGRESS },
+          { label: 'Under Review', value: TaskStatus.UNDER_REVIEW },
+          { label: 'Changes Requested', value: TaskStatus.CHANGES_REQUESTED },
+          { label: 'Done', value: TaskStatus.DONE },
+        ],
+        {
+          label: 'Status',
+          colProps: { size: { xs: 12, md: 6 } },
+          helperText: 'Only reviewers can mark as Done',
+        },
+      ),
+      t.text('submissionNotes', {
+        label: 'Notes',
+        multiline: true,
+        rows: 2,
+        placeholder: 'Additional notes or comments...',
+        colProps: { size: { xs: 12, md: 6 } },
+      }),
+    ]),
+  ]);
 
 /**
- * Task Form UI with Economics Section (Admin/Owner only)
+ * Task Form UI with Economics Section (Admin/Owner only, Sync Version)
  * 
  * Extended version that includes economics and time tracking fields.
  * Should only be used when user has ADMIN or OWNER role.
+ * 
+ * @param memberOptions - Preloaded list of all members
+ * @param reviewerOptions - Preloaded list of reviewer members (ADMIN/OWNER)
  */
-export const taskFormUIWithEconomics = defineForm<typeof TaskFormSchema>((t) => [
-  t.section('Basic Information', [
-    t.text('title', {
-      label: 'Task Title',
-      required: true,
-      placeholder: 'e.g., Review construction drawings',
-      colProps: { size: { xs: 12, md: 8 } },
-      autoFocus: true,
-    }),
-    t.select(
-      'priority',
-      [
-        { label: 'Low', value: 'LOW' },
-        { label: 'Medium', value: 'MEDIUM' },
-        { label: 'High', value: 'HIGH' },
-      ],
-      {
-        label: 'Priority',
+export const createTaskFormUIWithEconomics = (
+  memberOptions: MemberOption[],
+  reviewerOptions: MemberOption[],
+) =>
+  defineForm<typeof TaskFormSchema>((t) => [
+    t.section('Basic Information', [
+      t.text('title', {
+        label: 'Task Title',
         required: true,
+        placeholder: 'e.g., Review construction drawings',
+        colProps: { size: { xs: 12, md: 8 } },
+        autoFocus: true,
+      }),
+      t.select(
+        'priority',
+        [
+          { label: 'Low', value: 'LOW' },
+          { label: 'Medium', value: 'MEDIUM' },
+          { label: 'High', value: 'HIGH' },
+        ],
+        {
+          label: 'Priority',
+          required: true,
+          colProps: { size: { xs: 12, md: 4 } },
+        },
+      ),
+      t.text('description', {
+        label: 'Description',
+        multiline: true,
+        rows: 3,
+        placeholder: 'Provide detailed task description...',
+        colProps: { size: { xs: 12 } },
+      }),
+    ]),
+
+    t.section('Assignment', [
+      t.autocomplete('assignedTo', memberOptions, {
+        label: 'Assign To',
+        placeholder: 'Select team member',
+        colProps: { size: { xs: 12, md: 6 } },
+      }),
+      t.autocomplete('reviewerId', reviewerOptions, {
+        label: 'Reviewer (Admin/Owner)',
+        placeholder: 'Select reviewer',
+        helperText: 'Only admins and owners can review tasks',
+        colProps: { size: { xs: 12, md: 6 } },
+      }),
+    ]),
+
+    t.section('Resource Linking', [
+      t.select(
+        'resourceType',
+        [
+          { label: 'General', value: TaskResourceType.GENERAL },
+          { label: 'Project', value: TaskResourceType.PROJECT },
+          { label: 'Research', value: TaskResourceType.RESEARCH },
+          { label: 'Invoice', value: TaskResourceType.INVOICE },
+          { label: 'Drawing', value: TaskResourceType.DRAWING },
+        ],
+        {
+          label: 'Resource Type',
+          colProps: { size: { xs: 12, md: 6 } },
+          helperText: 'Defaults to General if not specified',
+        },
+      ),
+      t.text('resourceId', {
+        label: 'Linked Resource ID',
+        placeholder: 'Enter resource ID (optional)',
+        helperText: 'Link this task to a specific project, invoice, etc.',
+        colProps: { size: { xs: 12, md: 6 } },
+      }),
+    ]),
+
+    t.section('Economics & Time Tracking (Admin/Owner Only)', [
+      t.number('estimatedMinutes', {
+        label: 'Estimated Time (minutes)',
+        placeholder: '120',
+        min: 0,
+        helperText: 'Expected duration for this task',
         colProps: { size: { xs: 12, md: 4 } },
-      },
-    ),
-    t.text('description', {
-      label: 'Description',
-      multiline: true,
-      rows: 3,
-      placeholder: 'Provide detailed task description...',
-      colProps: { size: { xs: 12 } },
-    }),
-  ]),
+      }),
+      t.number('billableRate', {
+        label: 'Billable Rate ($/hour)',
+        placeholder: '150',
+        min: 0,
+        helperText: 'Revenue generated per hour',
+        colProps: { size: { xs: 12, md: 4 } },
+      }),
+      t.number('costRate', {
+        label: 'Cost Rate ($/hour)',
+        placeholder: '50',
+        min: 0,
+        helperText: 'Internal staff cost per hour',
+        colProps: { size: { xs: 12, md: 4 } },
+      }),
+    ]),
 
-  t.section('Assignment', [
-    t.asyncAutocomplete('assignedTo', {
-      label: 'Assign To',
-      placeholder: 'Select team member',
-      fetchOptions: fetchMembers,
-      colProps: { size: { xs: 12, md: 6 } },
-    }),
-    t.asyncAutocomplete('reviewerId', {
-      label: 'Reviewer (Admin/Owner)',
-      placeholder: 'Select reviewer',
-      fetchOptions: fetchReviewers,
-      helperText: 'Only admins and owners can review tasks',
-      colProps: { size: { xs: 12, md: 6 } },
-    }),
-  ]),
-
-  t.section('Resource Linking', [
-    t.select(
-      'resourceType',
-      [
-        { label: 'General', value: TaskResourceType.GENERAL },
-        { label: 'Project', value: TaskResourceType.PROJECT },
-        { label: 'Research', value: TaskResourceType.RESEARCH },
-        { label: 'Invoice', value: TaskResourceType.INVOICE },
-        { label: 'Drawing', value: TaskResourceType.DRAWING },
-      ],
-      {
-        label: 'Resource Type',
+    t.section('Status & Notes', [
+      t.select(
+        'status',
+        [
+          { label: 'To Do', value: TaskStatus.TODO },
+          { label: 'In Progress', value: TaskStatus.IN_PROGRESS },
+          { label: 'Under Review', value: TaskStatus.UNDER_REVIEW },
+          { label: 'Changes Requested', value: TaskStatus.CHANGES_REQUESTED },
+          { label: 'Done', value: TaskStatus.DONE },
+        ],
+        {
+          label: 'Status',
+          colProps: { size: { xs: 12, md: 6 } },
+          helperText: 'Only reviewers can mark as Done',
+        },
+      ),
+      t.text('submissionNotes', {
+        label: 'Notes',
+        multiline: true,
+        rows: 2,
+        placeholder: 'Additional notes or comments...',
         colProps: { size: { xs: 12, md: 6 } },
-        helperText: 'Defaults to General if not specified',
-      },
-    ),
-    t.asyncAutocomplete('resourceId', {
-      label: 'Linked Resource',
-      placeholder: 'Search and select resource (optional)',
-      helperText: 'Link this task to a specific project, invoice, etc.',
-      fetchOptions: async (query: string) => {
-        // TODO: Implement resource fetching based on resourceType
-        return [];
-      },
-      colProps: { size: { xs: 12, md: 6 } },
-    }),
-  ]),
-
-  t.section('Economics & Time Tracking (Admin/Owner Only)', [
-    t.number('estimatedMinutes', {
-      label: 'Estimated Time (minutes)',
-      placeholder: '120',
-      min: 0,
-      helperText: 'Expected duration for this task',
-      colProps: { size: { xs: 12, md: 4 } },
-    }),
-    t.number('billableRate', {
-      label: 'Billable Rate ($/hour)',
-      placeholder: '150',
-      min: 0,
-      helperText: 'Revenue generated per hour',
-      colProps: { size: { xs: 12, md: 4 } },
-    }),
-    t.number('costRate', {
-      label: 'Cost Rate ($/hour)',
-      placeholder: '50',
-      min: 0,
-      helperText: 'Internal staff cost per hour',
-      colProps: { size: { xs: 12, md: 4 } },
-    }),
-  ]),
-
-  t.section('Status & Notes', [
-    t.select(
-      'status',
-      [
-        { label: 'To Do', value: TaskStatus.TODO },
-        { label: 'In Progress', value: TaskStatus.IN_PROGRESS },
-        { label: 'Under Review', value: TaskStatus.UNDER_REVIEW },
-        { label: 'Changes Requested', value: TaskStatus.CHANGES_REQUESTED },
-        { label: 'Done', value: TaskStatus.DONE },
-      ],
-      {
-        label: 'Status',
-        colProps: { size: { xs: 12, md: 6 } },
-        helperText: 'Only reviewers can mark as Done',
-      },
-    ),
-    t.text('submissionNotes', {
-      label: 'Notes',
-      multiline: true,
-      rows: 2,
-      placeholder: 'Additional notes or comments...',
-      colProps: { size: { xs: 12, md: 6 } },
-    }),
-  ]),
-]);
+      }),
+    ]),
+  ]);

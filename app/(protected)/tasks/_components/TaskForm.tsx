@@ -1,7 +1,8 @@
 'use client';
 
-import { TaskFormSchema, taskFormUI } from '@/app-features/tasks/task.form';
-import { Task } from '@/app-features/tasks/task.model';
+import { TaskFormSchema, taskFormUI, taskFormUIWithEconomics } from '@/app-features/tasks/task.form';
+import { Task, TaskResourceType, TaskStatus } from '@/app-features/tasks/task.model';
+import { useRNGAuth } from '@/core/auth/auth.context';
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { Box, Paper, Typography } from '@mui/material';
 
@@ -13,6 +14,22 @@ interface TaskFormProps {
 }
 
 export function TaskForm({ defaultValues, onSubmit, isLoading, isEdit }: TaskFormProps) {
+  const { user } = useRNGAuth();
+  
+  // Determine if user is admin/owner to show economics section
+  const isAdminOrOwner = user?.orgRole === 'ADMIN' || user?.orgRole === 'OWNER';
+  
+  // Set smart defaults for new tasks
+  const formDefaults = {
+    priority: 'MEDIUM',
+    status: TaskStatus.TODO,
+    resourceType: TaskResourceType.GENERAL,
+    estimatedMinutes: 0,
+    billableRate: 0,
+    costRate: 0,
+    ...defaultValues,
+  };
+
   return (
     <Paper sx={{ p: 4 }}>
       <Box sx={{ mb: 3, borderBottom: 1, borderColor: 'divider', pb: 2 }}>
@@ -28,8 +45,8 @@ export function TaskForm({ defaultValues, onSubmit, isLoading, isEdit }: TaskFor
 
       <RNGForm
         schema={TaskFormSchema}
-        uiSchema={taskFormUI}
-        defaultValues={defaultValues || {}}
+        uiSchema={isAdminOrOwner ? taskFormUIWithEconomics : taskFormUI}
+        defaultValues={formDefaults}
         onSubmit={async (data) => {
           await onSubmit(data);
         }}
@@ -38,3 +55,4 @@ export function TaskForm({ defaultValues, onSubmit, isLoading, isEdit }: TaskFor
     </Paper>
   );
 }
+

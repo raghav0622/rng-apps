@@ -1,18 +1,18 @@
 'use client';
 
-import { Box, Typography } from '@mui/material';
+import { Box, Container, ContainerProps, Stack, Typography } from '@mui/material';
 import { ReactNode } from 'react';
 
-interface RNGPageProps {
+type RNGPageProps = {
   title: string;
   description?: string;
   actions?: ReactNode;
   children: ReactNode;
-}
+} & ContainerProps;
 
-export function RNGPage({ title, description, actions, children }: RNGPageProps) {
+export function RNGPage({ title, description, actions, children, ...rest }: RNGPageProps) {
   return (
-    <Box>
+    <Container {...rest}>
       <Box
         sx={{
           mb: 4,
@@ -34,7 +34,7 @@ export function RNGPage({ title, description, actions, children }: RNGPageProps)
         </Box>
         {actions && <Box>{actions}</Box>}
       </Box>
-      {children}
-    </Box>
+      <Stack gap={2}>{children}</Stack>
+    </Container>
   );
 }

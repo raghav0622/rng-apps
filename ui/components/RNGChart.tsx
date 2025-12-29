@@ -1,27 +1,24 @@
 'use client';
 
+import { Box, Paper, Typography, useTheme } from '@mui/material';
 import * as React from 'react';
 import {
-  ResponsiveContainer,
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
   CartesianGrid,
+  Cell,
+  Legend,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  Tooltip,
-  Legend,
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
-  AreaChart,
-  Area,
-  PieChart,
-  Pie,
-  Cell,
-  // To be added later for more advanced charts:
-  // ComposedChart, Scatter, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
-}
-from 'recharts';
-import { Box, Paper, Typography, useTheme } from '@mui/material';
+} from 'recharts';
 
 export type RNGChartType = 'line' | 'bar' | 'area' | 'pie';
 
@@ -102,7 +99,14 @@ export function RNGChart({
             {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />}
             <XAxis dataKey={xAxisKey} stroke={theme.palette.text.secondary} />
             <YAxis stroke={theme.palette.text.secondary} />
-            <Tooltip formatter={tooltipFormatter} contentStyle={{ backgroundColor: theme.palette.background.paper, borderColor: theme.palette.divider, borderRadius: theme.shape.borderRadius }} />
+            <Tooltip
+              formatter={tooltipFormatter as any}
+              contentStyle={{
+                backgroundColor: theme.palette.background.paper,
+                borderColor: theme.palette.divider,
+                borderRadius: theme.shape.borderRadius,
+              }}
+            />
             <Legend formatter={legendFormatter} />
             {dataKeys.map((item, i) => (
               <Line
@@ -122,7 +126,14 @@ export function RNGChart({
             {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />}
             <XAxis dataKey={xAxisKey} stroke={theme.palette.text.secondary} />
             <YAxis stroke={theme.palette.text.secondary} />
-            <Tooltip formatter={tooltipFormatter} contentStyle={{ backgroundColor: theme.palette.background.paper, borderColor: theme.palette.divider, borderRadius: theme.shape.borderRadius }} />
+            <Tooltip
+              formatter={tooltipFormatter as any}
+              contentStyle={{
+                backgroundColor: theme.palette.background.paper,
+                borderColor: theme.palette.divider,
+                borderRadius: theme.shape.borderRadius,
+              }}
+            />
             <Legend formatter={legendFormatter} />
             {dataKeys.map((item, i) => (
               <Bar
@@ -140,7 +151,14 @@ export function RNGChart({
             {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={theme.palette.divider} />}
             <XAxis dataKey={xAxisKey} stroke={theme.palette.text.secondary} />
             <YAxis stroke={theme.palette.text.secondary} />
-            <Tooltip formatter={tooltipFormatter} contentStyle={{ backgroundColor: theme.palette.background.paper, borderColor: theme.palette.divider, borderRadius: theme.shape.borderRadius }} />
+            <Tooltip
+              formatter={tooltipFormatter as any}
+              contentStyle={{
+                backgroundColor: theme.palette.background.paper,
+                borderColor: theme.palette.divider,
+                borderRadius: theme.shape.borderRadius,
+              }}
+            />
             <Legend formatter={legendFormatter} />
             {dataKeys.map((item, i) => (
               <Area
@@ -173,7 +191,14 @@ export function RNGChart({
                 <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
               ))}
             </Pie>
-            <Tooltip formatter={tooltipFormatter} contentStyle={{ backgroundColor: theme.palette.background.paper, borderColor: theme.palette.divider, borderRadius: theme.shape.borderRadius }} />
+            <Tooltip
+              formatter={tooltipFormatter as any}
+              contentStyle={{
+                backgroundColor: theme.palette.background.paper,
+                borderColor: theme.palette.divider,
+                borderRadius: theme.shape.borderRadius,
+              }}
+            />
             <Legend formatter={legendFormatter} />
           </PieChart>
         );

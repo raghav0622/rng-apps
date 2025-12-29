@@ -1,15 +1,7 @@
 'use client';
 
-import {
-  Box,
-  Grid2 as Grid,
-  IconButton,
-  Paper,
-  Tooltip,
-  Typography,
-  useTheme,
-} from '@mui/material';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import { Box, Grid, IconButton, Paper, Tooltip, Typography, useTheme } from '@mui/material';
 import { ReactNode } from 'react';
 
 export interface DescriptionItem {
@@ -79,10 +71,7 @@ export function RNGDescriptionList({ items, columns = 3, title }: RNGDescription
       <Box sx={{ p: 3 }}>
         <Grid container spacing={3} columns={columns}>
           {items.map((item) => (
-            <Grid
-              key={item.key}
-              size={{ xs: columns, sm: item.span || 1 }}
-            >
+            <Grid key={item.key} size={{ xs: columns, sm: item.span || 1 }}>
               <Box>
                 <Typography
                   variant="caption"

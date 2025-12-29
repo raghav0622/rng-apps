@@ -75,3 +75,6 @@ export const EntitySchema = z.object({
 });
 
 export type Entity = z.infer<typeof EntitySchema> & BaseEntity;
+
+// Input type for creating/updating entities (omits auto-generated fields)
+export type EntityInput = Omit<Entity, 'id' | 'orgId' | 'createdAt' | 'updatedAt' | 'deletedAt'>;

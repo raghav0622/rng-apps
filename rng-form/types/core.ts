@@ -34,6 +34,10 @@ export type BaseFormItem<Schema extends FormSchema> = {
   /** Grid Layout props (MUI Grid 2 size, offset, etc) */
   colProps?: GridProps;
 
+  // ✅ ADD THESE FIELDS
+  required?: boolean;
+  placeholder?: string;
+
   /** * Fields that this field depends on.
    * - Relative paths: "age" (looks inside current scope)
    * - Global paths: "!settings.mode" (looks at root)

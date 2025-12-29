@@ -1,83 +1,64 @@
 'use client';
 
-import { FIELD_CONFIG } from '@/rng-form/config';
-import { BaseFormItem, FormSchema } from '@/rng-form/types';
-import { AnyFieldType } from '@/rng-form/types/field-registry';
-import { FormControl, FormHelperText, FormLabel } from '@mui/material';
-import {
-  Controller,
-  ControllerFieldState,
-  ControllerRenderProps,
-  FieldValues,
-  Path,
-  useFormContext,
-} from 'react-hook-form';
-import { z } from 'zod';
-import { useRNGForm } from './FormContext'; // Import to access formId
+import { Box, FormHelperText, InputLabel, Typography } from '@mui/material';
+import React, { ReactNode } from 'react';
+import { useFormContext } from 'react-hook-form';
+import { FIELD_CONFIG } from '../config'; // ✅ Import Config
+import { InputItem } from '../types';
+import { AnyFieldType } from '../types/field-registry';
 
-interface FieldWrapperProps<S extends FormSchema, T extends BaseFormItem<S>> {
-  item: T;
-  name: Path<z.infer<S>>;
+interface FieldWrapperProps {
+  item: InputItem<any>;
+  name: string;
+  children: (field: any, fieldState: any, item: InputItem<any>) => ReactNode;
   pathPrefix?: string;
-  children: (
-    field: ControllerRenderProps<FieldValues, string>,
-    fieldState: ControllerFieldState,
-    mergedItem: T,
-  ) => React.ReactNode;
 }
 
-export function FieldWrapper<S extends FormSchema, T extends BaseFormItem<S>>({
-  item,
-  name,
-  children,
-}: FieldWrapperProps<S, T>) {
-  const { control } = useFormContext();
-  const { formId } = useRNGForm(); // Get unique form ID
+export const FieldWrapper: React.FC<FieldWrapperProps> = ({ item, name, children }) => {
+  const { control, getFieldState } = useFormContext();
+  const fieldState = getFieldState(name);
 
-  // FIX: Unique ID generation to prevent clashes between multiple forms
-  const fieldId = `${formId}-field-${(name as string).replace(/\./g, '-')}`;
-  const errorId = `${fieldId}-error`;
-  const labelId = `${fieldId}-label`;
+  // 1. Check Config: Does this component handle its own label?
+  // We default to FALSE (Wrapper handles it) if config is missing
+  const config = FIELD_CONFIG[item.type as AnyFieldType];
+  const hasInternalLabel = config?.hasInternalLabel ?? false;
 
-  const config = FIELD_CONFIG[item.type as AnyFieldType] || {};
-  const showExternalLabel = !config.hasInternalLabel && !!item.label;
+  // 2. Build Label Content (with * and Optional)
+  const isRequired = item.required;
+
+  const labelContent = (
+    <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+      {item.label}
+      {isRequired ? (
+        <Typography component="span" color="error" sx={{ ml: 0.5, fontWeight: 'bold' }}>
+          *
+        </Typography>
+      ) : (
+        <Typography component="span" variant="caption" color="text.secondary" sx={{ ml: 0.5 }}>
+          (Optional)
+        </Typography>
+      )}
+    </Box>
+  );
 
   return (
-    <Controller
-      name={name}
-      control={control}
-      render={({ field, fieldState }) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const enrichedField: any = {
-          ...field,
-          id: fieldId,
-          'aria-invalid': !!fieldState.error,
-          'aria-describedby': fieldState.error ? errorId : undefined,
-        };
+    <Box sx={{ mb: 2 }}>
+      {/* 3. Conditionally Render Label */}
+      {item.label && !hasInternalLabel && (
+        <InputLabel htmlFor={name} error={!!fieldState.error} sx={{ mb: 0.5, display: 'flex' }}>
+          {labelContent}
+        </InputLabel>
+      )}
 
-        return (
-          <FormControl
-            fullWidth
-            error={!!fieldState.error}
-            disabled={item.disabled}
-            component="div"
-          >
-            {showExternalLabel && (
-              <FormLabel htmlFor={fieldId} id={labelId} sx={{ mb: 0.5, fontWeight: 500 }}>
-                {item.label}
-              </FormLabel>
-            )}
+      {/* Render the Field */}
+      {children({ name, value: undefined }, fieldState, item)}
 
-            {children(enrichedField, fieldState, item)}
-
-            {(fieldState.error?.message || item.description) && (
-              <FormHelperText id={errorId}>
-                {fieldState.error?.message || item.description}
-              </FormHelperText>
-            )}
-          </FormControl>
-        );
-      }}
-    />
+      {/* Description / Helper Text */}
+      {(item.description || fieldState.error) && (
+        <FormHelperText error={!!fieldState.error}>
+          {fieldState.error?.message || item.description}
+        </FormHelperText>
+      )}
+    </Box>
   );
-}
+};

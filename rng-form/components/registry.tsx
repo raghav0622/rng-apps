@@ -16,14 +16,15 @@ import { RNGRadioGroup } from './selection/RNGRadioGroup';
 import { RNGSelect } from './selection/RNGSelect';
 import { RNGSwitch } from './selection/RNGSwitch';
 import { RNGToggleGroup } from './selection/RNGToggleGroup';
+import { RNGAvatarUpload } from './special/AvatarUpload';
 import { RNGCalculatedField } from './special/CalculatedField';
 import { RNGFileUpload } from './special/FileUpload';
 import { RNGRating, RNGSlider } from './special/RangeInputs';
 import { RNGRichText } from './special/RichText';
 import { RNGSignature } from './special/Signature';
+import { TaxonomyInput } from './special/TaxonomyInput';
 import { RNGMaskedInput, RNGOtpInput } from './special/TextExtendedInputs';
 import { RNGTransferList } from './special/TransferList';
-import { RNGAvatarUpload } from './special/AvatarUpload';
 
 // =============================================================================
 // LAZY LOADING
@@ -76,7 +77,6 @@ const LazyDataGrid = lazy(() =>
 // REGISTRIES
 // =============================================================================
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 export const INPUT_REGISTRY: Partial<Record<InputType, React.ComponentType<any>>> = {
   // Primitives
   text: RNGTextInput,
@@ -107,6 +107,8 @@ export const INPUT_REGISTRY: Partial<Record<InputType, React.ComponentType<any>>
   file: withSuspense(RNGFileUpload),
   'rich-text': withSuspense(RNGRichText),
   signature: withSuspense(RNGSignature),
+
+  taxonomy: TaxonomyInput,
 
   // New Mappings
   avatar: RNGAvatarUpload,

@@ -4,6 +4,7 @@ import { useLayoutContext } from '@/app/(protected)/LayoutContext';
 import {
   Business as BusinessIcon,
   Dashboard as DashboardIcon,
+  People as PeopleIcon, // ✅ Import Icon
 } from '@mui/icons-material';
 import {
   Box,
@@ -21,6 +22,7 @@ import { usePathname } from 'next/navigation';
 
 const MENU_ITEMS = [
   { label: 'Dashboard', icon: <DashboardIcon />, href: '/dashboard' },
+  { label: 'Entities', icon: <PeopleIcon />, href: '/entities' }, // ✅ Added Link
   { label: 'Organization', icon: <BusinessIcon />, href: '/organization' },
 ];
 
@@ -36,6 +38,7 @@ export default function AppDrawer() {
       <Divider />
       <List component="nav" sx={{ flexGrow: 1, px: 2, py: 2 }}>
         {MENU_ITEMS.map((item) => {
+          // Highlight if current path starts with the menu href (e.g. /entities/123)
           const isActive = pathname.startsWith(item.href);
           return (
             <ListItem key={item.href} disablePadding sx={{ mb: 1 }}>

@@ -1,30 +1,41 @@
 'use client';
-import { FieldWrapper } from '@/rng-form/components/FieldWrapper';
-import { FormSchema, InputItem } from '@/rng-form/types';
+
 import { TextField } from '@mui/material';
+import React from 'react';
+import { useController, useFormContext } from 'react-hook-form';
+import { InputItem } from '../../types';
 
-// We allow this component to handle both 'text' and 'password' items
-interface RNGTextInputProps<S extends FormSchema> {
-  item: InputItem<S> & { type: 'text' | 'password' };
+interface RNGTextInputProps {
+  item: InputItem<any>;
 }
 
-export function RNGTextInput<S extends FormSchema>({ item }: RNGTextInputProps<S>) {
+export const RNGTextInput: React.FC<RNGTextInputProps> = ({ item }) => {
+  const { control } = useFormContext();
+  const {
+    field,
+    fieldState: { error },
+  } = useController({
+    name: item.name!,
+    control,
+    rules: { required: item.required ? 'This field is required' : false },
+  });
+
   return (
-    <FieldWrapper item={item} name={item.name}>
-      {(field, fieldState, mergedItem) => (
-        <TextField
-          {...field}
-          fullWidth
-          autoFocus={mergedItem.autoFocus}
-          placeholder={mergedItem.placeholder}
-          multiline={mergedItem.type === 'text' && mergedItem.multiline}
-          rows={mergedItem.type === 'text' ? mergedItem.rows : undefined}
-          error={!!fieldState.error}
-          // Explicitly map value to avoid uncontrolled/controlled warnings
-          value={field.value ?? ''}
-          {...mergedItem}
-        />
-      )}
-    </FieldWrapper>
+    <TextField
+      {...field}
+      // 🚫 REMOVED: label={item.label}
+      // ✅ ADDED: hiddenLabel (Prevents MUI layout shift for missing label)
+      hiddenLabel
+      id={item.id}
+      placeholder={item.placeholder}
+      error={!!error}
+      // HelperText is handled by FieldWrapper, but we can keep error highlight here
+      fullWidth
+      variant="outlined"
+      type={item.type === 'password' ? 'password' : 'text'}
+      rows={(item as any).rows || 1}
+      disabled={item.disabled}
+      size="small" // Preferred for ERPs
+    />
   );
-}
+};

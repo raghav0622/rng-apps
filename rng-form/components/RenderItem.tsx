@@ -2,6 +2,7 @@
 import { logError } from '@/lib/logger';
 import { useFormContext } from 'react-hook-form';
 import { FormItem, FormSchema } from '../types';
+import { FieldWrapper } from './FieldWrapper'; // ✅ Import Wrapper
 import { INPUT_REGISTRY, LAYOUT_REGISTRY } from './registry';
 
 interface RenderItemProps<S extends FormSchema> {
@@ -15,9 +16,7 @@ export function RenderItem<S extends FormSchema>({ item, pathPrefix }: RenderIte
   // Calculate the correct "name" for React Hook Form registration
   const scopedName = pathPrefix && item.name ? `${pathPrefix}.${item.name}` : item.name;
 
-  // Create a scoped item.
-  // CRITICAL FIX: Destructure out logic props so they don't leak to the DOM/Component
-  // if the component spreads props indiscriminately.
+  // Cleanup logic props
   const { renderLogic, propsLogic, dependencies, ...cleanItem } = item;
 
   const scopedItem = {
@@ -25,14 +24,33 @@ export function RenderItem<S extends FormSchema>({ item, pathPrefix }: RenderIte
     name: scopedName,
   };
 
+  // 1. Hidden Input (Special Case)
   if (item.type === 'hidden') {
     return <input type="hidden" {...register(scopedName as any)} />;
   }
 
-  const Component = (LAYOUT_REGISTRY as any)[item.type] || (INPUT_REGISTRY as any)[item.type];
+  // 2. Layout Components (Sections, Tabs, etc.)
+  // These are NOT wrapped because they are structural
+  const LayoutComponent = (LAYOUT_REGISTRY as any)[item.type];
+  if (LayoutComponent) {
+    return <LayoutComponent item={scopedItem as any} pathPrefix={pathPrefix} />;
+  }
 
-  if (Component) {
-    return <Component item={scopedItem as any} pathPrefix={pathPrefix} />;
+  // 3. Input Components (Text, Select, Taxonomy, etc.)
+  // These MUST be wrapped to show Labels and Errors
+  const InputComponent = (INPUT_REGISTRY as any)[item.type];
+
+  if (InputComponent) {
+    return (
+      <FieldWrapper item={scopedItem as any} name={scopedName as string}>
+        {(fieldProps) => (
+          // We pass 'item' down so the component has access to specific props (options, etc.)
+          // fieldProps might contain { name, value, onChange } if FieldWrapper enhanced them,
+          // but currently FieldWrapper mainly renders UI around the child.
+          <InputComponent item={scopedItem as any} pathPrefix={pathPrefix} {...fieldProps} />
+        )}
+      </FieldWrapper>
+    );
   }
 
   logError(`No component found for type: ${item.type}`);

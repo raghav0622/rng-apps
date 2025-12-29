@@ -265,11 +265,9 @@ export class FormBuilderDSL<S extends FormSchema> {
   array(
     name: Path<z.infer<S>>,
 
-    items: FormItem<any>[],
-
-    props?: Omit<LayoutRegistry<S, any>['array'], 'items' | 'name'> & Partial<BaseFormItem<S>>,
+    props?: Omit<LayoutRegistry<S, any>['array'], 'name'> & Partial<BaseFormItem<S>>,
   ) {
-    return this.create('array', name, { items, ...props });
+    return this.create('array', name, { ...props });
   }
 
   dataGrid(
@@ -281,6 +279,14 @@ export class FormBuilderDSL<S extends FormSchema> {
       Partial<BaseFormItem<S>>,
   ) {
     return this.create('data-grid', name, { columns, ...props });
+  }
+  taxonomy(
+    name: Path<z.infer<S>>,
+    scope: string,
+    props?: Omit<InputFieldRegistry<S>['taxonomy'], 'scope'> & Partial<BaseFormItem<S>>,
+  ) {
+    // We strictly require 'scope' as the 2nd arg
+    return this.field('taxonomy', name, { scope, creatable: true, ...props });
   }
 }
 

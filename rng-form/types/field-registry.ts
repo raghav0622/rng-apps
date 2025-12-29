@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { z } from 'zod';
 import { FormSchema } from './core';
 
@@ -123,44 +122,44 @@ export interface InputFieldRegistry<S extends FormSchema> {
   // Selection
   slider: { min?: number; max?: number; step?: number };
   rating: { max?: number; precision?: number };
-  
-  radio: { 
-    options: readonly RadioOption[]; 
+
+  radio: {
+    options: readonly RadioOption[];
     row?: boolean;
     getOptionLabel?: (option: any) => string;
     getOptionValue?: (option: any) => any;
   };
-  
-  'checkbox-group': { 
-    options: readonly RadioOption[]; 
+
+  'checkbox-group': {
+    options: readonly RadioOption[];
     row?: boolean;
     getOptionLabel?: (option: any) => string;
     getOptionValue?: (option: any) => any;
   };
-  
-  'toggle-group': { 
-    options: readonly RadioOption[]; 
+
+  'toggle-group': {
+    options: readonly RadioOption[];
     exclusive?: boolean;
     getOptionLabel?: (option: any) => string;
     getOptionValue?: (option: any) => any;
   };
-  
-  'transfer-list': { 
-    options: readonly RadioOption[]; 
+
+  'transfer-list': {
+    options: readonly RadioOption[];
     titles?: [string, string];
     getOptionLabel?: (option: any) => string;
     getOptionValue?: (option: any) => any;
     isOptionEqualToValue?: (option: any, value: any) => boolean;
   };
-
   select: {
-    options: readonly (string | Record<string, any>)[];
-    getOptionLabel?: (option: any) => string;
-    getOptionValue?: (option: any) => any;
-    isOptionEqualToValue?: (option: any, value: any) => boolean;
+    options: any[];
     placeholder?: string;
-  };
 
+    // ✅ Helper Hooks (Now fully typed)
+    getOptionLabel?: (option: any) => string;
+    getOptionValue?: (option: any) => string | number;
+    isOptionEqualToValue?: (option: any, value: any) => boolean; // ✅ ADD THIS
+  };
   autocomplete: {
     options: readonly AutocompleteOption[];
     getOptionLabel?: (option: any) => string;
@@ -170,7 +169,7 @@ export interface InputFieldRegistry<S extends FormSchema> {
     multiple?: boolean;
     placeholder?: string;
   };
-  
+
   'async-autocomplete': {
     loadOptions: (query: string, values: z.infer<S>) => Promise<AutocompleteOption[]>;
     getOptionLabel?: (option: any) => string;
@@ -199,6 +198,13 @@ export interface InputFieldRegistry<S extends FormSchema> {
   };
 
   'date-range': { minDate?: Date; maxDate?: Date };
+
+  taxonomy: {
+    scope: string; // e.g. 'vendor_tags'
+    placeholder?: string;
+    multiple?: boolean; // Support multi-select tags
+    creatable?: boolean;
+  };
 }
 
 // Layout Registry (Standard)

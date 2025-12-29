@@ -27,7 +27,9 @@ export default function EditTaskPage() {
     async function loadTask() {
       if (taskId) {
         const result = await getTask({ id: taskId });
-        if (result) setTask(result);
+        if (result && typeof result === 'object' && 'id' in result) {
+          setTask(result as Task);
+        }
       }
       setLoading(false);
     }

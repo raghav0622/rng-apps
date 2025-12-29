@@ -25,6 +25,8 @@ export const TimeLogSchema = z.object({
   description: z.string(),
 });
 
+export type TimeLog = z.infer<typeof TimeLogSchema>;
+
 export const TaskSchema = z.object({
   id: z.string(),
   orgId: z.string(),

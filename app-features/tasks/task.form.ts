@@ -169,7 +169,6 @@ export const createTaskFormUI = (
         {
           label: 'Status',
           colProps: { size: { xs: 12, md: 6 } },
-          helperText: 'Only reviewers can mark as Done',
         },
       ),
       t.text('submissionNotes', {
@@ -269,21 +268,18 @@ export const createTaskFormUIWithEconomics = (
         label: 'Estimated Time (minutes)',
         placeholder: '120',
         min: 0,
-        helperText: 'Expected duration for this task',
         colProps: { size: { xs: 12, md: 4 } },
       }),
       t.number('billableRate', {
         label: 'Billable Rate ($/hour)',
         placeholder: '150',
         min: 0,
-        helperText: 'Revenue generated per hour',
         colProps: { size: { xs: 12, md: 4 } },
       }),
       t.number('costRate', {
         label: 'Cost Rate ($/hour)',
         placeholder: '50',
         min: 0,
-        helperText: 'Internal staff cost per hour',
         colProps: { size: { xs: 12, md: 4 } },
       }),
     ]),
@@ -301,7 +297,6 @@ export const createTaskFormUIWithEconomics = (
         {
           label: 'Status',
           colProps: { size: { xs: 12, md: 6 } },
-          helperText: 'Only reviewers can mark as Done',
         },
       ),
       t.text('submissionNotes', {

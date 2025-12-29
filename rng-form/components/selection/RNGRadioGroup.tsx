@@ -5,9 +5,10 @@ import { FormControlLabel, Radio, RadioGroup } from '@mui/material';
 
 interface RNGRadioGroupProps<S extends FormSchema> {
   item: InputItem<S> & { type: 'radio' };
+  pathPrefix?: string; // ✅ Added support for scoped paths
 }
 
-export function RNGRadioGroup<S extends FormSchema>({ item }: RNGRadioGroupProps<S>) {
+export function RNGRadioGroup<S extends FormSchema>({ item, pathPrefix }: RNGRadioGroupProps<S>) {
   const {
     options,
     getOptionLabel = (opt: any) => (typeof opt === 'string' ? opt : opt.label || String(opt)),
@@ -16,25 +17,30 @@ export function RNGRadioGroup<S extends FormSchema>({ item }: RNGRadioGroupProps
   } = item;
 
   return (
-    <FieldWrapper item={item} name={item.name}>
-      {(field, _fieldState, mergedItem) => (
-        <RadioGroup {...field} row={mergedItem.row} name={field.name} value={field.value ?? ''}>
-          {options.map((option, index) => {
-            const label = getOptionLabel(option);
-            const value = getOptionValue(option);
+    <FieldWrapper item={item} name={item.name} pathPrefix={pathPrefix}>
+      {(field, _fieldState, mergedItem) => {
+        // 🛡️ Safe check for 'row' property to satisfy TypeScript
+        const isRow = 'row' in mergedItem ? (mergedItem as any).row : false;
 
-            return (
-              <FormControlLabel
-                key={`${item.name}-radio-${index}`}
-                value={value}
-                control={<Radio />}
-                label={label}
-                disabled={mergedItem.disabled}
-              />
-            );
-          })}
-        </RadioGroup>
-      )}
+        return (
+          <RadioGroup {...field} row={isRow} name={field.name} value={field.value ?? ''}>
+            {options.map((option, index) => {
+              const label = getOptionLabel(option);
+              const value = getOptionValue(option);
+
+              return (
+                <FormControlLabel
+                  key={`${item.name}-radio-${index}`}
+                  value={value}
+                  control={<Radio />}
+                  label={label}
+                  disabled={mergedItem.disabled}
+                />
+              );
+            })}
+          </RadioGroup>
+        );
+      }}
     </FieldWrapper>
   );
 }

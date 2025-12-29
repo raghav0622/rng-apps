@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 import { FieldWrapper } from '@/rng-form/components/FieldWrapper';
 import { FormSchema, InputItem } from '@/rng-form/types';
@@ -19,14 +18,19 @@ const VisuallyHiddenInput = styled('input')({
 
 interface RNGFileUploadProps<S extends FormSchema> {
   item: InputItem<S> & { type: 'file' };
+  pathPrefix?: string; // ✅ Added support for scoped paths
 }
 
-export function RNGFileUpload<S extends FormSchema>({ item }: RNGFileUploadProps<S>) {
+export function RNGFileUpload<S extends FormSchema>({ item, pathPrefix }: RNGFileUploadProps<S>) {
   return (
-    <FieldWrapper item={item} name={item.name}>
+    <FieldWrapper item={item} name={item.name} pathPrefix={pathPrefix}>
       {(field, fieldState, mergedItem) => {
+        // 🛡️ Safe check for specific file properties
+        const isMultiple = 'multiple' in mergedItem ? (mergedItem as any).multiple : false;
+        const accept = 'accept' in mergedItem ? (mergedItem as any).accept : undefined;
+
         const handleDelete = (indexToRemove: number) => {
-          if (mergedItem.multiple && Array.isArray(field.value)) {
+          if (isMultiple && Array.isArray(field.value)) {
             const newFiles = field.value.filter((_: any, idx: number) => idx !== indexToRemove);
             field.onChange(newFiles.length > 0 ? newFiles : null);
           } else {
@@ -90,17 +94,14 @@ export function RNGFileUpload<S extends FormSchema>({ item }: RNGFileUploadProps
             >
               <VisuallyHiddenInput
                 type="file"
-                multiple={mergedItem.multiple}
-                accept={mergedItem.accept}
+                multiple={isMultiple}
+                accept={accept}
                 disabled={mergedItem.disabled}
                 onChange={(e) => {
                   const files = e.target.files;
                   if (files && files.length > 0) {
                     // Logic: Append if multiple, replace if single
-                    // Note: This replaces entirely. Merging with existing URLs requires more complex logic
-                    // (combining File[] and string[]), which usually requires a specialized 'UploadManager'.
-                    // For a simple Field, replacing is standard behavior unless custom logic is added.
-                    const value = mergedItem.multiple ? Array.from(files) : files[0];
+                    const value = isMultiple ? Array.from(files) : files[0];
                     field.onChange(value);
                   }
                 }}

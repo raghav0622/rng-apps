@@ -17,7 +17,13 @@ export const EntityFormSchema = EntitySchema.pick({
 // 2. UI Layout
 export const entityFormUI = defineForm<typeof EntityFormSchema>((t) => [
   t.section('Basic Info', [
-    t.text('name', { label: 'Entity Name', required: true, placeholder: 'e.g. Acme Corp' }),
+    t.text('name', {
+      label: 'Entity Name',
+      required: true,
+      placeholder: 'e.g. Acme Corp',
+      colProps: { size: { xs: 12, md: 4 } },
+      autoFocus: true,
+    }),
     t.select(
       'type',
       [
@@ -26,7 +32,7 @@ export const entityFormUI = defineForm<typeof EntityFormSchema>((t) => [
         { label: 'Contractor', value: EntityType.CONTRACTOR },
         { label: 'Consultant', value: EntityType.CONSULTANT },
       ],
-      { label: 'Type', required: true },
+      { label: 'Type', required: true, colProps: { size: { xs: 12, md: 4 } } },
     ),
     t.select(
       'status',
@@ -35,29 +41,42 @@ export const entityFormUI = defineForm<typeof EntityFormSchema>((t) => [
         { label: 'Inactive', value: EntityStatus.INACTIVE },
         { label: 'Blacklisted', value: EntityStatus.BLACKLISTED },
       ],
-      { label: 'Status' },
+      { label: 'Status', colProps: { size: { xs: 12, md: 4 } } },
     ),
   ]),
 
   t.section('Contact Information', [
-    t.text('email', { label: 'Primary Email' }),
-    t.text('phone', { label: 'Primary Phone' }),
-    t.text('address', { label: 'Full Address', multiline: true }),
+    t.text('email', { label: 'Primary Email', colProps: { size: { xs: 12, md: 4 } } }),
+    t.text('phone', { label: 'Primary Phone', colProps: { size: { xs: 12, md: 4 } } }),
+    t.text('address', {
+      label: 'Full Address',
+      multiline: true,
+      colProps: { size: { xs: 12, md: 4 } },
+    }),
   ]),
 
   t.section('Classification', [
-    t.taxonomy('tags', 'vendor_tags', { label: 'Tags', multiple: true }),
-    t.taxonomy('details.category' as any, 'entity_categories', { label: 'Category' }),
+    t.taxonomy('tags', 'vendor_tags', {
+      label: 'Tags',
+      multiple: true,
+      colProps: { size: { xs: 12, md: 6 } },
+    }),
+    t.taxonomy('details.category' as any, 'entity_categories', {
+      label: 'Category',
+      colProps: { size: { xs: 12, md: 6 } },
+    }),
   ]),
 
   t.section('Offerings', [
     t.taxonomy('details.productsOffered' as any, 'product_types', {
       label: 'Products',
       multiple: true,
+      colProps: { size: { xs: 12, md: 6 } },
     }),
     t.taxonomy('details.servicesOffered' as any, 'service_types', {
       label: 'Services',
       multiple: true,
+      colProps: { size: { xs: 12, md: 6 } },
     }),
   ]),
 

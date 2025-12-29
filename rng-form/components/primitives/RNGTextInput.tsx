@@ -1,41 +1,35 @@
 'use client';
-
+import { FieldWrapper } from '@/rng-form/components/FieldWrapper';
+import { FormSchema, InputItem } from '@/rng-form/types';
 import { TextField } from '@mui/material';
-import React from 'react';
-import { useController, useFormContext } from 'react-hook-form';
-import { InputItem } from '../../types';
 
-interface RNGTextInputProps {
-  item: InputItem<any>;
+interface RNGTextInputProps<S extends FormSchema> {
+  item: InputItem<S> & { type: 'text' | 'email' | 'password' | 'url' | 'tel' };
+  pathPrefix?: string;
 }
 
-export const RNGTextInput: React.FC<RNGTextInputProps> = ({ item }) => {
-  const { control } = useFormContext();
-  const {
-    field,
-    fieldState: { error },
-  } = useController({
-    name: item.name!,
-    control,
-    rules: { required: item.required ? 'This field is required' : false },
-  });
-
+export function RNGTextInput<S extends FormSchema>({ item, pathPrefix }: RNGTextInputProps<S>) {
   return (
-    <TextField
-      {...field}
-      // 🚫 REMOVED: label={item.label}
-      // ✅ ADDED: hiddenLabel (Prevents MUI layout shift for missing label)
-      hiddenLabel
-      id={item.id}
-      placeholder={item.placeholder}
-      error={!!error}
-      // HelperText is handled by FieldWrapper, but we can keep error highlight here
-      fullWidth
-      variant="outlined"
-      type={item.type === 'password' ? 'password' : 'text'}
-      rows={(item as any).rows || 1}
-      disabled={item.disabled}
-      size="small" // Preferred for ERPs
-    />
+    <FieldWrapper item={item} name={item.name} pathPrefix={pathPrefix}>
+      {(field, fieldState, mergedItem) => {
+        // 🛡️ Safe access for helperText
+        const helperText = 'helperText' in mergedItem ? (mergedItem as any).helperText : undefined;
+
+        return (
+          <TextField
+            {...field}
+            // label={mergedItem.label}
+            // hiddenLabel
+            placeholder={mergedItem.placeholder}
+            type={mergedItem.type}
+            error={!!fieldState.error}
+            disabled={mergedItem.disabled}
+            fullWidth
+            variant="outlined"
+            helperText={fieldState.error ? fieldState.error.message : helperText}
+          />
+        );
+      }}
+    </FieldWrapper>
   );
-};
+}

@@ -15,18 +15,18 @@ import {
 } from '@mui/material';
 import { useFieldArray, useFormContext } from 'react-hook-form';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 interface RNGArrayFieldProps<S extends FormSchema> {
   item: LayoutItem<S> & { type: 'array' };
   pathPrefix?: string;
 }
 
-export function RNGArrayField<S extends FormSchema>({ item }: RNGArrayFieldProps<S>) {
+export function RNGArrayField<S extends FormSchema>({ item, pathPrefix }: RNGArrayFieldProps<S>) {
   const { control } = useFormContext();
 
   return (
-    <FieldWrapper item={item} name={item.name}>
+    // 🛡️ Fix: Cast item to 'any' to satisfy FieldWrapper's strict InputItem type.
+    // ArrayItem has 'label', 'name', 'required', etc., so it is runtime compatible.
+    <FieldWrapper item={item as any} name={item.name} pathPrefix={pathPrefix}>
       {() => <ArrayFieldContent item={item} control={control} />}
     </FieldWrapper>
   );
@@ -41,7 +41,7 @@ function ArrayFieldContent({
 }) {
   const { fields, append, remove } = useFieldArray({
     control,
-    name: item.name as string,
+    name: item.name as string, // This name is already scoped by RenderItem
   });
 
   return (
@@ -67,9 +67,10 @@ function ArrayFieldContent({
             sx={{ pb: 0 }}
           />
           <CardContent>
-            {/* Pass pathPrefix correctly. 
-                     FormBuilder creates its own Grid container, which sits nicely inside CardContent.
-                 */}
+            {/* ✅ Recursion Magic: 
+               We pass the new pathPrefix so children register as:
+               "parentArray.0.childField" 
+            */}
             <FormBuilder uiSchema={item.items} pathPrefix={`${item.name}.${index}`} />
           </CardContent>
         </Card>

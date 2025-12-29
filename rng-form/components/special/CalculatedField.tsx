@@ -7,16 +7,19 @@ import { useEffect } from 'react';
 import { useFormContext, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 interface RNGCalculatedFieldProps<S extends FormSchema> {
   item: InputItem<S> & { type: 'calculated' };
+  pathPrefix?: string; // ✅ Added support for scoped paths
 }
 
-export function RNGCalculatedField<S extends FormSchema>({ item }: RNGCalculatedFieldProps<S>) {
+export function RNGCalculatedField<S extends FormSchema>({
+  item,
+  pathPrefix,
+}: RNGCalculatedFieldProps<S>) {
   const { control, setValue, getValues } = useFormContext();
   const hasDependencies = item.dependencies && item.dependencies.length > 0;
 
+  // Watch dependencies to trigger re-calculation
   const triggerValues = useWatch({
     control,
     name: hasDependencies ? (item.dependencies as any) : undefined,
@@ -29,7 +32,7 @@ export function RNGCalculatedField<S extends FormSchema>({ item }: RNGCalculated
     try {
       result = item.calculate(currentValues);
     } catch (e) {
-      // ignore calc errors
+      // ignore calc errors silently
     }
 
     const currentFieldValue = getValues(item.name as any);
@@ -43,11 +46,15 @@ export function RNGCalculatedField<S extends FormSchema>({ item }: RNGCalculated
   }, [triggerValues, item, setValue, getValues]);
 
   return (
-    <FieldWrapper item={item} name={item.name}>
+    <FieldWrapper item={item} name={item.name} pathPrefix={pathPrefix}>
       {(field, _, mergedItem) => {
+        // 🛡️ Safe check for 'formatOptions'
+        const formatOptions =
+          'formatOptions' in mergedItem ? (mergedItem as any).formatOptions : undefined;
+
         // Format the display value (e.g., "500 sqft")
-        const displayValue = mergedItem.formatOptions
-          ? formatNumber(field.value, mergedItem.formatOptions)
+        const displayValue = formatOptions
+          ? formatNumber(field.value, formatOptions)
           : (field.value ?? '');
 
         return (

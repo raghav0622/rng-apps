@@ -1,15 +1,11 @@
 'use client';
 import { RNGForm } from '@/rng-form';
-import { Typography } from '@mui/material';
+import { RNGPage } from '@/ui/layouts/RNGPage';
 import z from 'zod';
 
 export default function DashboardPage() {
   return (
-    <>
-      <Typography variant="h4" fontWeight="bold">
-        Dashboard
-      </Typography>
-      <Typography color="text.secondary">Welcome to your organization overview.</Typography>
+    <RNGPage title="Dashboard" description="Welcome to your organization overview.">
       <RNGForm
         schema={z.object({
           test: z.string(),
@@ -17,14 +13,15 @@ export default function DashboardPage() {
         uiSchema={[
           {
             name: 'test',
-            type: 'taxonomy',
-            scope: 'yolo',
+            label: 'yolo',
+            type: 'autocomplete',
+            options: ['test', 'test2'],
           },
         ]}
         onSubmit={(data) => {
           console.log(data);
         }}
       />
-    </>
+    </RNGPage>
   );
 }

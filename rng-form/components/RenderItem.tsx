@@ -2,7 +2,6 @@
 import { logError } from '@/lib/logger';
 import { useFormContext } from 'react-hook-form';
 import { FormItem, FormSchema } from '../types';
-import { FieldWrapper } from './FieldWrapper'; // ✅ Import Wrapper
 import { INPUT_REGISTRY, LAYOUT_REGISTRY } from './registry';
 
 interface RenderItemProps<S extends FormSchema> {
@@ -42,14 +41,9 @@ export function RenderItem<S extends FormSchema>({ item, pathPrefix }: RenderIte
 
   if (InputComponent) {
     return (
-      <FieldWrapper item={scopedItem as any} name={scopedName as string}>
-        {(fieldProps) => (
-          // We pass 'item' down so the component has access to specific props (options, etc.)
-          // fieldProps might contain { name, value, onChange } if FieldWrapper enhanced them,
-          // but currently FieldWrapper mainly renders UI around the child.
-          <InputComponent item={scopedItem as any} pathPrefix={pathPrefix} {...fieldProps} />
-        )}
-      </FieldWrapper>
+      <>
+        <InputComponent item={scopedItem as any} pathPrefix={pathPrefix} />
+      </>
     );
   }
 

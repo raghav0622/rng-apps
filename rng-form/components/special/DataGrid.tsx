@@ -1,7 +1,7 @@
 'use client';
 import { FieldWrapper } from '@/rng-form/components/FieldWrapper';
 import { RenderItem } from '@/rng-form/components/RenderItem';
-import { useFieldLogic } from '@/rng-form/hooks/useFieldLogic'; // Import the hook
+import { useFieldLogic } from '@/rng-form/hooks/useFieldLogic';
 import { FormItem, FormSchema, LayoutItem } from '@/rng-form/types';
 import { Add, Delete } from '@mui/icons-material';
 import {
@@ -18,18 +18,18 @@ import {
 } from '@mui/material';
 import { useFieldArray, useFormContext } from 'react-hook-form';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 interface RNGDataGridProps<S extends FormSchema> {
   item: LayoutItem<S> & { type: 'data-grid' };
   pathPrefix?: string;
 }
 
-export function RNGDataGrid<S extends FormSchema>({ item }: RNGDataGridProps<S>) {
+export function RNGDataGrid<S extends FormSchema>({ item, pathPrefix }: RNGDataGridProps<S>) {
   const { control } = useFormContext();
 
   return (
-    <FieldWrapper item={item} name={item.name}>
+    // 🛡️ Fix: Cast item to 'any' to satisfy FieldWrapper's strict InputItem type.
+    // DataGridItem works fine with FieldWrapper at runtime.
+    <FieldWrapper item={item as any} name={item.name} pathPrefix={pathPrefix}>
       {() => <DataGridContent item={item} control={control} />}
     </FieldWrapper>
   );
@@ -46,12 +46,12 @@ function DataGridCell<S extends FormSchema>({
   // 1. Run Logic Hook
   const { isVisible, mergedItem } = useFieldLogic(item, pathPrefix);
 
-  // 2. Handle Visibility (Optional: usually keep cells for layout stability, but render empty if hidden)
+  // 2. Handle Visibility
   if (!isVisible) {
     return <Box sx={{ minWidth: 120, height: 40, bgcolor: 'action.hover' }} />;
   }
 
-  // 3. Render with Merged Props (enables disabled logic, dynamic labels, etc.)
+  // 3. Render with Merged Props
   return (
     <Box sx={{ '& .MuiFormControl-root': { mb: 0 }, minWidth: 120 }}>
       <RenderItem item={mergedItem} pathPrefix={pathPrefix} />

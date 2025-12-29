@@ -1,6 +1,7 @@
 'use client';
 
-import { Box, Container, ContainerProps, Stack, Typography } from '@mui/material';
+import { Box, Breadcrumbs, Container, ContainerProps, Stack, Typography } from '@mui/material';
+import Link from 'next/link';
 import { ReactNode } from 'react';
 
 type RNGPageProps = {
@@ -8,11 +9,50 @@ type RNGPageProps = {
   description?: string;
   actions?: ReactNode;
   children: ReactNode;
+  // ✅ New Prop
+  breadcrumbs?: { label: string; href: string }[];
 } & ContainerProps;
 
-export function RNGPage({ title, description, actions, children, ...rest }: RNGPageProps) {
+export function RNGPage({
+  title,
+  description,
+  actions,
+  children,
+  breadcrumbs,
+  ...rest
+}: RNGPageProps) {
   return (
-    <Container {...rest}>
+    <Container {...rest} maxWidth={rest.maxWidth || 'xl'}>
+      {/* ✅ Breadcrumbs Rendering */}
+      {breadcrumbs && (
+        <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 2 }}>
+          {breadcrumbs.map((crumb, index) => {
+            const isLast = index === breadcrumbs.length - 1;
+
+            return isLast ? (
+              <Typography key={crumb.href} color="text.primary" variant="body2" fontWeight={600}>
+                {crumb.label}
+              </Typography>
+            ) : (
+              <Link
+                key={crumb.href}
+                href={crumb.href}
+                style={{ textDecoration: 'none', color: 'inherit' }}
+              >
+                <Typography
+                  color="text.secondary"
+                  variant="body2"
+                  sx={{ '&:hover': { textDecoration: 'underline' } }}
+                >
+                  {crumb.label}
+                </Typography>
+              </Link>
+            );
+          })}
+        </Breadcrumbs>
+      )}
+
+      {/* Header Section */}
       <Box
         sx={{
           mb: 4,
@@ -34,6 +74,8 @@ export function RNGPage({ title, description, actions, children, ...rest }: RNGP
         </Box>
         {actions && <Box>{actions}</Box>}
       </Box>
+
+      {/* Content */}
       <Stack gap={2}>{children}</Stack>
     </Container>
   );

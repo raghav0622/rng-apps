@@ -6,15 +6,19 @@ import React, { useRef } from 'react';
 
 interface RNGSignatureProps<S extends FormSchema> {
   item: InputItem<S> & { type: 'signature' };
+  pathPrefix?: string; // ✅ Added support for scoped paths
 }
 
-export function RNGSignature<S extends FormSchema>({ item }: RNGSignatureProps<S>) {
+export function RNGSignature<S extends FormSchema>({ item, pathPrefix }: RNGSignatureProps<S>) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isDrawing = useRef(false);
 
   return (
-    <FieldWrapper item={item} name={item.name}>
+    <FieldWrapper item={item} name={item.name} pathPrefix={pathPrefix}>
       {(field, _, mergedItem) => {
+        // 🛡️ Safe check for 'height' property
+        const height = 'height' in mergedItem ? (mergedItem as any).height : 150;
+
         const startDrawing = (e: React.MouseEvent) => {
           if (mergedItem.disabled) return;
           isDrawing.current = true;
@@ -60,7 +64,7 @@ export function RNGSignature<S extends FormSchema>({ item }: RNGSignatureProps<S
             <canvas
               ref={canvasRef}
               width={500}
-              height={mergedItem.height || 150}
+              height={height}
               style={{
                 display: 'block',
                 background: '#fff',

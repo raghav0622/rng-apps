@@ -71,9 +71,12 @@ export function RNGAsyncAutocomplete<S extends FormSchema>({
   return (
     <FieldWrapper item={item} name={item.name} pathPrefix={pathPrefix}>
       {(field, fieldState, mergedItem) => {
-        let value = field.value === undefined ? (mergedItem.multiple ? [] : null) : field.value;
+        // 🛡️ Safe check for 'multiple' property to satisfy TypeScript
+        const isMultiple = 'multiple' in mergedItem ? (mergedItem as any).multiple : false;
 
-        if (value && !mergedItem.multiple && typeof value !== 'object') {
+        let value = field.value === undefined ? (isMultiple ? [] : null) : field.value;
+
+        if (value && !isMultiple && typeof value !== 'object') {
           const found = options.find((opt) => getOptionValue(opt) === value);
           if (found) value = found;
         }
@@ -89,7 +92,7 @@ export function RNGAsyncAutocomplete<S extends FormSchema>({
             onClose={() => setOpen(false)}
             inputValue={inputValue}
             onInputChange={(_, newInputValue) => setInputValue(newInputValue)}
-            multiple={mergedItem.multiple}
+            multiple={isMultiple}
             options={options}
             loading={loading}
             disabled={mergedItem.disabled}

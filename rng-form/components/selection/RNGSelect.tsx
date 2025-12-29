@@ -1,69 +1,67 @@
 'use client';
 
+import { FieldWrapper } from '@/rng-form/components/FieldWrapper';
+import { FormSchema, InputItem } from '@/rng-form/types';
+import { getOptionLabel, getOptionValue } from '@/rng-form/utils/selection'; // Adjusted path to alias if needed, or keep relative
 import { FormControl, MenuItem, Select } from '@mui/material';
-import React from 'react';
-import { useController, useFormContext } from 'react-hook-form';
-import { InputItem } from '../../types';
-import { getOptionLabel, getOptionValue } from '../../utils/selection';
 
-interface RNGSelectProps {
-  item: InputItem<any> & {
+interface RNGSelectProps<S extends FormSchema> {
+  item: InputItem<S> & {
+    type: 'select'; // Explicit type narrowing
     options?: any[];
     getOptionLabel?: (opt: any) => string;
     getOptionValue?: (opt: any) => string | number;
   };
+  pathPrefix?: string; // ✅ Added support for scoped paths
 }
 
-export const RNGSelect: React.FC<RNGSelectProps> = ({ item }) => {
-  const { control } = useFormContext();
-  const {
-    field,
-    fieldState: { error },
-  } = useController({
-    name: item.name!,
-    control,
-    rules: { required: item.required ? 'This field is required' : false },
-  });
-
+export function RNGSelect<S extends FormSchema>({ item, pathPrefix }: RNGSelectProps<S>) {
+  // Use options from item, default to empty array
   const options = item.options || [];
 
   return (
-    <FormControl fullWidth error={!!error} size="small" disabled={item.disabled}>
-      <Select
-        {...field}
-        displayEmpty
-        // 1. Render Value (The "Closed" View)
-        renderValue={(selected) => {
-          if (selected === '' || selected === null || selected === undefined) {
-            return (
-              <em style={{ color: '#aaa', fontStyle: 'normal' }}>
-                {item.placeholder || 'Select...'}
-              </em>
-            );
-          }
+    <FieldWrapper item={item} name={item.name} pathPrefix={pathPrefix}>
+      {(field, fieldState, mergedItem) => (
+        <FormControl fullWidth error={!!fieldState.error} disabled={mergedItem.disabled}>
+          <Select
+            {...field} // passes value, onChange, onBlur, ref
+            displayEmpty
+            // 1. Render Value (The "Closed" View)
+            renderValue={(selected) => {
+              if (selected === '' || selected === null || selected === undefined) {
+                return (
+                  <em style={{ color: '#aaa', fontStyle: 'normal' }}>
+                    {mergedItem.placeholder || 'Select...'}
+                  </em>
+                );
+              }
 
-          // Find the full option object corresponding to this selected ID
-          const selectedOption = options.find((opt) => getOptionValue(opt, item) === selected);
+              // Find the full option object corresponding to this selected ID
+              const selectedOption = options.find(
+                (opt) => getOptionValue(opt, mergedItem) === selected,
+              );
 
-          return selectedOption ? getOptionLabel(selectedOption, item) : selected; // Fallback if option missing (e.g. async loading)
-        }}
-      >
-        <MenuItem disabled value="">
-          <em>{item.placeholder || 'Select...'}</em>
-        </MenuItem>
-
-        {/* 2. Render Options (The Dropdown List) */}
-        {options.map((option, index) => {
-          const val = getOptionValue(option, item);
-          const label = getOptionLabel(option, item);
-
-          return (
-            <MenuItem key={`${val}-${index}`} value={val}>
-              {label}
+              return selectedOption ? getOptionLabel(selectedOption, mergedItem) : selected; // Fallback
+            }}
+          >
+            <MenuItem disabled value="">
+              <em>{mergedItem.placeholder || 'Select...'}</em>
             </MenuItem>
-          );
-        })}
-      </Select>
-    </FormControl>
+
+            {/* 2. Render Options (The Dropdown List) */}
+            {options.map((option, index) => {
+              const val = getOptionValue(option, mergedItem);
+              const label = getOptionLabel(option, mergedItem);
+
+              return (
+                <MenuItem key={`${val}-${index}`} value={val}>
+                  {label}
+                </MenuItem>
+              );
+            })}
+          </Select>
+        </FormControl>
+      )}
+    </FieldWrapper>
   );
-};
+}

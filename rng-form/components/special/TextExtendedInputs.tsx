@@ -5,8 +5,6 @@ import { Stack, TextField } from '@mui/material';
 import React from 'react';
 import { IMaskInput } from 'react-imask';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 // --- MASKED INPUT ---
 const TextMaskCustom = React.forwardRef<HTMLElement, any>(function TextMaskCustom(props, ref) {
   const { onChange, mask, definitions, ...other } = props;
@@ -24,29 +22,37 @@ const TextMaskCustom = React.forwardRef<HTMLElement, any>(function TextMaskCusto
 
 interface RNGMaskedInputProps<S extends FormSchema> {
   item: InputItem<S> & { type: 'masked-text' };
+  pathPrefix?: string; // ✅ Added support for scoped paths
 }
 
-export function RNGMaskedInput<S extends FormSchema>({ item }: RNGMaskedInputProps<S>) {
+export function RNGMaskedInput<S extends FormSchema>({ item, pathPrefix }: RNGMaskedInputProps<S>) {
   return (
-    <FieldWrapper item={item} name={item.name}>
-      {(field, fieldState, mergedItem) => (
-        <TextField
-          {...field}
-          value={field.value ?? ''}
-          fullWidth
-          error={!!fieldState.error}
-          placeholder={mergedItem.placeholder}
-          slotProps={{
-            input: {
-              inputComponent: TextMaskCustom as any,
-              inputProps: {
-                mask: mergedItem.mask,
-                definitions: mergedItem.definitions,
+    <FieldWrapper item={item} name={item.name} pathPrefix={pathPrefix}>
+      {(field, fieldState, mergedItem) => {
+        // 🛡️ Safe property access
+        const mask = 'mask' in mergedItem ? (mergedItem as any).mask : '';
+        const definitions =
+          'definitions' in mergedItem ? (mergedItem as any).definitions : undefined;
+
+        return (
+          <TextField
+            {...field}
+            value={field.value ?? ''}
+            fullWidth
+            error={!!fieldState.error}
+            placeholder={mergedItem.placeholder}
+            slotProps={{
+              input: {
+                inputComponent: TextMaskCustom as any,
+                inputProps: {
+                  mask: mask,
+                  definitions: definitions,
+                },
               },
-            },
-          }}
-        />
-      )}
+            }}
+          />
+        );
+      }}
     </FieldWrapper>
   );
 }
@@ -54,13 +60,15 @@ export function RNGMaskedInput<S extends FormSchema>({ item }: RNGMaskedInputPro
 // --- OTP INPUT ---
 interface RNGOtpInputProps<S extends FormSchema> {
   item: InputItem<S> & { type: 'otp' };
+  pathPrefix?: string; // ✅ Added support for scoped paths
 }
 
-export function RNGOtpInput<S extends FormSchema>({ item }: RNGOtpInputProps<S>) {
-  const length = item.length || 6;
+export function RNGOtpInput<S extends FormSchema>({ item, pathPrefix }: RNGOtpInputProps<S>) {
+  // Safe default length
+  const length = (item as any).length || 6;
 
   return (
-    <FieldWrapper item={item} name={item.name}>
+    <FieldWrapper item={item} name={item.name} pathPrefix={pathPrefix}>
       {(field) => {
         const handleChange = (index: number, val: string) => {
           if (!/^\d*$/.test(val)) return;

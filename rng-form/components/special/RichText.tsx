@@ -12,8 +12,6 @@ import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useEffect } from 'react';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
 function TiptapToolbar({ editor }: { editor: any }) {
   if (!editor) return null;
 
@@ -58,12 +56,16 @@ function TiptapToolbar({ editor }: { editor: any }) {
 
 interface RNGRichTextProps<S extends FormSchema> {
   item: InputItem<S> & { type: 'rich-text' };
+  pathPrefix?: string; // ✅ Added support for scoped paths
 }
 
-export function RNGRichText<S extends FormSchema>({ item }: RNGRichTextProps<S>) {
+export function RNGRichText<S extends FormSchema>({ item, pathPrefix }: RNGRichTextProps<S>) {
   return (
-    <FieldWrapper item={item} name={item.name}>
+    <FieldWrapper item={item} name={item.name} pathPrefix={pathPrefix}>
       {(field, fieldState, mergedItem) => {
+        // 🛡️ Safe check for 'minHeight' property
+        const minHeight = 'minHeight' in mergedItem ? (mergedItem as any).minHeight : 150;
+
         // eslint-disable-next-line react-hooks/rules-of-hooks
         const editor = useEditor({
           extensions: [StarterKit],
@@ -76,7 +78,7 @@ export function RNGRichText<S extends FormSchema>({ item }: RNGRichTextProps<S>)
           editorProps: {
             attributes: {
               class: 'prose prose-sm sm:prose lg:prose-lg xl:prose-2xl mx-auto focus:outline-none',
-              style: `min-height: ${mergedItem.minHeight || 150}px; padding: 16px;`,
+              style: `min-height: ${minHeight}px; padding: 16px;`,
             },
           },
           immediatelyRender: false,

@@ -3,8 +3,8 @@
 import { useRNGAuth } from '@/core/auth/auth.context';
 import { useOrg } from '@/core/organization/organization.context';
 import { isAuthRoute } from '@/routes';
-import Logo from '@/ui/Logo';
-import DarkModeToggle from '@/ui/ThemeSwitch';
+import Logo from '@/rng-ui/Logo';
+import DarkModeToggle from '@/rng-ui/ThemeSwitch';
 import { Dashboard, Menu as MenuIcon } from '@mui/icons-material';
 import { AppBar, Box, IconButton, Stack, Toolbar, Tooltip, Typography } from '@mui/material';
 import dynamic from 'next/dynamic';

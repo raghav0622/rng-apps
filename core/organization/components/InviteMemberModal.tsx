@@ -6,7 +6,7 @@ import { SendInviteSchema } from '@/core/organization/organization.model';
 import { useRNGServerAction } from '@/core/safe-action/use-rng-action';
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { defineForm } from '@/rng-form/dsl';
-import { AppModal } from '@/ui/AppModal';
+import { AppModal } from '@/rng-ui/AppModal';
 import AddIcon from '@mui/icons-material/Add';
 import { Button } from '@mui/material';
 

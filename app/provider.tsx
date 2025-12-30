@@ -1,6 +1,6 @@
 'use client';
 import { LayoutProvider } from '@/app/(protected)/LayoutContext';
-import theme from '@/ui/theme';
+import theme from '@/rng-ui/theme';
 import { Close as CloseIcon } from '@mui/icons-material';
 import { Box, CssBaseline, IconButton, ThemeProvider, Toolbar } from '@mui/material';
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';

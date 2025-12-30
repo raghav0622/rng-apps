@@ -1,18 +1,20 @@
 'use client';
 
 import { EntityFormSchema, entityFormUI } from '@/app-features/entities/entity.form';
-import { Entity, EntityInput } from '@/app-features/entities/entity.model';
+import { Entity } from '@/app-features/entities/entity.model';
 import { RNGForm } from '@/rng-form/components/RNGForm';
 import { Box, Paper, Typography } from '@mui/material';
+import { z } from 'zod';
+
+type EntityFormData = z.infer<typeof EntityFormSchema>;
 
 interface EntityFormProps {
   defaultValues?: Partial<Entity>;
-  onSubmit: (data: EntityInput) => Promise<void>;
-  isLoading?: boolean;
+  onSubmit: (data: EntityFormData) => Promise<void>;
   isEdit?: boolean;
 }
 
-export function EntityForm({ defaultValues, onSubmit, isLoading, isEdit }: EntityFormProps) {
+export function EntityForm({ defaultValues, onSubmit, isEdit }: EntityFormProps) {
   return (
     <Paper sx={{ p: 4 }}>
       <Box sx={{ mb: 3, borderBottom: 1, borderColor: 'divider', pb: 2 }}>
@@ -30,9 +32,7 @@ export function EntityForm({ defaultValues, onSubmit, isLoading, isEdit }: Entit
         schema={EntityFormSchema}
         uiSchema={entityFormUI}
         defaultValues={defaultValues || {}}
-        onSubmit={async (data) => {
-          await onSubmit(data as EntityInput);
-        }}
+        onSubmit={onSubmit}
         submitLabel={isEdit ? 'Save Changes' : 'Create Entity'}
       />
     </Paper>

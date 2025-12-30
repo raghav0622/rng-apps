@@ -2,7 +2,7 @@
 
 import { createEntityAction } from '@/app-features/entities/entity.actions';
 import { useRngAction } from '@/core/safe-action/use-rng-action';
-import { RNGPage } from '@/ui/layouts/RNGPage';
+import { RNGPage } from '@/rng-ui/layouts/RNGPage';
 import { useRouter } from 'next/navigation';
 import { EntityForm } from '../_components/EntityForm';
 
@@ -26,7 +26,6 @@ export default function CreateEntityPage() {
         onSubmit={async (data) => {
           await execute(data);
         }}
-        isLoading={isExecuting}
       />
     </RNGPage>
   );

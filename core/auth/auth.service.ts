@@ -12,6 +12,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { SignUpInput, User } from './auth.model';
 import { SessionService } from './session.service';
 import { userRepository } from './user.repository';
+import { storageProvider } from '@/core/storage';
+import { ProfileUpdateInput } from './profile.actions';
 
 const GOOGLE_API_URL = 'https://identitytoolkit.googleapis.com/v1/accounts';
 const MAGIC_LINK_EXPIRY = 60 * 15; // 15 minutes
@@ -187,6 +189,136 @@ class AuthService extends AbstractService {
 
       return { type: 'success', sessionCookie, expiresIn, sessionId };
     });
+  }
+
+  /**
+   * Update user profile (display name and/or photo)
+   * - Automatically deletes old photo when uploading new one
+   * - Supports removing photo
+   */
+  async updateUserProfile(userId: string, input: ProfileUpdateInput): Promise<Result<User>> {
+    return this.handleOperation('auth.updateProfile', async () => {
+      // Get current user
+      const user = await userRepository.get(userId);
+      if (!user) {
+        throw new CustomError(AppErrorCode.NOT_FOUND, 'User not found.');
+      }
+
+      const updates: Partial<User> = {};
+      let newPhotoURL: string | undefined;
+
+      // Handle photo removal
+      if (input.removePhoto && user.photoURL) {
+        try {
+          // Extract path from URL and delete
+          const path = this.extractStoragePath(user.photoURL);
+          if (path) {
+            await storageProvider.delete(path);
+          }
+        } catch (error) {
+          console.error('Failed to delete old photo:', error);
+          // Continue even if deletion fails
+        }
+        updates.photoURL = undefined;
+        newPhotoURL = undefined;
+      }
+      // Handle photo upload
+      else if (input.photoFile) {
+        // Delete old photo if exists
+        if (user.photoURL) {
+          try {
+            const path = this.extractStoragePath(user.photoURL);
+            if (path) {
+              await storageProvider.delete(path);
+            }
+          } catch (error) {
+            console.error('Failed to delete old photo:', error);
+            // Continue with upload even if deletion fails
+          }
+        }
+
+        // Upload new photo
+        const extension = input.photoFile.name.split('.').pop() || 'jpg';
+        const storagePath = `users/${userId}/profile-photo.${extension}`;
+        
+        const uploadResult = await storageProvider.upload(
+          storagePath,
+          input.photoFile,
+          {
+            contentType: input.photoFile.type,
+            metadata: {
+              uploadedBy: userId,
+              uploadedAt: new Date().toISOString(),
+            },
+          }
+        );
+
+        if (!uploadResult.success) {
+          throw new CustomError(AppErrorCode.INTERNAL_ERROR, 'Failed to upload photo.');
+        }
+
+        newPhotoURL = uploadResult.url;
+        updates.photoURL = newPhotoURL;
+      }
+
+      // Handle display name update
+      if (input.displayName !== undefined) {
+        updates.displayName = input.displayName;
+      }
+
+      // Update Firestore
+      const updatedUser = await userRepository.update(userId, updates);
+
+      // Sync with Firebase Auth
+      try {
+        const authUpdates: any = {};
+        if (updates.displayName !== undefined) {
+          authUpdates.displayName = updates.displayName;
+        }
+        if (updates.photoURL !== undefined) {
+          authUpdates.photoURL = updates.photoURL || null;
+        }
+        
+        if (Object.keys(authUpdates).length > 0) {
+          await auth().updateUser(userId, authUpdates);
+        }
+      } catch (error) {
+        console.error('Failed to sync with Firebase Auth:', error);
+        // Rollback Firestore changes if Auth update fails
+        await userRepository.update(userId, {
+          displayName: user.displayName,
+          photoURL: user.photoURL,
+        });
+        throw new CustomError(AppErrorCode.INTERNAL_ERROR, 'Failed to update profile.');
+      }
+
+      return updatedUser;
+    });
+  }
+
+  /**
+   * Extract storage path from full URL
+   */
+  private extractStoragePath(url: string): string | null {
+    try {
+      // Handle Firebase Storage URLs
+      if (url.includes('firebasestorage.googleapis.com')) {
+        const urlObj = new URL(url);
+        const pathMatch = urlObj.pathname.match(/\/o\/(.+?)(\?|$)/);
+        if (pathMatch) {
+          return decodeURIComponent(pathMatch[1]);
+        }
+      }
+      // Handle custom storage URLs
+      const pathMatch = url.match(/\/storage\/(.+)$/);
+      if (pathMatch) {
+        return pathMatch[1];
+      }
+      return null;
+    } catch (error) {
+      console.error('Failed to extract storage path:', error);
+      return null;
+    }
   }
 }
 

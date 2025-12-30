@@ -21,6 +21,29 @@ class TaskService extends AbstractService {
     });
   }
 
+  async get(orgId: string, taskId: string): Promise<Result<Task>> {
+    return this.handleOperation('get-task', async () => {
+      return await getTaskRepository(orgId).get(taskId);
+    });
+  }
+
+  // Alias for getById to match action usage
+  async getById(orgId: string, taskId: string): Promise<Result<Task>> {
+    return this.get(orgId, taskId);
+  }
+
+  async update(orgId: string, taskId: string, data: Partial<Task>): Promise<Result<void>> {
+    return this.handleOperation('update-task', async () => {
+      await getTaskRepository(orgId).update(taskId, data);
+    });
+  }
+
+  async delete(orgId: string, taskId: string): Promise<Result<void>> {
+    return this.handleOperation('delete-task', async () => {
+      await getTaskRepository(orgId).forceDelete(taskId);
+    });
+  }
+
   async updateStatus(
     orgId: string,
     taskId: string,

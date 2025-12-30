@@ -27,6 +27,11 @@ class TaskService extends AbstractService {
     });
   }
 
+  // Alias for getById to match action usage
+  async getById(orgId: string, taskId: string): Promise<Result<Task>> {
+    return this.get(orgId, taskId);
+  }
+
   async update(orgId: string, taskId: string, data: Partial<Task>): Promise<Result<void>> {
     return this.handleOperation('update-task', async () => {
       await getTaskRepository(orgId).update(taskId, data);

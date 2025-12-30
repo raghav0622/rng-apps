@@ -12,7 +12,7 @@ export const createTaskAction = orgActionClient
   .schema(
     TaskSchema.omit({ id: true, orgId: true, createdAt: true, updatedAt: true, deletedAt: true }),
   )
-  .action(async ({ parsedInput, ctx }) => {
+  .action(async ({ parsedInput, ctx }: { parsedInput: any; ctx: any }) => {
     return await taskService.create(ctx.orgId, parsedInput);
   });
 
@@ -20,7 +20,7 @@ export const createTaskAction = orgActionClient
 export const getTasksAction = orgActionClient
   .metadata({ name: 'list-tasks' })
   .schema(z.object({}))
-  .action(async ({ ctx }) => {
+  .action(async ({ ctx }: { ctx: any }) => {
     return await taskService.list(ctx.orgId);
   });
 
@@ -28,7 +28,7 @@ export const getTasksAction = orgActionClient
 export const getTaskAction = orgActionClient
   .metadata({ name: 'get-task' })
   .schema(z.object({ id: z.string() }))
-  .action(async ({ parsedInput, ctx }) => {
+  .action(async ({ parsedInput, ctx }: { parsedInput: any; ctx: any }) => {
     return await taskService.get(ctx.orgId, parsedInput.id);
   });
 
@@ -47,7 +47,7 @@ export const updateTaskAction = orgActionClient
       }).partial(),
     }),
   )
-  .action(async ({ parsedInput, ctx }) => {
+  .action(async ({ parsedInput, ctx }: { parsedInput: any; ctx: any }) => {
     return await taskService.update(ctx.orgId, parsedInput.id, parsedInput.data);
   });
 
@@ -55,7 +55,7 @@ export const updateTaskAction = orgActionClient
 export const deleteTaskAction = orgActionClient
   .metadata({ name: 'delete-task' })
   .schema(z.object({ id: z.string() }))
-  .action(async ({ parsedInput, ctx }) => {
+  .action(async ({ parsedInput, ctx }: { parsedInput: any; ctx: any }) => {
     return await taskService.delete(ctx.orgId, parsedInput.id);
   });
 
@@ -63,7 +63,7 @@ export const deleteTaskAction = orgActionClient
 export const updateTaskStatusAction = orgActionClient
   .metadata({ name: 'update-task-status' })
   .schema(z.object({ taskId: z.string(), status: z.nativeEnum(TaskStatus) }))
-  .action(async ({ parsedInput, ctx }) => {
+  .action(async ({ parsedInput, ctx }: { parsedInput: any; ctx: any }) => {
     const isReviewer = [UserRoleInOrg.ADMIN, UserRoleInOrg.OWNER].includes(ctx.role);
     return await taskService.updateStatus(
       ctx.orgId,
@@ -78,6 +78,6 @@ export const updateTaskStatusAction = orgActionClient
 export const logTimeAction = orgActionClient
   .metadata({ name: 'log-task-time' })
   .schema(z.object({ taskId: z.string(), log: TimeLogSchema }))
-  .action(async ({ parsedInput, ctx }) => {
+  .action(async ({ parsedInput, ctx }: { parsedInput: any; ctx: any }) => {
     return await taskService.logTime(ctx.orgId, parsedInput.taskId, parsedInput.log);
   });

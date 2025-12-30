@@ -18,7 +18,7 @@ export const addTaskCommentAction = orgActionClient
       attachments: z.array(TaskAttachmentSchema).default([]),
     })
   )
-  .action(async ({ parsedInput, ctx }) => {
+  .action(async ({ parsedInput, ctx }: { parsedInput: any; ctx: any }) => {
     const { taskId, content, commentType, attachments } = parsedInput;
     const { orgId, userId, user } = ctx;
 
@@ -82,7 +82,7 @@ export const submitTaskForReviewAction = orgActionClient
       attachments: z.array(TaskAttachmentSchema).default([]),
     })
   )
-  .action(async ({ parsedInput, ctx }) => {
+  .action(async ({ parsedInput, ctx }: { parsedInput: any; ctx: any }) => {
     const { taskId, notes, attachments } = parsedInput;
     const { orgId, userId, user } = ctx;
 
@@ -163,7 +163,7 @@ export const reviewTaskSubmissionAction = orgActionClient
       reviewNotes: z.string().optional(),
     })
   )
-  .action(async ({ parsedInput, ctx }) => {
+  .action(async ({ parsedInput, ctx }: { parsedInput: any; ctx: any }) => {
     const { taskId, action, reviewNotes } = parsedInput;
     const { orgId, userId, user } = ctx;
 
@@ -215,7 +215,7 @@ export const reviewTaskSubmissionAction = orgActionClient
 
     // Update submissions array
     const submissions = task.submissions || [];
-    const updatedSubmissions = submissions.map((s) =>
+    const updatedSubmissions = submissions.map((s: any) =>
       s.id === updatedSubmission.id ? updatedSubmission : s
     );
 
@@ -266,7 +266,7 @@ export const markTaskAsDoneAction = orgActionClient
       taskId: z.string(),
     })
   )
-  .action(async ({ parsedInput, ctx }) => {
+  .action(async ({ parsedInput, ctx }: { parsedInput: any; ctx: any }) => {
     const { taskId } = parsedInput;
     const { orgId, user } = ctx;
 

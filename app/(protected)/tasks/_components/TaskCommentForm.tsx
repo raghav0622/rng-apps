@@ -5,7 +5,7 @@ import { Box, TextField, Button, CircularProgress, Alert, FormControl, InputLabe
 import { Send } from '@mui/icons-material';
 import { FileUploadZone } from './FileUploadZone';
 import { uploadMultipleFiles, createAttachmentsFromUploads } from '@/lib/utils/file-upload';
-import { useRngAction } from '@/core/org-action-client/hooks';
+import { useRngAction } from '@/core/safe-action/use-rng-action';
 import { addTaskCommentAction } from '@/app-features/tasks/task-comment.actions';
 import { TaskComment } from '@/app-features/tasks/task.model';
 

@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Box, Button, TextField, Typography, Paper, Alert, CircularProgress, ButtonGroup } from '@mui/material';
 import { CheckCircle, Cancel, RateReview, Check } from '@mui/icons-material';
-import { useRngAction } from '@/core/org-action-client/hooks';
+import { useRngAction } from '@/core/safe-action/use-rng-action';
 import { reviewTaskSubmissionAction, markTaskAsDoneAction } from '@/app-features/tasks/task-comment.actions';
 import { Task } from '@/app-features/tasks/task.model';
 import { FileAttachmentList } from './FileAttachmentList';

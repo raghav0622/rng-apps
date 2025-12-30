@@ -1,6 +1,6 @@
 'use client';
 
-import { Box, Typography, Avatar, Chip, Paper, Divider } from '@mui/material';
+import { Box, Typography, Avatar, Chip, Paper } from '@mui/material';
 import { TaskComment } from '@/app-features/tasks/task.model';
 import { FileAttachmentList } from './FileAttachmentList';
 import { formatDistanceToNow } from 'date-fns';

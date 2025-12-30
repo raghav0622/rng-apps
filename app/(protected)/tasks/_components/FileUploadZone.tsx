@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Box, Typography, IconButton, Chip, LinearProgress, Alert } from '@mui/material';
+import { Box, Typography, Chip, Alert } from '@mui/material';
 import { Upload, Close, InsertDriveFile, Image as ImageIcon } from '@mui/icons-material';
 import { validateFile, formatFileSize, isImageFile } from '@/lib/utils/file-upload';
 

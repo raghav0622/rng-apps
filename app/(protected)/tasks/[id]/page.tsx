@@ -3,7 +3,7 @@
 import { getTaskAction } from '@/app-features/tasks/task.actions';
 import { Task } from '@/app-features/tasks/task.model';
 import { useRngAction } from '@/core/safe-action/use-rng-action';
-import { useRNGAuth } from '@/core/auth/useRNGAuth';
+import { useRNGAuth } from '@/core/auth/auth.context';
 import { LoadingSpinner } from '@/rng-ui/LoadingSpinner';
 import { RNGPage } from '@/rng-ui/layouts/RNGPage';
 import { useParams, useRouter } from 'next/navigation';

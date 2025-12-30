@@ -1,8 +1,8 @@
 'use client';
 
-import { Button, ButtonGroup, Box } from '@mui/material';
-import { PlayArrow, Pause, CheckCircle } from '@mui/icons-material';
-import { useRngAction } from '@/core/org-action-client/hooks';
+import { Button, Box } from '@mui/material';
+import { PlayArrow, Pause } from '@mui/icons-material';
+import { useRngAction } from '@/core/safe-action/use-rng-action';
 import { updateTaskAction } from '@/app-features/tasks/task.actions';
 import { Task, TaskStatus } from '@/app-features/tasks/task.model';
 

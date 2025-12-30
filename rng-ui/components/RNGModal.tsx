@@ -2,7 +2,7 @@
 
 import { AppModal, AppModalProps } from '@/rng-ui/AppModal';
 import { Box, DialogActions, Typography } from '@mui/material';
-import { ReactElement, ReactNode, useState } from 'react';
+import { ReactNode, useState } from 'react';
 import { RNGButton } from './RNGButton';
 
 /**

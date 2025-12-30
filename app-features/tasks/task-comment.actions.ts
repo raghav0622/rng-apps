@@ -3,7 +3,7 @@
 import { orgActionClient } from '@/core/org-action-client';
 import { z } from 'zod';
 import { taskService } from './task.service';
-import { TaskCommentSchema, TaskAttachmentSchema } from './task.model';
+import { TaskAttachmentSchema } from './task.model';
 
 /**
  * Add a comment to a task

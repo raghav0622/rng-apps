@@ -1,6 +1,6 @@
 'use client';
 
-import { Box, Typography, IconButton, Chip, Link } from '@mui/material';
+import { Box, Typography, IconButton, Link } from '@mui/material';
 import {
   Download,
   InsertDriveFile,
